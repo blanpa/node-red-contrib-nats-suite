@@ -1137,129 +1137,44 @@ module.exports = function (RED) {
               node.log(`[NATS-SUITE PUBLISH] Input payload: ${msg.payload} (type: ${typeof msg.payload})`);
             }
             
-            // Check if user has manually selected a datatype override
-            const datatypeOverride = config.datatypeOverride || 'auto';
-            
-            if (datatypeOverride !== 'auto') {
-              // Manual datatype override with validation
-              message.datatype = parseInt(datatypeOverride, 10);
-              const actualType = typeof message.value;
-              const isArray = Array.isArray(message.value);
-              const isNull = message.value === null;
-              
-              // Validate datatype matches actual payload type
-              let expectedType = null;
-              let typeMismatch = false;
-              
-              switch (message.datatype) {
-                case 1: // Integer
-                  expectedType = 'integer';
-                  if (actualType !== 'number' || !Number.isInteger(message.value)) {
-                    typeMismatch = true;
-                  }
-                  break;
-                case 2: // Float
-                  expectedType = 'float';
-                  if (actualType !== 'number' || Number.isInteger(message.value)) {
-                    typeMismatch = true;
-                  }
-                  break;
-                case 3: // Boolean
-                  expectedType = 'boolean';
-                  if (actualType !== 'boolean') {
-                    typeMismatch = true;
-                  }
-                  break;
-                case 4: // String
-                  expectedType = 'string';
-                  if (actualType !== 'string') {
-                    typeMismatch = true;
-                  }
-                  break;
-                case 5: // Unix Timestamp
-                  expectedType = 'unix timestamp';
-                  if (actualType !== 'number' || message.value < 0 || message.value > Date.now() + 86400000) {
-                    typeMismatch = true;
-                  }
-                  break;
-                case 6: // Object
-                  expectedType = 'object';
-                  if (actualType !== 'object' || isArray || isNull) {
-                    typeMismatch = true;
-                  }
-                  break;
-              }
-              
-              // Throw error if type mismatch detected
-              if (typeMismatch) {
-                const actualTypeDesc = isNull ? 'null' : 
-                                       isArray ? 'array' : 
-                                       (actualType === 'number' && Number.isInteger(message.value)) ? 'integer' :
-                                       (actualType === 'number' && !Number.isInteger(message.value)) ? 'float' :
-                                       actualType;
+            // Automatic datatype detection
+            switch (typeof message.value) {
+              case 'string':
+                message.datatype = 4;
+                if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected string, datatype: 4`);
+                break;
+              case 'number':
+                // Check if it's a Unix timestamp (reasonable range)
+                const now = Date.now();
+                const oneDayAgo = now - 86400000; // 24 hours ago
+                const oneDayAhead = now + 86400000; // 24 hours ahead
                 
-                const cleanError = createError(
-                  `Datatype mismatch: Expected ${expectedType} (datatype: ${message.datatype}) but received ${actualTypeDesc}`,
-                  'DATATYPE_MISMATCH',
-                  {
-                    expectedDatatype: message.datatype,
-                    expectedType: expectedType,
-                    actualType: actualTypeDesc,
-                    payload: message.value
-                  }
-                );
-                node.error(cleanError, msg);
-                return;
-              }
-              
-              // Convert value to string for non-object types (NATS-SUITE spec requirement)
-              if (message.datatype !== 6) {
+                if (Number.isInteger(message.value) && 
+                    message.value >= oneDayAgo && 
+                    message.value <= oneDayAhead) {
+                  message.datatype = 5; // Unix Timestamp
+                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected Unix timestamp: ${message.value}, datatype: 5`);
+                } else if (Number.isInteger(message.value)) {
+                  message.datatype = 1; // Integer
+                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected integer: ${message.value}, datatype: 1`);
+                } else {
+                  message.datatype = 2; // Float
+                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected float: ${message.value}, datatype: 2`);
+                }
                 message.value = String(message.value);
-              }
-              
-              if (isDebug) {
-                node.log(`[NATS-SUITE PUBLISH] Manual datatype override: ${message.datatype} (validated)`);
-              }
-            } else {
-              // Automatic datatype detection (default behavior)
-              switch (typeof message.value) {
-                case 'string':
-                  message.datatype = 4;
-                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected string, datatype: 4`);
-                  break;
-                case 'number':
-                  // Check if it's a Unix timestamp (reasonable range)
-                  const now = Date.now();
-                  const oneDayAgo = now - 86400000; // 24 hours ago
-                  const oneDayAhead = now + 86400000; // 24 hours ahead
-                  
-                  if (Number.isInteger(message.value) && 
-                      message.value >= oneDayAgo && 
-                      message.value <= oneDayAhead) {
-                    message.datatype = 5; // Unix Timestamp
-                    if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected Unix timestamp: ${message.value}, datatype: 5`);
-                  } else if (Number.isInteger(message.value)) {
-                    message.datatype = 1; // Integer
-                    if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected integer: ${message.value}, datatype: 1`);
-                  } else {
-                    message.datatype = 2; // Float
-                    if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected float: ${message.value}, datatype: 2`);
-                  }
-                  message.value = String(message.value);
-                  break;
-                case 'boolean':
-                  message.datatype = 3;
-                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected boolean: ${message.value}, datatype: 3`);
-                  message.value = String(message.value);
-                  break;
-                case 'object':
-                  message.datatype = 6;
-                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected object, datatype: 6`);
-                  break;
-                default:
-                  if (isDebug) node.log(`[NATS-SUITE PUBLISH] Unknown type: ${typeof message.value}`);
-                  return;
-              }
+                break;
+              case 'boolean':
+                message.datatype = 3;
+                if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected boolean: ${message.value}, datatype: 3`);
+                message.value = String(message.value);
+                break;
+              case 'object':
+                message.datatype = 6;
+                if (isDebug) node.log(`[NATS-SUITE PUBLISH] Detected object, datatype: 6`);
+                break;
+              default:
+                if (isDebug) node.log(`[NATS-SUITE PUBLISH] Unknown type: ${typeof message.value}`);
+                return;
             }
 
             message.id = config.datapointid;
