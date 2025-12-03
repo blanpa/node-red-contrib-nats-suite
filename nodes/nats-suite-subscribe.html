@@ -16,10 +16,13 @@
       },
       datapointid: {
         value: '',
-        required: true,
+        required: false
       },
       topicfield: {
         value: 'subject',
+      },
+      subscriptionMode: {
+        value: 'static',
       },
     },
     inputs: 1,
@@ -30,6 +33,36 @@
       return this.name || 'nats suite subscribe';
     },
     paletteLabel: 'nats subscribe',
+    oneditprepare: function() {
+      // Show/hide NATS Subject field based on subscription mode
+      const subscriptionModeField = $('#node-input-subscriptionMode');
+      const subjectField = $('#nats-subject-row');
+      const datapointidField = $('#node-input-datapointid');
+      
+      function updateVisibility() {
+        const mode = subscriptionModeField.val();
+        if (mode === 'static') {
+          subjectField.show();
+        } else {
+          subjectField.hide();
+        }
+      }
+      
+      subscriptionModeField.on('change', updateVisibility);
+      updateVisibility(); // Set initial state
+    },
+    oneditsave: function() {
+      // Validate datapointid only in static mode
+      const mode = $('#node-input-subscriptionMode').val();
+      if (mode === 'static') {
+        const subject = $('#node-input-datapointid').val();
+        if (!subject || subject.trim().length === 0) {
+          RED.notify.error('NATS Subject is required in Static mode');
+          return false;
+        }
+      }
+      return true;
+    }
   });
 </script>
 
@@ -59,11 +92,20 @@
       </div>
   </div>
   <div class="form-row">
+      <label for="node-input-subscriptionMode"><i class="fa fa-exchange"></i> Subscription Mode</label>
+      <select id="node-input-subscriptionMode" style="width:70%">
+          <option value="static">Static (Use configured subject)</option>
+          <option value="dynamic">Dynamic (Change via msg.topic/msg.subject)</option>
+      </select>
+      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
+          Static: Subject from config only | Dynamic: Can be changed via input messages
+      </div>
+  </div>
+  <div class="form-row" id="nats-subject-row">
       <label for="node-input-datapointid"><i class="fa fa-exchange"></i> NATS Subject</label>
       <input type="text" id="node-input-datapointid" placeholder="e.g. sensor.temperature or app.events.>">
       <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Supports wildcards: * (single level), > (multi-level)<br>
-          Can be overridden via msg.topic or msg.subject (dynamic subscription)
+          Supports wildcards: * (single level), > (multi-level)
       </div>
   </div>
   <div class="form-row">
@@ -83,11 +125,12 @@
 <script type="text/x-red" data-help-name="nats-suite-subscribe">
   <p>Subscribes to messages from the nats-suite platform using NATS.</p>
 
-  <h3>Input (Dynamic Subscription)</h3>
-  <p>You can dynamically change the subscription subject and queue group via input messages:</p>
+  <h3>Input (Dynamic Subscription Mode Only)</h3>
+  <p><strong>Note:</strong> Input messages are only processed when <strong>Subscription Mode</strong> is set to <strong>Dynamic</strong>. In <strong>Static</strong> mode, input messages are ignored for subscription management.</p>
+  <p>When in dynamic mode, you can change the subscription subject and queue group via input messages:</p>
   <dl class="message-properties">
     <dt>msg.topic <span class="property-type">string</span></dt>
-    <dd>Dynamic NATS subject to subscribe to. Overrides the configured subject.</dd>
+    <dd>Dynamic NATS subject to subscribe to. Overrides the configured subject. Set to empty string to reset to base subject.</dd>
     
     <dt>msg.subject <span class="property-type">string</span></dt>
     <dd>Alternative property for dynamic NATS subject (same as msg.topic).</dd>
@@ -98,7 +141,6 @@
     <dt>msg.queue <span class="property-type">string</span></dt>
     <dd>Alternative property for queue group (same as msg.queueGroup).</dd>
   </dl>
-  <p><strong>Note:</strong> If no dynamic properties are provided, the node uses the configured subject from the node settings. This allows both static and dynamic subscription modes.</p>
 
   <h3>Outputs</h3>
   <dl class="message-properties">
@@ -257,6 +299,14 @@ msg.endTime = "2025-08-15T20:07:10.071Z"</code></pre>
         <li><strong>Datapoint ID:</strong> Use the datapoint ID (e.g., "f059f1c0-13bc-4011-a6d7-b49afaf36a2c")</li>
         <li><strong>Datapoint Name:</strong> Use the datapoint name (e.g., "Processed items")</li>
         <li><strong>Data Type:</strong> Use the data type as string (e.g., "1", "2", "3", "4", "5")</li>
+      </ul>
+    </dd>
+    
+    <dt>Subscription Mode</dt>
+    <dd>Choose how the subscription subject is determined:
+      <ul>
+        <li><strong>Static:</strong> Uses only the configured subject from node settings. Input messages are ignored for subscription changes. Recommended for most use cases.</li>
+        <li><strong>Dynamic:</strong> Allows changing the subscription subject via input messages (msg.topic or msg.subject). Useful for dynamic routing scenarios.</li>
       </ul>
     </dd>
   </dl>

@@ -236,7 +236,12 @@
   <div class="form-row">
       <label for="node-input-enableBuffer"><i class="fa fa-database"></i> Message Buffering</label>
       <input type="checkbox" id="node-input-enableBuffer" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Queue messages when disconnected</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Queue messages when disconnected<br>
+          Stores messages in buffer when NATS server is disconnected, publishes when reconnected
+      </div>
   </div>
   
   <div class="form-row" id="buffer-size-type-row" style="display: none;">
@@ -298,7 +303,12 @@
   <div class="form-row">
       <label for="node-input-enableBatch"><i class="fa fa-th-large"></i> Batch Publishing</label>
       <input type="checkbox" id="node-input-enableBatch" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Group messages and publish as batch</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Group messages and publish as batch<br>
+          Groups multiple messages together for more efficient publishing
+      </div>
   </div>
   
   <div class="form-row" id="batch-size-row" style="display: none;">
@@ -330,7 +340,12 @@
   <div class="form-row">
       <label for="node-input-enableAutoReply"><i class="fa fa-reply"></i> Auto-Reply Handler</label>
       <input type="checkbox" id="node-input-enableAutoReply" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Automatically handle request-reply pattern</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Automatically handle request-reply pattern<br>
+          Automatically responds to request messages with output payload
+      </div>
   </div>
   
   <div class="form-row" id="reply-timeout-row" style="display: none;">
@@ -347,7 +362,12 @@
   <div class="form-row">
       <label for="node-input-enableRateLimit"><i class="fa fa-tachometer"></i> Rate Limiting</label>
       <input type="checkbox" id="node-input-enableRateLimit" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Limit message throughput (protection against flooding)</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Limit message throughput (protection against flooding)<br>
+          Prevents message flooding by limiting messages per time window
+      </div>
   </div>
   
   <div class="form-row" id="rate-limit-config" style="display: none;">
@@ -388,7 +408,12 @@
   <div class="form-row">
       <label for="node-input-enableHeaders"><i class="fa fa-tags"></i> Message Headers</label>
       <input type="checkbox" id="node-input-enableHeaders" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Add NATS headers to messages</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Add NATS headers to messages<br>
+          Add custom headers to NATS messages (static headers in config, dynamic via msg.headers)
+      </div>
   </div>
   
   <div class="form-row" id="headers-config-row" style="display: none;">
@@ -404,7 +429,12 @@
   <div class="form-row">
       <label for="node-input-enableMsgExpiration"><i class="fa fa-clock-o"></i> Message Expiration</label>
       <input type="checkbox" id="node-input-enableMsgExpiration" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Set TTL for messages</span>
+  </div>
+  <div class="form-row" style="margin-top: 2px; margin-bottom: 8px;">
+      <div style="margin-left: 110px; color: #999; font-size: 11px;">
+          Set TTL for messages<br>
+          Set message expiration time (TTL). Messages expire if not consumed within the time limit
+      </div>
   </div>
   
   <div class="form-row" id="msg-expiration-row" style="display: none;">
@@ -435,7 +465,8 @@
       <label for="node-input-datapointid"><i class="fa fa-exchange"></i> NATS Subject</label>
       <input type="text" id="node-input-datapointid" placeholder="e.g. sensor.temperature or app.events.>">
       <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Supports wildcards: * (single level), > (multi-level) | Can be overridden via msg.topic
+          Supports wildcards: * (single level), > (multi-level)<br>
+          Can be overridden via msg.topic
       </div>
   </div>
 </script>

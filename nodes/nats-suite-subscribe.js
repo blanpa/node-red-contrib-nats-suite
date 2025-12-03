@@ -64,6 +64,9 @@ module.exports = function (RED) {
     
     // Parse mode
     const parseMode = config.dataformat || 'auto';
+    
+    // Subscription mode: static or dynamic
+    const subscriptionMode = config.subscriptionMode || 'static';
 
     // Add status listener to server config
     const statusListener = status => {
@@ -322,9 +325,20 @@ module.exports = function (RED) {
         const natsnc = await this.config.getConnection();
         
         // Determine subject to use
-        const targetSubject = newSubject || currentSubject || baseSubject;
+        // If newSubject is explicitly null, keep current; if undefined, use current/base
+        let targetSubject;
+        if (newSubject === null && subscriptionMode === 'dynamic') {
+          // In dynamic mode, null means "keep current"
+          targetSubject = currentSubject || baseSubject;
+        } else if (newSubject !== null && newSubject !== undefined) {
+          // Explicit new subject provided
+          targetSubject = newSubject;
+        } else {
+          // Use current or base
+          targetSubject = currentSubject || baseSubject;
+        }
         
-        if (!targetSubject) {
+        if (!targetSubject || targetSubject.trim() === '') {
           node.error('No subject specified. Please configure a NATS subject or provide msg.topic/msg.subject.');
           setStatusRed();
           return;
@@ -333,20 +347,29 @@ module.exports = function (RED) {
         // Determine queue group
         const targetQueueGroup = newQueueGroup !== null ? newQueueGroup : queueGroup;
         
-        // Cleanup old subscription if subject or queue group changed
-        if (subscription && (targetSubject !== currentSubject || targetQueueGroup !== queueGroup)) {
-          subscription.unsubscribe();
-          subscription = null;
-        }
+        // Only update if subject or queue group actually changed
+        const subjectChanged = targetSubject !== currentSubject;
+        const queueGroupChanged = targetQueueGroup !== queueGroup;
         
-        // Cleanup running iterator
-        if (subscriptionIterator) {
-          subscriptionIterator = null;
+        if (subjectChanged || queueGroupChanged) {
+          // Cleanup old subscription
+          if (subscription) {
+            subscription.unsubscribe();
+            subscription = null;
+          }
+          
+          // Cleanup running iterator
+          if (subscriptionIterator) {
+            subscriptionIterator = null;
+          }
+          
+          // Update current subject and queue group
+          currentSubject = targetSubject;
+          queueGroup = targetQueueGroup;
+        } else {
+          // No change needed, subscription already active
+          return;
         }
-        
-        // Update current subject and queue group
-        currentSubject = targetSubject;
-        queueGroup = targetQueueGroup;
         
         // New subscription with modern Async Iterator API
         if (targetQueueGroup) {
@@ -391,11 +414,18 @@ module.exports = function (RED) {
     // Input handler for dynamic subscription changes
     node.on('input', async (msg) => {
       try {
+        // Only process dynamic subscription changes if mode is set to dynamic
+        if (subscriptionMode !== 'dynamic') {
+          // In static mode, ignore input messages for subscription changes
+          // Input messages are not used for subscription management
+          return;
+        }
+        
         // Check for dynamic subject in msg properties
         const dynamicSubject = msg.topic || msg.subject || null;
         const dynamicQueueGroup = msg.queueGroup || msg.queue || null;
         
-        // Only update subscription if subject or queue group changed
+        // Only update subscription if subject or queue group is provided
         if (dynamicSubject || dynamicQueueGroup !== null) {
           try {
             const natsnc = await this.config.getConnection();
@@ -406,14 +436,27 @@ module.exports = function (RED) {
               return;
             }
             
-            // Update subscription
-            await setupSubscription(dynamicSubject, dynamicQueueGroup);
+            // Update subscription with new subject/queue group
+            // If dynamicSubject is null but dynamicQueueGroup is set, keep current subject
+            // If dynamicSubject is empty string, reset to base subject
+            const newSubject = dynamicSubject !== null ? (dynamicSubject || baseSubject) : null;
+            await setupSubscription(newSubject, dynamicQueueGroup);
           } catch (err) {
             node.warn(`Cannot update subscription: ${err.message}. Will retry when connected.`);
           }
+        } else {
+          // No dynamic properties provided - reset to base subject if in dynamic mode
+          if (currentSubject !== baseSubject) {
+            try {
+              const natsnc = await this.config.getConnection();
+              if (natsnc && !natsnc.isClosed()) {
+                await setupSubscription(baseSubject, null);
+              }
+            } catch (err) {
+              // Ignore errors during reset
+            }
+          }
         }
-        // If no dynamic properties, node continues with existing subscription
-        // This allows the node to work with static config only
         
       } catch (err) {
         const cleanError = {

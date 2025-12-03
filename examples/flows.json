@@ -32,6 +32,33 @@
         "debug": false
     },
     {
+        "id": "02aca3efc41bc952",
+        "type": "inject",
+        "z": "730548083f8fd69a",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 60,
+        "wires": [
+            []
+        ]
+    },
+    {
         "id": "inject-headers",
         "type": "inject",
         "z": "headers-example",
@@ -102,10 +129,11 @@
         "name": "Subscribe",
         "server": "f299d3b622714522",
         "dataformat": "auto",
-        "datapointid": "test.headers",
+        "datapointid": "",
         "topicfield": "subject",
-        "x": 130,
-        "y": 180,
+        "subscriptionMode": "dynamic",
+        "x": 360,
+        "y": 220,
         "wires": [
             [
                 "debug-headers"
@@ -123,8 +151,10 @@
         "tostatus": false,
         "complete": "true",
         "targetType": "full",
-        "x": 320,
-        "y": 180,
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 590,
+        "y": 220,
         "wires": []
     },
     {
@@ -136,5 +166,53 @@
         "x": 190,
         "y": 40,
         "wires": []
+    },
+    {
+        "id": "0629794872e46bf7",
+        "type": "inject",
+        "z": "headers-example",
+        "name": "",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "test.headers",
+        "x": 110,
+        "y": 220,
+        "wires": [
+            [
+                "subscribe-headers"
+            ]
+        ]
+    },
+    {
+        "id": "247cfc25a19c5524",
+        "type": "inject",
+        "z": "headers-example",
+        "name": "",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "test.headers2",
+        "x": 110,
+        "y": 260,
+        "wires": [
+            [
+                "subscribe-headers"
+            ]
+        ]
     }
 ]
