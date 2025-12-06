@@ -3,45 +3,18 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: {
-        value: '',
-      },
-      server: {
-        value: '',
-        type: 'nats-suite-server',
-        required: true
-      },
-      mode: {
-        value: 'discover',
-        required: true
-      },
-      serviceName: {
-        value: 'my-service'
-      },
-      serviceVersion: {
-        value: '1.0.0'
-      },
-      serviceDescription: {
-        value: ''
-      },
-      endpoint: {
-        value: 'process'
-      },
-      endpointSubject: {
-        value: ''
-      },
-      queueGroup: {
-        value: ''
-      },
-      metadata: {
-        value: ''
-      },
-      autoStart: {
-        value: true
-      },
-      debug: {
-        value: false
-      }
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server', required: true },
+      mode: { value: 'discover', required: true },
+      serviceName: { value: 'my-service' },
+      serviceVersion: { value: '1.0.0' },
+      serviceDescription: { value: '' },
+      endpoint: { value: 'process' },
+      endpointSubject: { value: '' },
+      queueGroup: { value: '' },
+      metadata: { value: '' },
+      autoStart: { value: true },
+      debug: { value: false }
     },
     inputs: 1,
     outputs: 1,
@@ -56,16 +29,25 @@
     },
     paletteLabel: 'nats service',
     oneditprepare: function() {
-      // Show/hide fields based on mode
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Mode handler
       $('#node-input-mode').on('change', function() {
         const mode = $(this).val();
-        
         if (mode === 'service') {
-          $('#service-config').show();
-          $('#discovery-config').hide();
+          $('#service-config').slideDown(200);
+          $('#discovery-config').slideUp(200);
         } else {
-          $('#service-config').hide();
-          $('#discovery-config').show();
+          $('#service-config').slideUp(200);
+          $('#discovery-config').slideDown(200);
         }
       });
       $('#node-input-mode').trigger('change');
@@ -74,215 +56,254 @@
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-service">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-mode"><i class="fa fa-cog"></i> Operation Mode</label>
-      <select id="node-input-mode" style="width:70%">
-          <option value="discover">Service Discovery</option>
-          <option value="stats">Service Stats</option>
-          <option value="ping">Ping Services</option>
-          <option value="service">Run Service</option>
-      </select>
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Discovery: Find services | Stats: Get service stats | Service: Run a service endpoint
+  <style>
+    .nats-service-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+  </style>
+
+  <div class="nats-service-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-  
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-  
-  <div id="discovery-config">
-      <div class="form-row">
-          <label for="node-input-serviceName"><i class="fa fa-search"></i> Service Name Filter</label>
-          <input type="text" id="node-input-serviceName" placeholder="my-service (or * for all)" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Use * to discover all services or specify a service name
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-cogs"></i>Mode</label>
+          <select id="node-input-mode">
+            <option value="discover">Service Discovery</option>
+            <option value="stats">Service Stats</option>
+            <option value="ping">Ping Services</option>
+            <option value="service">Run Service</option>
+          </select>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Discovery Config -->
+    <div id="discovery-config">
+      <div class="nats-section">
+        <div class="nats-section-header">
+          <div class="nats-section-title">
+            <i class="fa fa-search"></i>
+            <span>Discovery Filter</span>
           </div>
-      </div>
-  </div>
-  
-  <div id="service-config" style="display: none;">
-      <h4><i class="fa fa-cogs"></i> Service Configuration</h4>
-      
-      <div class="form-row">
-          <label for="node-input-serviceName"><i class="fa fa-tag"></i> Service Name</label>
-          <input type="text" id="node-input-serviceName" placeholder="my-service" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Unique service identifier (e.g., "auth-service")
+          <i class="fa fa-chevron-down nats-section-toggle"></i>
+        </div>
+        <div class="nats-section-content">
+          <div class="nats-form-row">
+            <label><i class="fa fa-filter"></i>Service Name Filter</label>
+            <input type="text" id="node-input-serviceName" placeholder="my-service (or * for all)">
+            <div class="nats-hint">Use * to discover all services</div>
           </div>
+        </div>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-serviceVersion"><i class="fa fa-code-fork"></i> Version</label>
-          <input type="text" id="node-input-serviceVersion" placeholder="1.0.0" style="width: 200px;">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-serviceDescription"><i class="fa fa-info-circle"></i> Description</label>
-          <input type="text" id="node-input-serviceDescription" placeholder="Service description" style="width: 70%;">
-      </div>
-      
-      <h4><i class="fa fa-link"></i> Endpoint Configuration</h4>
-      
-      <div class="form-row">
-          <label for="node-input-endpoint"><i class="fa fa-plug"></i> Endpoint Name</label>
-          <input type="text" id="node-input-endpoint" placeholder="process" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Endpoint name (e.g., "process", "calculate", "validate")
+    </div>
+    
+    <!-- Service Config -->
+    <div id="service-config" style="display: none;">
+      <div class="nats-section">
+        <div class="nats-section-header">
+          <div class="nats-section-title">
+            <i class="fa fa-cube"></i>
+            <span>Service Configuration</span>
           </div>
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-endpointSubject"><i class="fa fa-paper-plane"></i> Subject (optional)</label>
-          <input type="text" id="node-input-endpointSubject" placeholder="my-service.process" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Override default subject (default: serviceName.endpoint)
+          <i class="fa fa-chevron-down nats-section-toggle"></i>
+        </div>
+        <div class="nats-section-content">
+          <div class="nats-grid">
+            <div class="nats-form-row">
+              <label><i class="fa fa-tag"></i>Service Name</label>
+              <input type="text" id="node-input-serviceName" placeholder="my-service">
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-code-fork"></i>Version</label>
+              <input type="text" id="node-input-serviceVersion" placeholder="1.0.0">
+            </div>
           </div>
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-queueGroup"><i class="fa fa-users"></i> Queue Group</label>
-          <input type="text" id="node-input-queueGroup" placeholder="my-service" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Queue group for load balancing (default: service name)
+          <div class="nats-form-row">
+            <label><i class="fa fa-info-circle"></i>Description</label>
+            <input type="text" id="node-input-serviceDescription" placeholder="Service description">
           </div>
+        </div>
       </div>
       
-      <h4><i class="fa fa-info"></i> Metadata & Options</h4>
-      
-      <div class="form-row">
-          <label for="node-input-metadata"><i class="fa fa-code"></i> Metadata (JSON)</label>
-          <input type="text" id="node-input-metadata" placeholder='{"region": "eu", "env": "prod"}' style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Optional metadata as JSON object
+      <div class="nats-section">
+        <div class="nats-section-header">
+          <div class="nats-section-title">
+            <i class="fa fa-plug"></i>
+            <span>Endpoint Configuration</span>
           </div>
+          <i class="fa fa-chevron-down nats-section-toggle"></i>
+        </div>
+        <div class="nats-section-content">
+          <div class="nats-form-row">
+            <label><i class="fa fa-plug"></i>Endpoint Name</label>
+            <input type="text" id="node-input-endpoint" placeholder="process">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-paper-plane"></i>Subject (optional)</label>
+            <input type="text" id="node-input-endpointSubject" placeholder="my-service.process">
+            <div class="nats-hint">Default: serviceName.endpoint</div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-users"></i>Queue Group</label>
+            <input type="text" id="node-input-queueGroup" placeholder="my-service">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-code"></i>Metadata (JSON)</label>
+            <input type="text" id="node-input-metadata" placeholder='{"region": "eu", "env": "prod"}'>
+          </div>
+          <div class="nats-checkbox-row">
+            <input type="checkbox" id="node-input-autoStart" checked>
+            <label for="node-input-autoStart"><i class="fa fa-play"></i>Auto-Start on Deploy</label>
+          </div>
+        </div>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-autoStart"><i class="fa fa-play"></i> Auto-Start</label>
-          <input type="checkbox" id="node-input-autoStart" checked style="vertical-align: middle;">
-          <span style="margin-left: 10px; color: #999;">Start service automatically on deploy</span>
-      </div>
-  </div>
-  
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-  
-  <div class="form-row">
-      <label for="node-input-debug"><i class="fa fa-bug"></i> Debug Logging</label>
-      <input type="checkbox" id="node-input-debug" style="vertical-align: middle;">
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-service">
-  <p>NATS Service API for microservice discovery, stats, and service endpoints.</p>
+  <p>NATS Service API for microservice discovery and endpoints.</p>
 
-  <h3>Operation Modes</h3>
-  
-  <h4>Service Discovery</h4>
-  <p>Discover available NATS services on the network.</p>
+  <h3>Modes</h3>
   <ul>
-    <li><strong>Output:</strong> Array of discovered services with name, version, and metadata</li>
-    <li><strong>Use case:</strong> Find available services for dynamic routing</li>
-  </ul>
-  
-  <h4>Service Stats</h4>
-  <p>Get statistics for running services.</p>
-  <ul>
-    <li><strong>Output:</strong> Service statistics including request counts, endpoints, and performance metrics</li>
-    <li><strong>Use case:</strong> Monitoring and health checks</li>
-  </ul>
-  
-  <h4>Ping Services</h4>
-  <p>Ping specific services to check availability.</p>
-  <ul>
-    <li><strong>Input:</strong> Service name to ping</li>
-    <li><strong>Output:</strong> Ping responses from available service instances</li>
-  </ul>
-  
-  <h4>Run Service</h4>
-  <p>Run a NATS service endpoint that responds to requests.</p>
-  <ul>
-    <li><strong>Configuration:</strong> Service name, version, endpoint name</li>
-    <li><strong>Input:</strong> Service requests from other nodes/services</li>
-    <li><strong>Output:</strong> Request data for processing (use msg.respond() to send response)</li>
+    <li><strong>Discovery:</strong> Find available services</li>
+    <li><strong>Stats:</strong> Get service statistics</li>
+    <li><strong>Ping:</strong> Check service availability</li>
+    <li><strong>Service:</strong> Run a service endpoint</li>
   </ul>
 
-  <h3>Service Mode Usage</h3>
-  
-  <h4>Processing Requests</h4>
-  <p>When running in service mode, incoming requests are sent to the output. Process the request and use the provided functions to respond:</p>
-  
-  <pre><code>// In a Function node connected to the service output:
-// msg.payload contains the request data
-// msg.respond(response) - Send success response
-// msg.respondError(error, code) - Send error response
-
-// Example: Echo service
-msg.respond({
-  echo: msg.payload,
-  timestamp: Date.now()
-});
-
-// Example: Error handling
-if (!msg.payload.value) {
-  msg.respondError('Missing required field: value', 'VALIDATION_ERROR');
-  return null; // Don't send to next node
-}
-
-// Process and respond
-const result = processData(msg.payload);
-msg.respond(result);
-</code></pre>
-
-  <h3>Discovery Examples</h3>
-  
-  <h4>Discover All Services</h4>
-  <pre><code>// Configure node:
-// - Mode: Service Discovery
-// - Service Name: *
-
-// Send any message to trigger discovery
-msg.payload = {};
-
-// Output:
-msg.payload = [
-  {
-    name: "auth-service",
-    version: "1.0.0",
-    id: "abc123",
-    metadata: { region: "eu" }
-  },
-  {
-    name: "data-processor",
-    version: "2.1.0",
-    id: "def456",
-    metadata: { env: "prod" }
-  }
-];
-</code></pre>
-
-  <h3>Service Endpoints</h3>
-  <ul>
-    <li><strong>Auto-Start:</strong> Services start automatically on deploy</li>
-    <li><strong>Load Balancing:</strong> Multiple service instances automatically load balance via queue groups</li>
-    <li><strong>Request-Reply:</strong> Built-in request-reply pattern for synchronous communication</li>
-  </ul>
-
-  <h3>Features</h3>
-  <ul>
-    <li><strong>Service Discovery:</strong> Find and list available services</li>
-    <li><strong>Service Stats:</strong> Monitor service health and performance</li>
-    <li><strong>Service Endpoints:</strong> Create microservice endpoints with automatic load balancing</li>
-    <li><strong>Metadata Support:</strong> Add custom metadata to services for filtering and routing</li>
-    <li><strong>Queue Groups:</strong> Automatic load balancing across service instances</li>
-  </ul>
+  <h3>Service Mode</h3>
+  <p>Process requests and respond:</p>
+  <pre>// In a function node:
+msg.respond({ result: "success" });
+// or
+msg.respondError("Error message", "ERROR_CODE");</pre>
 </script>
-

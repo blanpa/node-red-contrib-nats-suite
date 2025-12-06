@@ -23,150 +23,277 @@
       return this.name || "nats server manager";
     },
     paletteLabel: 'nats server manager',
-    labelStyle: function() {
-      return this.name ? "node_label_italic" : "";
-    },
     oneditprepare: function() {
-      // Show/hide fields based on server type
-      const serverTypeField = $('#node-input-serverType');
-      const portField = $('#node-input-port').closest('.form-row');
-      const leafPortField = $('#node-input-leafPort').closest('.form-row');
-      const leafRemoteField = $('#node-input-leafRemoteUrl').closest('.form-row');
-      const leafUserField = $('#node-input-leafRemoteUser').closest('.form-row');
-      const leafPassField = $('#node-input-leafRemotePass').closest('.form-row');
-      const storeDirField = $('#node-input-storeDir').closest('.form-row');
-
-      function updateVisibility() {
-        const type = serverTypeField.val();
-        portField.toggle(type !== 'leaf');
-        leafPortField.toggle(type === 'leaf');
-        leafRemoteField.toggle(type === 'leaf');
-        leafUserField.toggle(type === 'leaf');
-        leafPassField.toggle(type === 'leaf');
-        storeDirField.toggle($('#node-input-enableJetStream').is(':checked'));
-      }
-
-      serverTypeField.on('change', updateVisibility);
-      $('#node-input-enableJetStream').on('change', updateVisibility);
-      updateVisibility();
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Server type handler
+      $('#node-input-serverType').on('change', function() {
+        const type = $(this).val();
+        if (type === 'leaf') {
+          $('#port-row').slideUp(200);
+          $('#leaf-config').slideDown(200);
+        } else {
+          $('#port-row').slideDown(200);
+          $('#leaf-config').slideUp(200);
+        }
+      });
+      
+      // JetStream handler
+      $('#node-input-enableJetStream').on('change', function() {
+        if ($(this).is(':checked')) {
+          $('#store-dir-row').slideDown(200);
+        } else {
+          $('#store-dir-row').slideUp(200);
+        }
+      });
+      
+      $('#node-input-serverType').trigger('change');
+      $('#node-input-enableJetStream').trigger('change');
     }
   });
 </script>
 
 <script type="text/html" data-template-name="nats-suite-server-manager">
-  <div class="form-row">
-    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-    <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  
-  <div class="form-row">
-    <label for="node-input-serverType"><i class="fa fa-server"></i> Server Type</label>
-    <select id="node-input-serverType">
-      <option value="embedded">Embedded (nats-memory-server)</option>
-      <option value="nats-server">NATS server process</option>
-      <option value="leaf">Leaf node server</option>
-    </select>
-  </div>
+  <style>
+    .nats-manager-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"],
+    .nats-form-row input[type="password"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-form-row input[type="number"] { width: 120px; }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+  </style>
 
-  <div class="form-row">
-    <label for="node-input-port"><i class="fa fa-plug"></i> Port</label>
-    <input type="number" id="node-input-port" placeholder="4222" min="1" max="65535">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-leafPort"><i class="fa fa-plug"></i> Leaf Node Port</label>
-    <input type="number" id="node-input-leafPort" placeholder="7422" min="1" max="65535">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-leafRemoteUrl"><i class="fa fa-link"></i> Remote NATS Server URL</label>
-    <input type="text" id="node-input-leafRemoteUrl" placeholder="nats://remote-server:4222">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-leafRemoteUser"><i class="fa fa-user"></i> Remote username (optional)</label>
-    <input type="text" id="node-input-leafRemoteUser" placeholder="Username">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-leafRemotePass"><i class="fa fa-lock"></i> Remote password (optional)</label>
-    <input type="password" id="node-input-leafRemotePass" placeholder="Password">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-enableJetStream">
-      <input type="checkbox" id="node-input-enableJetStream" style="display: inline-block; width: auto; vertical-align: top;">
-      <span style="width: auto; display: inline-block; margin-left: 5px; vertical-align: top;">Enable JetStream</span>
-    </label>
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-storeDir"><i class="fa fa-folder"></i> JetStream store directory (optional)</label>
-    <input type="text" id="node-input-storeDir" placeholder="/tmp/nats-jetstream">
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-autoStart">
-      <input type="checkbox" id="node-input-autoStart" style="display: inline-block; width: auto; vertical-align: top;" checked>
-      <span style="width: auto; display: inline-block; margin-left: 5px; vertical-align: top;">Start automatically on deploy</span>
-    </label>
-  </div>
-
-  <div class="form-row">
-    <label for="node-input-debug">
-      <input type="checkbox" id="node-input-debug" style="display: inline-block; width: auto; vertical-align: top;">
-      <span style="width: auto; display: inline-block; margin-left: 5px; vertical-align: top;">Debug logging</span>
-    </label>
+  <div class="nats-manager-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>Server Type</label>
+          <select id="node-input-serverType">
+            <option value="embedded">Embedded (nats-memory-server)</option>
+            <option value="nats-server">NATS Server Process</option>
+            <option value="leaf">Leaf Node Server</option>
+          </select>
+        </div>
+        <div class="nats-form-row" id="port-row">
+          <label><i class="fa fa-plug"></i>Port</label>
+          <input type="number" id="node-input-port" placeholder="4222" min="1" max="65535">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Leaf Node Config -->
+    <div id="leaf-config" style="display: none;">
+      <div class="nats-section">
+        <div class="nats-section-header">
+          <div class="nats-section-title">
+            <i class="fa fa-leaf"></i>
+            <span>Leaf Node Configuration</span>
+          </div>
+          <i class="fa fa-chevron-down nats-section-toggle"></i>
+        </div>
+        <div class="nats-section-content">
+          <div class="nats-form-row">
+            <label><i class="fa fa-plug"></i>Leaf Node Port</label>
+            <input type="number" id="node-input-leafPort" placeholder="7422" min="1" max="65535">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-link"></i>Remote NATS Server URL</label>
+            <input type="text" id="node-input-leafRemoteUrl" placeholder="nats://remote-server:4222">
+          </div>
+          <div class="nats-grid">
+            <div class="nats-form-row">
+              <label><i class="fa fa-user"></i>Remote Username</label>
+              <input type="text" id="node-input-leafRemoteUser" placeholder="Optional">
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-lock"></i>Remote Password</label>
+              <input type="password" id="node-input-leafRemotePass" placeholder="Optional">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- JetStream & Options -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sliders"></i>
+          <span>Options</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableJetStream">
+          <label for="node-input-enableJetStream"><i class="fa fa-database"></i>Enable JetStream</label>
+        </div>
+        <div class="nats-form-row" id="store-dir-row" style="display: none;">
+          <label><i class="fa fa-folder"></i>JetStream Store Directory</label>
+          <input type="text" id="node-input-storeDir" placeholder="/tmp/nats-jetstream">
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-autoStart" checked>
+          <label for="node-input-autoStart"><i class="fa fa-play"></i>Auto-Start on Deploy</label>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/html" data-help-name="nats-suite-server-manager">
-  <p>Starts and manages a NATS server directly from Node-RED.</p>
+  <p>Starts and manages a NATS server from Node-RED.</p>
 
-  <h3>Server types</h3>
-  
-  <h4>Embedded server (nats-memory-server)</h4>
-  <p>Uses an in-memory NATS server for testing and development. Requires the <code>nats-memory-server</code> package.</p>
-  <p><strong>Installation:</strong></p>
-  <pre><code>npm install nats-memory-server</code></pre>
-
-  <h4>NATS server process</h4>
-  <p>Starts the official NATS server as a separate process. Requires <code>nats-server</code> to be available in the PATH.</p>
-  <p><strong>Installation:</strong></p>
-  <pre><code>// Linux/Mac
-brew install nats-server
-// or
-go install github.com/nats-io/nats-server/v2@latest
-
-// Windows
-// Download from https://github.com/nats-io/nats-server/releases</code></pre>
-
-  <h4>Leaf node server</h4>
-  <p>Starts a leaf node server that connects to a remote NATS cluster.</p>
-
-  <h3>Input</h3>
-  <p>Control the server with messages:</p>
+  <h3>Server Types</h3>
   <ul>
-    <li><code>msg.payload.command = "start"</code> - start server</li>
-    <li><code>msg.payload.command = "stop"</code> - stop server</li>
-    <li><code>msg.payload.command = "restart"</code> - restart server</li>
-    <li><code>msg.payload.command = "status"</code> - query status</li>
-    <li><code>msg.payload.command = "toggle"</code> - toggle start/stop (default)</li>
+    <li><strong>Embedded:</strong> In-memory server for testing</li>
+    <li><strong>NATS Server:</strong> External nats-server process</li>
+    <li><strong>Leaf Node:</strong> Connect to remote cluster</li>
   </ul>
 
-  <h3>Output</h3>
-  <p>Sends status events:</p>
-  <ul>
-    <li><code>msg.topic = "server.started"</code> - server was started</li>
-    <li><code>msg.topic = "server.stopped"</code> - server was stopped</li>
-    <li><code>msg.topic = "server.status"</code> - status information</li>
-  </ul>
-  <p><code>msg.payload</code> contains details such as port, URL, PID, etc.</p>
+  <h3>Control Commands</h3>
+  <pre>msg.payload.command = "start"   // Start server
+msg.payload.command = "stop"    // Stop server
+msg.payload.command = "restart" // Restart
+msg.payload.command = "status"  // Get status</pre>
 
-  <h3>Usage</h3>
-  <p>After starting the server you can connect with other NATS Suite nodes:</p>
-  <pre><code>nats://localhost:4222</code></pre>
-  <p>For a leaf node server:</p>
-  <pre><code>nats://localhost:7422</code></pre>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>"server.started", "server.stopped", "server.status"</dd>
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>Server details (port, URL, PID)</dd>
+  </dl>
 </script>
-

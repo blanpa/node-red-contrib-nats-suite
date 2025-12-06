@@ -1,6 +1,6 @@
 'use strict';
 
-const { StringCodec } = require('nats');
+const { StringCodec, headers: natsHeaders } = require('nats');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -9,6 +9,7 @@ module.exports = function (RED) {
   function NatsPublishNode(config) {
     RED.nodes.createNode(this, config);
     const node = this;
+    const sc = StringCodec();
 
     // Performance optimizations: Define functions and regex once
     const generateUUID = (() => {
@@ -1338,13 +1339,13 @@ module.exports = function (RED) {
         
         // Add headers if configured
         if (config.enableHeaders) {
-          const headers = {};
+          const headersObj = {};
           
           // Static headers from config
           if (config.headers && config.headers.trim() !== '') {
             try {
               const staticHeaders = JSON.parse(config.headers);
-              Object.assign(headers, staticHeaders);
+              Object.assign(headersObj, staticHeaders);
             } catch (err) {
               node.warn(`[NATS-SUITE PUBLISH] Failed to parse static headers: ${err.message}`);
             }
@@ -1352,53 +1353,62 @@ module.exports = function (RED) {
           
           // Dynamic headers from msg.headers
           if (msg.headers && typeof msg.headers === 'object') {
-            Object.assign(headers, msg.headers);
+            Object.assign(headersObj, msg.headers);
           }
           
-          // Add headers to publish options if any exist
-          if (Object.keys(headers).length > 0) {
-            publishOptions.headers = headers;
+          // Create NATS MsgHdrs object and add headers
+          if (Object.keys(headersObj).length > 0) {
+            const msgHeaders = natsHeaders();
+            Object.keys(headersObj).forEach(key => {
+              msgHeaders.append(key, String(headersObj[key]));
+            });
+            publishOptions.headers = msgHeaders;
             if (isDebug) {
-              node.log(`[NATS-SUITE PUBLISH] Publishing with headers: ${JSON.stringify(headers)}`);
+              node.log(`[NATS-SUITE PUBLISH] Publishing with headers: ${JSON.stringify(headersObj)}`);
             }
           }
         }
         
-        // Add message expiration (TTL) if configured
+        // Add message expiration (TTL) if configured - Note: This requires JetStream
+        // For core NATS, message expiration is not supported directly
+        // Keeping the code for potential JetStream integration
         if (config.enableMsgExpiration && config.msgExpiration > 0) {
-          // Convert seconds to nanoseconds for NATS
-          const expirationNs = config.msgExpiration * 1000000000;
-          publishOptions.msgExpiration = expirationNs;
           if (isDebug) {
-            node.log(`[NATS-SUITE PUBLISH] Message expiration: ${config.msgExpiration}s`);
+            node.log(`[NATS-SUITE PUBLISH] Message expiration configured: ${config.msgExpiration}s (Note: requires JetStream)`);
           }
         }
         
         // Dynamic message expiration from msg.expiration (in seconds)
         if (msg.expiration && msg.expiration > 0) {
-          const expirationNs = msg.expiration * 1000000000;
-          publishOptions.msgExpiration = expirationNs;
           if (isDebug) {
-            node.log(`[NATS-SUITE PUBLISH] Message expiration (from msg): ${msg.expiration}s`);
+            node.log(`[NATS-SUITE PUBLISH] Message expiration (from msg): ${msg.expiration}s (Note: requires JetStream)`);
           }
         }
         
-        // Publish with options
-        natsnc.publish(subject, message, publishOptions, function (err, guid) {
-          if (err) {
-            const cleanError = {
-              message: err.message,
-              code: err.code,
-              name: err.name,
-            };
-            node.error(cleanError, msg);
-          } else {
-            // Log successful publish (only in debug mode)
-            if (config.debug) {
-              node.log(`[NATS-SUITE PUBLISH] Successfully published with GUID: ${guid}`);
-            }
+        // Encode message if it's a string (Buffer is already encoded)
+        let encodedMessage;
+        if (Buffer.isBuffer(message)) {
+          encodedMessage = message;
+        } else {
+          encodedMessage = sc.encode(message);
+        }
+        
+        // Publish with options - NATS.js publish is synchronous
+        try {
+          natsnc.publish(subject, encodedMessage, publishOptions);
+          
+          // Log successful publish (only in debug mode)
+          if (config.debug) {
+            node.log(`[NATS-SUITE PUBLISH] Successfully published to ${subject}`);
           }
-        });
+        } catch (publishErr) {
+          const cleanError = {
+            message: publishErr.message,
+            code: publishErr.code,
+            name: publishErr.name,
+          };
+          node.error(cleanError, msg);
+        }
       } catch (err) {
         const cleanError = {
           message: err.message,

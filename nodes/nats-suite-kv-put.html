@@ -3,71 +3,26 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: {
-        value: '',
-      },
-      server: {
-        value: '',
-        type: 'nats-suite-server',
-        required: true
-      },
-      bucket: {
-        value: ''
-      },
-      bucketConfig: {
-        value: '',
-        type: 'nats-suite-kv-bucket',
-        required: false
-      },
-      description: {
-        value: ''
-      },
-      history: {
-        value: 10
-      },
-      maxAge: {
-        value: 0
-      },
-      maxBytes: {
-        value: 0
-      },
-      maxValueSize: {
-        value: 0
-      },
-      compression: {
-        value: false
-      },
-      replicas: {
-        value: 1
-      },
-      storage: {
-        value: 'file'
-      },
-      operation: {
-        value: 'put',
-        required: true
-      },
-      bucketOperation: {
-        value: 'put'
-      },
-      key: {
-        value: ''
-      },
-      keyFrom: {
-        value: 'config'
-      },
-      value: {
-        value: ''
-      },
-      valueFrom: {
-        value: 'payload'
-      },
-      stringifyJSON: {
-        value: true
-      },
-      debug: {
-        value: false
-      }
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server', required: true },
+      bucket: { value: '' },
+      bucketConfig: { value: '', type: 'nats-suite-kv-bucket', required: false },
+      description: { value: '' },
+      history: { value: 10 },
+      maxAge: { value: 0 },
+      maxBytes: { value: 0 },
+      maxValueSize: { value: 0 },
+      compression: { value: false },
+      replicas: { value: 1 },
+      storage: { value: 'file' },
+      operation: { value: 'put', required: true },
+      bucketOperation: { value: 'put' },
+      key: { value: '' },
+      keyFrom: { value: 'config' },
+      value: { value: '' },
+      valueFrom: { value: 'payload' },
+      stringifyJSON: { value: true },
+      debug: { value: false }
     },
     inputs: 1,
     outputs: 1,
@@ -78,46 +33,62 @@
     },
     paletteLabel: 'nats kv put',
     oneditprepare: function() {
-      // Show/hide based on operation
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Operation handler
       $('#node-input-operation').on('change', function() {
         const op = $(this).val();
-        
-        // Bucket management operations
         if (['bucket-create', 'bucket-info', 'bucket-delete', 'bucket-list'].includes(op)) {
-          $('#key-value-config').hide();
-          $('#bucket-mgmt-config').show();
+          $('#key-value-config').slideUp(200);
+          $('#bucket-mgmt-config').slideDown(200);
           if (op === 'bucket-create') {
-            $('#bucket-create-settings').show();
+            $('#bucket-create-settings').slideDown(200);
           } else {
-            $('#bucket-create-settings').hide();
+            $('#bucket-create-settings').slideUp(200);
           }
         } else {
-          $('#key-value-config').show();
-          $('#bucket-mgmt-config').hide();
-          
+          $('#key-value-config').slideDown(200);
+          $('#bucket-mgmt-config').slideUp(200);
           if (op === 'put' || op === 'create') {
-            $('#value-config').show();
+            $('#value-config').slideDown(200);
           } else {
-            $('#value-config').hide();
+            $('#value-config').slideUp(200);
           }
         }
       });
       
-      // Show/hide key input
+      // Key source handler
       $('#node-input-keyFrom').on('change', function() {
         if ($(this).val() === 'config') {
-          $('#key-config-row').show();
+          $('#key-config-row').slideDown(200);
         } else {
-          $('#key-config-row').hide();
+          $('#key-config-row').slideUp(200);
         }
       });
       
-      // Show/hide value input
+      // Value source handler
       $('#node-input-valueFrom').on('change', function() {
         if ($(this).val() === 'config') {
-          $('#value-config-row').show();
+          $('#value-config-row').slideDown(200);
         } else {
-          $('#value-config-row').hide();
+          $('#value-config-row').slideUp(200);
+        }
+      });
+      
+      // Bucket config handler
+      $('#node-input-bucketConfig').on('change', function() {
+        if ($(this).val()) {
+          $('#bucket-direct-config').slideUp(200);
+        } else {
+          $('#bucket-direct-config').slideDown(200);
         }
       });
       
@@ -125,179 +96,246 @@
       $('#node-input-operation').trigger('change');
       $('#node-input-keyFrom').trigger('change');
       $('#node-input-valueFrom').trigger('change');
-      
-      // Show/hide bucket direct config based on bucketConfig
-      $('#node-input-bucketConfig').on('change', function() {
-        if ($(this).val()) {
-          $('#bucket-direct-config').hide();
-          $('#bucket-settings').hide();
-        } else {
-          $('#bucket-direct-config').show();
-          $('#bucket-settings').show();
-        }
-      });
       $('#node-input-bucketConfig').trigger('change');
     }
   });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-kv-put">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="KV Put">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-bucketConfig"><i class="fa fa-database"></i> Bucket Config (optional)</label>
-      <input type="text" id="node-input-bucketConfig">
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Optional: Use bucket config node OR configure bucket directly below
+  <style>
+    .nats-kv-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #d4edda;
+      color: #155724;
+    }
+    .nats-hidden { display: none; }
+  </style>
+
+  <div class="nats-kv-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-  
-  <div class="form-row" id="bucket-direct-config">
-      <label for="node-input-bucket"><i class="fa fa-database"></i> Bucket Name</label>
-      <input type="text" id="node-input-bucket" placeholder="my-bucket">
-  </div>
-  
-  <div class="form-row" id="bucket-settings" style="display: none;">
-      <label for="node-input-description"><i class="fa fa-info-circle"></i> Description</label>
-      <input type="text" id="node-input-description" placeholder="Optional description">
-      
-      <label for="node-input-history"><i class="fa fa-history"></i> History</label>
-      <input type="number" id="node-input-history" placeholder="10" min="1" max="100" style="width: 100px;">
-      
-      <label for="node-input-maxAge"><i class="fa fa-clock-o"></i> TTL (seconds)</label>
-      <input type="number" id="node-input-maxAge" placeholder="0" min="0" style="width: 100px;">
-      
-      <label for="node-input-maxBytes"><i class="fa fa-hdd-o"></i> Max Bytes</label>
-      <input type="number" id="node-input-maxBytes" placeholder="0" min="0" style="width: 150px;">
-      
-      <label for="node-input-maxValueSize"><i class="fa fa-file-o"></i> Max Value Size</label>
-      <input type="number" id="node-input-maxValueSize" placeholder="0" min="0" style="width: 150px;">
-      
-      <label for="node-input-compression"><i class="fa fa-compress"></i> Compression</label>
-      <input type="checkbox" id="node-input-compression" style="vertical-align: middle;">
-      
-      <label for="node-input-replicas"><i class="fa fa-copy"></i> Replicas</label>
-      <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5" style="width: 100px;">
-      
-      <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
-      <select id="node-input-storage" style="width:70%">
-          <option value="file">File</option>
-          <option value="memory">Memory</option>
-      </select>
-  </div>
-  
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-  
-  <div class="form-row">
-      <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
-      <select id="node-input-operation" style="width:70%">
-          <option value="put">Put (Create/Update Key)</option>
-          <option value="create">Create Key (Only if New)</option>
-          <option value="update">Update Key (Only if Exists)</option>
-          <option value="delete">Delete Key</option>
-          <option value="purge">Purge Key (Delete All Revisions)</option>
-          <option value="bucket-create">Create Bucket</option>
-          <option value="bucket-info">Bucket Info</option>
-          <option value="bucket-delete">Delete Bucket</option>
-          <option value="bucket-list">List Buckets</option>
-      </select>
-  </div>
-  
-  <div id="key-value-config">
-  <div class="form-row">
-      <label for="node-input-keyFrom"><i class="fa fa-arrow-right"></i> Key From</label>
-      <select id="node-input-keyFrom" style="width:70%">
-          <option value="config">Configuration</option>
-          <option value="msg">msg.key</option>
-          <option value="topic">msg.topic</option>
-      </select>
-  </div>
-  
-  <div class="form-row" id="key-config-row">
-      <label for="node-input-key"><i class="fa fa-key"></i> Key</label>
-      <input type="text" id="node-input-key" placeholder="config.production.speed" style="width: 70%;">
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Key to store in KV bucket
-      </div>
-  </div>
-  
-  <div id="value-config">
-      <div class="form-row">
-          <label for="node-input-valueFrom"><i class="fa fa-arrow-right"></i> Value From</label>
-          <select id="node-input-valueFrom" style="width:70%">
-              <option value="payload">msg.payload</option>
-              <option value="config">Configuration</option>
-              <option value="msg">msg.value</option>
-          </select>
-      </div>
-      
-      <div class="form-row" id="value-config-row" style="display: none;">
-          <label for="node-input-value"><i class="fa fa-code"></i> Value</label>
-          <input type="text" id="node-input-value" placeholder="100" style="width: 70%;">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Static value to store (will be auto-stringified if object)
-          </div>
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-stringifyJSON"><i class="fa fa-code"></i> Auto-Stringify JSON</label>
-          <input type="checkbox" id="node-input-stringifyJSON" style="vertical-align: middle;">
-          <span style="margin-left: 10px; color: #999;">Automatically convert objects to JSON</span>
-      </div>
-  </div>
-  
-  
-  <div class="form-row">
-      <label for="node-input-debug"><i class="fa fa-bug"></i> Debug Logging</label>
-      <input type="checkbox" id="node-input-debug" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Enable detailed logging for this node</span>
-  </div>
-  </div>
-  
-  <div id="bucket-mgmt-config" style="display: none;">
-      <div class="form-row">
-          <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
           <input type="text" id="node-input-server">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-bucket"><i class="fa fa-database"></i> Bucket Name</label>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-database"></i>Bucket Config (optional)</label>
+          <input type="text" id="node-input-bucketConfig">
+        </div>
+        <div class="nats-form-row" id="bucket-direct-config">
+          <label><i class="fa fa-database"></i>Bucket Name</label>
           <input type="text" id="node-input-bucket" placeholder="my-bucket">
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
       </div>
-      
-      <div class="form-row" id="bucket-create-settings" style="display: none;">
-          <label for="node-input-history"><i class="fa fa-history"></i> History</label>
-          <input type="number" id="node-input-history" placeholder="10" min="1" max="100" style="width: 100px;">
-          
-          <label for="node-input-maxAge"><i class="fa fa-clock-o"></i> TTL (seconds)</label>
-          <input type="number" id="node-input-maxAge" placeholder="0" min="0" style="width: 100px;">
-          
-          <label for="node-input-maxBytes"><i class="fa fa-hdd-o"></i> Max Bytes</label>
-          <input type="number" id="node-input-maxBytes" placeholder="0" min="0" style="width: 150px;">
-          
-          <label for="node-input-maxValueSize"><i class="fa fa-file-o"></i> Max Value Size</label>
-          <input type="number" id="node-input-maxValueSize" placeholder="0" min="0" style="width: 150px;">
-          
-          <label for="node-input-compression"><i class="fa fa-compress"></i> Compression</label>
-          <input type="checkbox" id="node-input-compression" style="vertical-align: middle;">
-          
-          <label for="node-input-replicas"><i class="fa fa-copy"></i> Replicas</label>
-          <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5" style="width: 100px;">
-          
-          <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
-          <select id="node-input-storage" style="width:70%">
-              <option value="file">File</option>
-              <option value="memory">Memory</option>
+    </div>
+    
+    <!-- Operation -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-upload"></i>
+          <span>Operation</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-cogs"></i>Operation</label>
+          <select id="node-input-operation">
+            <option value="put">Put (Create/Update)</option>
+            <option value="create">Create (Only if New)</option>
+            <option value="update">Update (Only if Exists)</option>
+            <option value="delete">Delete Key</option>
+            <option value="purge">Purge Key (All Revisions)</option>
+            <option value="bucket-create">Create Bucket</option>
+            <option value="bucket-info">Bucket Info</option>
+            <option value="bucket-delete">Delete Bucket</option>
+            <option value="bucket-list">List Buckets</option>
           </select>
+        </div>
+        
+        <!-- Key/Value Config -->
+        <div id="key-value-config">
+          <div class="nats-form-row">
+            <label><i class="fa fa-arrow-right"></i>Key From</label>
+            <select id="node-input-keyFrom">
+              <option value="config">Configuration</option>
+              <option value="msg">msg.key</option>
+              <option value="topic">msg.topic</option>
+            </select>
+          </div>
+          <div class="nats-form-row" id="key-config-row">
+            <label><i class="fa fa-key"></i>Key <span class="nats-badge">msg.key</span></label>
+            <input type="text" id="node-input-key" placeholder="config.production.speed">
+          </div>
+          
+          <div id="value-config">
+            <div class="nats-form-row">
+              <label><i class="fa fa-arrow-right"></i>Value From</label>
+              <select id="node-input-valueFrom">
+                <option value="payload">msg.payload</option>
+                <option value="config">Configuration</option>
+                <option value="msg">msg.value</option>
+              </select>
+            </div>
+            <div class="nats-form-row nats-hidden" id="value-config-row">
+              <label><i class="fa fa-code"></i>Static Value</label>
+              <input type="text" id="node-input-value" placeholder="100">
+            </div>
+            <div class="nats-checkbox-row">
+              <input type="checkbox" id="node-input-stringifyJSON" checked>
+              <label for="node-input-stringifyJSON"><i class="fa fa-code"></i>Auto-Stringify JSON</label>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bucket Management Config -->
+        <div id="bucket-mgmt-config" style="display: none;">
+          <div id="bucket-create-settings" style="display: none;">
+            <div class="nats-hint" style="margin-bottom: 12px;">
+              Configure bucket settings for creation
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-history"></i>History</label>
+              <input type="number" id="node-input-history" placeholder="10" min="1" max="100" style="width: 100px;">
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-clock-o"></i>TTL (seconds)</label>
+              <input type="number" id="node-input-maxAge" placeholder="0" min="0" style="width: 120px;">
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+    
   </div>
 </script>
 
@@ -305,110 +343,21 @@
   <p>Store, update, or delete values in NATS Key-Value store.</p>
 
   <h3>Operations</h3>
-  
-  <h4>Put (Create/Update)</h4>
-  <p>Create a new key or update an existing one.</p>
-  <pre><code>Input:  msg.key = "config.production.speed"
-        msg.payload = 100
-Output: msg.revision = 5
-        msg.operation = "PUT"</code></pre>
-  
-  <h4>Create (Only if New)</h4>
-  <p>Create a key only if it doesn't already exist. Fails if key exists.</p>
-  <pre><code>Input:  msg.key = "config.new.setting"
-        msg.payload = "value"
-Output: msg.revision = 1
-        msg._created = true</code></pre>
-  
-  <h4>Update (Only if Exists)</h4>
-  <p>Update a key only if it already exists. Fails if key doesn't exist.</p>
-  <pre><code>Input:  msg.key = "config.existing"
-        msg.payload = "new-value"
-Output: msg.revision = 6
-        msg._updated = true</code></pre>
-  
-  <h4>Delete</h4>
-  <p>Mark a key as deleted (soft delete). History is preserved.</p>
-  <pre><code>Input:  msg.key = "config.old.setting"
-Output: msg.operation = "DEL"
-        msg._deleted = true</code></pre>
-  
-  <h4>Purge</h4>
-  <p>Completely remove a key and all its history.</p>
-  <pre><code>Input:  msg.key = "config.remove.completely"
-Output: msg.operation = "PURGE"
-        msg._purged = true</code></pre>
-
-  <h3>Configuration</h3>
-  <dl class="message-properties">
-    <dt>Bucket Name</dt>
-    <dd>Name of the NATS KV bucket. Will be created automatically if it doesn't exist.</dd>
-    
-    <dt>Key From</dt>
-    <dd>Where to read the key name from:
-      <ul>
-        <li><strong>Configuration:</strong> Use the configured key</li>
-        <li><strong>msg.key:</strong> Read from msg.key property</li>
-        <li><strong>msg.topic:</strong> Use msg.topic as key</li>
-      </ul>
-    </dd>
-    
-    <dt>Value From</dt>
-    <dd>Where to read the value from:
-      <ul>
-        <li><strong>msg.payload:</strong> Use msg.payload (default)</li>
-        <li><strong>Configuration:</strong> Use static configured value</li>
-        <li><strong>msg.value:</strong> Read from msg.value property</li>
-      </ul>
-    </dd>
-    
-    <dt>Auto-Stringify JSON</dt>
-    <dd>Automatically convert JavaScript objects to JSON strings.</dd>
-    
-  </dl>
-
-  <h3>Output Message</h3>
-  <dl class="message-properties">
-    <dt>revision</dt>
-    <dd>The new revision number after the operation.</dd>
-    
-    <dt>operation</dt>
-    <dd>The operation performed: "PUT", "DEL", or "PURGE".</dd>
-    
-    <dt>key</dt>
-    <dd>The key that was modified.</dd>
-    
-    <dt>bucket</dt>
-    <dd>The bucket name.</dd>
-  </dl>
-
-  <h3>Use Cases</h3>
   <ul>
-    <li><strong>Configuration Management:</strong> Store dynamic config values</li>
-    <li><strong>Feature Flags:</strong> Toggle features on/off</li>
-    <li><strong>Session Storage:</strong> Store user sessions</li>
-    <li><strong>Cache Updates:</strong> Update distributed cache</li>
-    <li><strong>State Machine:</strong> Store and update workflow state</li>
+    <li><strong>Put:</strong> Create or update a key</li>
+    <li><strong>Create:</strong> Create only if key doesn't exist</li>
+    <li><strong>Update:</strong> Update only if key exists</li>
+    <li><strong>Delete:</strong> Soft delete (preserves history)</li>
+    <li><strong>Purge:</strong> Complete removal with history</li>
   </ul>
 
-  <h3>Examples</h3>
-  
-  <h4>Store Configuration</h4>
-  <pre><code>msg.key = "config.production.speed";
-msg.payload = 100;
-// → Stored as "100" in KV</code></pre>
-  
-  <h4>Store Object</h4>
-  <pre><code>msg.key = "config.settings";
-msg.payload = { speed: 100, mode: "auto" };
-// → Stored as JSON string in KV</code></pre>
-  
-  <h4>TTL Configuration</h4>
-  <p><strong>Note:</strong> TTL is configured at the bucket level, not per individual key. Use different buckets for different TTL requirements.</p>
-  <pre><code>// Bucket with 1 hour TTL for all keys
-const createOptions = {
-  history: 10,
-  max_age: 3600 * 1000 // 1 hour for ALL keys in bucket
-};</code></pre>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>revision <span class="property-type">number</span></dt>
+    <dd>New revision number</dd>
+    <dt>operation <span class="property-type">string</span></dt>
+    <dd>"PUT", "DEL", or "PURGE"</dd>
+    <dt>key <span class="property-type">string</span></dt>
+    <dd>The key that was modified</dd>
+  </dl>
 </script>
-

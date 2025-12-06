@@ -29,51 +29,40 @@
     },
     paletteLabel: 'nats server',
     oneditprepare: function() {
-      // Show/hide auth fields based on selected method
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Auth method handler
       const updateAuthFields = () => {
         const authMethod = $('#node-config-input-authMethod').val();
-        
-        // Hide all auth sections first
-        $('#auth-userpass-section').hide();
-        $('#auth-token-section').hide();
-        $('#auth-jwt-section').hide();
-        $('#auth-nkey-section').hide();
-        
-        // Show relevant section
+        $('#auth-userpass-section, #auth-token-section, #auth-jwt-section, #auth-nkey-section').hide();
         switch(authMethod) {
-          case 'userpass':
-            $('#auth-userpass-section').show();
-            break;
-          case 'token':
-            $('#auth-token-section').show();
-            break;
-          case 'jwt':
-            $('#auth-jwt-section').show();
-            break;
-          case 'nkey':
-            $('#auth-nkey-section').show();
-            break;
-          case 'none':
-            // No auth fields needed
-            break;
+          case 'userpass': $('#auth-userpass-section').slideDown(200); break;
+          case 'token': $('#auth-token-section').slideDown(200); break;
+          case 'jwt': $('#auth-jwt-section').slideDown(200); break;
+          case 'nkey': $('#auth-nkey-section').slideDown(200); break;
         }
       };
       
-      // Show/hide TLS fields based on checkbox
+      // TLS handler
       const updateTLSFields = () => {
-        const enableTLS = $('#node-config-input-enableTLS').is(':checked');
-        if (enableTLS) {
-          $('#tls-config-section').show();
+        if ($('#node-config-input-enableTLS').is(':checked')) {
+          $('#tls-config-section').slideDown(200);
         } else {
-          $('#tls-config-section').hide();
+          $('#tls-config-section').slideUp(200);
         }
       };
       
-      // Initialize
       updateAuthFields();
       updateTLSFields();
       
-      // Bind event handlers
       $('#node-config-input-authMethod').on('change', updateAuthFields);
       $('#node-config-input-enableTLS').on('change', updateTLSFields);
     }
@@ -81,302 +70,340 @@
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-server">
-  <div class="form-row">
-      <label for="node-config-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-config-input-server" placeholder="nats://localhost:4222">
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-debug"><i class="fa fa-bug"></i> Debug Logging</label>
-      <input type="checkbox" id="node-config-input-debug" style="vertical-align: middle;">
-  </div>
+  <style>
+    .nats-server-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="password"],
+    .nats-form-row input[type="number"],
+    .nats-form-row select,
+    .nats-form-row textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus,
+    .nats-form-row textarea:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-form-row input[type="number"] { width: 120px; }
+    .nats-form-row textarea {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      resize: vertical;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .nats-auth-section {
+      display: none;
+      padding-top: 12px;
+      border-top: 1px dashed #dee2e6;
+      margin-top: 8px;
+    }
+    .nats-unit {
+      font-size: 12px;
+      color: #6c757d;
+      margin-left: 8px;
+    }
+    .nats-inline-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
 
-  <!-- Security Section Header -->
-  <div class="form-row" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
-      <label style="width: 100%; font-weight: bold;"><i class="fa fa-shield"></i> Security & Authentication</label>
-  </div>
-
-  <!-- Authentication Method Dropdown -->
-  <div class="form-row">
-      <label for="node-config-input-authMethod"><i class="fa fa-key"></i> Auth Method</label>
-      <select id="node-config-input-authMethod" style="width:70%">
-          <option value="none">No Authentication</option>
-          <option value="userpass">Username/Password</option>
-          <option value="token">Token Authentication</option>
-          <option value="jwt">JWT Authentication</option>
-          <option value="nkey">NKey Authentication</option>
-      </select>
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Select the authentication method for your NATS server
+  <div class="nats-server-config">
+    
+    <!-- Connection -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-server"></i>
+          <span>Connection</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-
-  <!-- Username/Password Section (default) -->
-  <div id="auth-userpass-section">
-      <div class="form-row">
-          <label for="node-config-input-user"><i class="fa fa-user"></i> User</label>
-          <input type="text" id="node-config-input-user" placeholder="Username">
-      </div>
-      <div class="form-row">
-          <label for="node-config-input-pass"><i class="fa fa-lock"></i> Password</label>
-          <input type="password" id="node-config-input-pass" placeholder="Password">
-      </div>
-  </div>
-
-  <!-- Token Section -->
-  <div id="auth-token-section" style="display: none;">
-      <div class="form-row">
-          <label for="node-config-input-token"><i class="fa fa-ticket"></i> Token</label>
-          <input type="password" id="node-config-input-token" placeholder="Authentication Token">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              NATS authentication token (stored encrypted)
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-link"></i>NATS Server URL</label>
+          <input type="text" id="node-config-input-server" placeholder="nats://localhost:4222">
+          <div class="nats-hint">
+            Examples: <code>nats://localhost:4222</code>, <code>nats://server1:4222,nats://server2:4222</code>
           </div>
+        </div>
+        
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-config-input-debug">
+          <label for="node-config-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
       </div>
-  </div>
-
-  <!-- JWT Section -->
-  <div id="auth-jwt-section" style="display: none;">
-      <div class="form-row">
-          <label for="node-config-input-jwt"><i class="fa fa-certificate"></i> JWT</label>
-          <textarea id="node-config-input-jwt" placeholder="Paste JWT token here..." rows="4" style="width: 70%; font-family: monospace; font-size: 11px;"></textarea>
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              NATS 2.x JWT authentication token (stored encrypted)
+    </div>
+    
+    <!-- Security & Authentication -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-shield"></i>
+          <span>Security & Authentication</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-key"></i>Authentication Method</label>
+          <select id="node-config-input-authMethod">
+            <option value="none">No Authentication</option>
+            <option value="userpass">Username / Password</option>
+            <option value="token">Token</option>
+            <option value="jwt">JWT + NKey</option>
+            <option value="nkey">NKey Only</option>
+          </select>
+        </div>
+        
+        <!-- Username/Password -->
+        <div id="auth-userpass-section" class="nats-auth-section">
+          <div class="nats-grid">
+            <div class="nats-form-row">
+              <label><i class="fa fa-user"></i>Username</label>
+              <input type="text" id="node-config-input-user" placeholder="Username">
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-lock"></i>Password</label>
+              <input type="password" id="node-config-input-pass" placeholder="Password">
+            </div>
           </div>
-      </div>
-  </div>
-
-  <!-- NKey Section -->
-  <div id="auth-nkey-section" style="display: none;">
-      <div class="form-row">
-          <label for="node-config-input-nkeySeed"><i class="fa fa-fingerprint"></i> NKey Seed</label>
-          <textarea id="node-config-input-nkeySeed" placeholder="Paste NKey seed here..." rows="3" style="width: 70%; font-family: monospace; font-size: 11px;"></textarea>
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              NATS NKey seed for cryptographic authentication (stored encrypted)
+        </div>
+        
+        <!-- Token -->
+        <div id="auth-token-section" class="nats-auth-section">
+          <div class="nats-form-row">
+            <label><i class="fa fa-ticket"></i>Authentication Token</label>
+            <input type="password" id="node-config-input-token" placeholder="Token">
           </div>
-      </div>
-  </div>
-
-  <!-- TLS/SSL Section -->
-  <div class="form-row" style="margin-top: 15px;">
-      <label for="node-config-input-enableTLS"><i class="fa fa-lock"></i> Enable TLS/SSL</label>
-      <input type="checkbox" id="node-config-input-enableTLS" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Encrypt connection with TLS/SSL</span>
-  </div>
-
-  <div id="tls-config-section" style="display: none;">
-      <div class="form-row">
-          <label for="node-config-input-tlsCaFile"><i class="fa fa-certificate"></i> CA Certificate</label>
-          <input type="text" id="node-config-input-tlsCaFile" placeholder="/path/to/ca.crt (optional)">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Path to CA certificate file for server verification
+        </div>
+        
+        <!-- JWT -->
+        <div id="auth-jwt-section" class="nats-auth-section">
+          <div class="nats-form-row">
+            <label><i class="fa fa-certificate"></i>JWT Token</label>
+            <textarea id="node-config-input-jwt" rows="3" placeholder="Paste JWT here..."></textarea>
           </div>
-      </div>
-      <div class="form-row">
-          <label for="node-config-input-tlsCertFile"><i class="fa fa-file-text-o"></i> Client Certificate</label>
-          <input type="text" id="node-config-input-tlsCertFile" placeholder="/path/to/client.crt (optional)">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Path to client certificate for mutual TLS (mTLS)
+          <div class="nats-form-row">
+            <label><i class="fa fa-fingerprint"></i>NKey Seed</label>
+            <textarea id="node-config-input-nkeySeed" rows="2" placeholder="Paste NKey seed here..."></textarea>
           </div>
-      </div>
-      <div class="form-row">
-          <label for="node-config-input-tlsKeyFile"><i class="fa fa-key"></i> Client Key</label>
-          <input type="text" id="node-config-input-tlsKeyFile" placeholder="/path/to/client.key (optional)">
-          <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-              Path to client private key for mutual TLS (mTLS)
+        </div>
+        
+        <!-- NKey Only -->
+        <div id="auth-nkey-section" class="nats-auth-section">
+          <div class="nats-form-row">
+            <label><i class="fa fa-fingerprint"></i>NKey Seed</label>
+            <textarea id="node-config-input-nkeySeed" rows="2" placeholder="Paste NKey seed here..."></textarea>
           </div>
+        </div>
+        
+        <!-- TLS -->
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e9ecef;">
+          <div class="nats-checkbox-row">
+            <input type="checkbox" id="node-config-input-enableTLS">
+            <label for="node-config-input-enableTLS"><i class="fa fa-lock"></i>Enable TLS/SSL Encryption</label>
+          </div>
+          
+          <div id="tls-config-section" style="display: none; margin-top: 12px;">
+            <div class="nats-form-row">
+              <label><i class="fa fa-certificate"></i>CA Certificate Path</label>
+              <input type="text" id="node-config-input-tlsCaFile" placeholder="/path/to/ca.crt (optional)">
+            </div>
+            <div class="nats-grid">
+              <div class="nats-form-row">
+                <label><i class="fa fa-file-text-o"></i>Client Certificate</label>
+                <input type="text" id="node-config-input-tlsCertFile" placeholder="/path/to/client.crt">
+              </div>
+              <div class="nats-form-row">
+                <label><i class="fa fa-key"></i>Client Key</label>
+                <input type="text" id="node-config-input-tlsKeyFile" placeholder="/path/to/client.key">
+              </div>
+            </div>
+            <div class="nats-checkbox-row">
+              <input type="checkbox" id="node-config-input-tlsRejectUnauthorized" checked>
+              <label for="node-config-input-tlsRejectUnauthorized"><i class="fa fa-check-circle"></i>Verify Server Certificate</label>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="form-row">
-          <label for="node-config-input-tlsRejectUnauthorized"><i class="fa fa-shield"></i> Verify Server Certificate</label>
-          <input type="checkbox" id="node-config-input-tlsRejectUnauthorized" style="vertical-align: middle;" checked>
-          <span style="margin-left: 10px; color: #999;">Reject unauthorized certificates (recommended for production)</span>
+    </div>
+    
+    <!-- Connection Settings -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cogs"></i>
+          <span>Advanced Settings</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-
-  <!-- Connection Settings Header -->
-  <div class="form-row" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
-      <label style="width: 100%; font-weight: bold;"><i class="fa fa-cogs"></i> Connection Settings</label>
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-maxReconnectAttempts"><i class="fa fa-refresh"></i> Max Reconnect Attempts</label>
-      <input type="number" id="node-config-input-maxReconnectAttempts" min="1" max="100" placeholder="10">
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-reconnectTimeWait"><i class="fa fa-clock-o"></i> Reconnect Wait Time (ms)</label>
-      <input type="number" id="node-config-input-reconnectTimeWait" min="100" max="60000" placeholder="1000">
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-timeout"><i class="fa fa-hourglass"></i> Connection Timeout (ms)</label>
-      <input type="number" id="node-config-input-timeout" min="1000" max="60000" placeholder="10000">
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-pingInterval"><i class="fa fa-heartbeat"></i> Ping Interval (ms)</label>
-      <input type="number" id="node-config-input-pingInterval" min="5000" max="120000" placeholder="30000">
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-maxPingOut"><i class="fa fa-exclamation-triangle"></i> Max Ping Outs</label>
-      <input type="number" id="node-config-input-maxPingOut" min="1" max="10" placeholder="3">
+      <div class="nats-section-content">
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-refresh"></i>Max Reconnect Attempts</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-config-input-maxReconnectAttempts" min="1" max="100" placeholder="10">
+            </div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-clock-o"></i>Reconnect Wait</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-config-input-reconnectTimeWait" min="100" max="60000" placeholder="1000">
+              <span class="nats-unit">ms</span>
+            </div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass"></i>Connection Timeout</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-config-input-timeout" min="1000" max="60000" placeholder="10000">
+              <span class="nats-unit">ms</span>
+            </div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-heartbeat"></i>Ping Interval</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-config-input-pingInterval" min="5000" max="120000" placeholder="30000">
+              <span class="nats-unit">ms</span>
+            </div>
+          </div>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-exclamation-triangle"></i>Max Ping Outs</label>
+          <div class="nats-inline-row">
+            <input type="number" id="node-config-input-maxPingOut" min="1" max="10" placeholder="3">
+            <span class="nats-hint" style="margin: 0;">before disconnect</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-server">
-  <p>Configures a connection to any NATS server for publishing and subscribing to messages. This is a generic NATS implementation that works with any NATS server, including:</p>
-  <ul>
-    <li>Standard NATS servers</li>
-    <li>NATS Leaf Nodes (for connecting to remote NATS clusters)</li>
-    <li>NATS clusters</li>
-    <li>Embedded NATS servers (for testing)</li>
-  </ul>
+  <p>Configures a connection to a NATS server.</p>
 
-  <h3>Configuration</h3>
-  
-  <h4>NATS Server</h4>
-  <p>The NATS server URL for connecting. Supports single server or clustered configurations. Can also be configured as a Leaf Node.</p>
+  <h3>Connection URL</h3>
   <p>Examples:</p>
   <ul>
-    <li><code>nats://localhost:4222</code> - Local development server</li>
-    <li><code>nats://user:pass@nats.example.com:4222</code> - Production server with authentication</li>
-    <li><code>nats://server1:4222,nats://server2:4222</code> - High availability cluster</li>
-    <li><code>nats://leaf.example.com:7422</code> - Leaf Node connection</li>
+    <li><code>nats://localhost:4222</code> - Local server</li>
+    <li><code>nats://server1:4222,nats://server2:4222</code> - Cluster</li>
   </ul>
 
-  <h4>Authentication Methods</h4>
-  <p>Multiple authentication methods are supported for secure NATS server connections:</p>
+  <h3>Authentication</h3>
   <ul>
-    <li><strong>No Authentication:</strong> For local development or unsecured servers</li>
-    <li><strong>Username/Password:</strong> Traditional username and password authentication (default)</li>
-    <li><strong>Token Authentication:</strong> Single authentication token for NATS server</li>
-    <li><strong>JWT Authentication:</strong> NATS 2.x JSON Web Token authentication with NKey seed</li>
-    <li><strong>NKey Authentication:</strong> Cryptographic authentication using NKey seed</li>
-  </ul>
-  <p><strong>Note:</strong> All credentials are stored encrypted in Node-RED's secure credentials system and never appear in flow exports.</p>
-
-  <h4>Connection Settings</h4>
-  
-  <dl class="message-properties">
-    <dt>Max Reconnect Attempts</dt>
-    <dd>Maximum number of reconnection attempts before giving up (1-100). Default: 10</dd>
-  </dl>
-  
-  <dl class="message-properties">
-    <dt>Reconnect Wait Time</dt>
-    <dd>Base time to wait between reconnection attempts in milliseconds (100-60000). Default: 1000ms</dd>
-  </dl>
-  
-  <dl class="message-properties">
-    <dt>Connection Timeout</dt>
-    <dd>Connection timeout in milliseconds (1000-60000). Default: 10000ms</dd>
-  </dl>
-  
-  <dl class="message-properties">
-    <dt>Ping Interval</dt>
-    <dd>Interval between ping messages in milliseconds (5000-120000). Default: 30000ms</dd>
-  </dl>
-  
-  <dl class="message-properties">
-    <dt>Max Ping Outs</dt>
-    <dd>Maximum number of ping timeouts before disconnect (1-10). Default: 3</dd>
-  </dl>
-
-  <h3>Status Indicators</h3>
-  <ul>
-    <li><strong>Connected:</strong> Shows uptime (e.g., "connected (2h 15m)")</li>
-    <li><strong>Disconnected:</strong> Shows reconnect attempts (e.g., "disconnected (3/10)")</li>
-    <li><strong>Connecting:</strong> Shows current attempt (e.g., "connecting (4)")</li>
-    <li><strong>Failed:</strong> Shows when max attempts reached</li>
+    <li><strong>None:</strong> No authentication</li>
+    <li><strong>Username/Password:</strong> Basic auth</li>
+    <li><strong>Token:</strong> Single token</li>
+    <li><strong>JWT + NKey:</strong> NATS 2.x authentication</li>
+    <li><strong>NKey:</strong> Cryptographic auth</li>
   </ul>
 
-  <h3>Reconnection Behavior</h3>
-  <p>The node uses intelligent exponential backoff for reconnection attempts:</p>
-  <ul>
-    <li>1st attempt: 5 seconds</li>
-    <li>2nd attempt: 10 seconds</li>
-    <li>3rd attempt: 20 seconds</li>
-    <li>4th attempt: 40 seconds</li>
-    <li>5th+ attempt: 60 seconds (maximum)</li>
-  </ul>
+  <h3>TLS/SSL</h3>
+  <p>Enable TLS for encrypted connections. For mutual TLS (mTLS), provide client certificate and key.</p>
 
-  <h3>Features</h3>
-  <ul>
-    <li><strong>Automatic Reconnection:</strong> Handles network interruptions gracefully</li>
-    <li><strong>Connection Pooling:</strong> Efficient connection management for multiple nodes</li>
-    <li><strong>Status Broadcasting:</strong> Real-time status updates to all connected nodes</li>
-    <li><strong>Error Handling:</strong> Comprehensive error handling with detailed logging</li>
-    <li><strong>Performance Optimized:</strong> Optimized for high-frequency message processing</li>
-  </ul>
-
-  <h3>Usage</h3>
-  <p>This configuration node is used by all nats-suite nodes (Publish, Subscribe, Request, Health) to establish and manage connections to the NATS server.</p>
-  
-  <h4>Setup Example</h4>
-  <pre><code>1. Create a NATS Server configuration node
-2. Set server URL: nats://your-nats-suite-server:4222
-3. Add authentication if required
-4. Configure connection settings as needed
-5. Use this configuration in your Publish/Subscribe nodes</code></pre>
-
-  <h3>Security</h3>
-  
-  <h4>TLS/SSL Encryption</h4>
-  <p>Secure your NATS connection with TLS/SSL encryption:</p>
-  <ul>
-    <li><strong>Enable TLS/SSL:</strong> Checkbox to activate TLS encryption</li>
-    <li><strong>CA Certificate:</strong> Path to Certificate Authority file for server verification</li>
-    <li><strong>Client Certificate:</strong> Path to client certificate for mutual TLS (mTLS)</li>
-    <li><strong>Client Key:</strong> Path to client private key for mutual TLS (mTLS)</li>
-    <li><strong>Verify Server Certificate:</strong> Recommended for production to prevent MITM attacks</li>
-  </ul>
-  
-  <h4>Security Best Practices</h4>
-  <ul>
-    <li><strong>TLS in Production:</strong> Always enable TLS/SSL for production environments</li>
-    <li><strong>Strong Authentication:</strong> Use JWT or NKey authentication for enhanced security</li>
-    <li><strong>Certificate Verification:</strong> Keep "Verify Server Certificate" enabled in production</li>
-    <li><strong>Credential Storage:</strong> All credentials are encrypted and never exposed in flow files</li>
-    <li><strong>Network Security:</strong> Ensure NATS server is behind firewall/VPN when possible</li>
-  </ul>
-  
-  <h4>Security Warnings</h4>
-  <p>The node will automatically warn you if:</p>
-  <ul>
-    <li>Production connection detected without TLS encryption</li>
-    <li>Invalid certificate paths provided</li>
-    <li>Authentication method configured incorrectly (e.g., JWT without NKey seed)</li>
-  </ul>
-
-  <h3>Troubleshooting</h3>
-  <ul>
-    <li><strong>Connection Timeout:</strong> Check server URL and network connectivity</li>
-    <li><strong>Authentication Failed:</strong> Verify credentials match selected auth method</li>
-    <li><strong>TLS Handshake Failed:</strong> Check certificate paths and validity</li>
-    <li><strong>Certificate Verification Error:</strong> Ensure CA certificate is correct or disable verification for testing</li>
-    <li><strong>JWT Authentication Error:</strong> Verify both JWT token and NKey seed are provided</li>
-    <li><strong>Frequent Disconnects:</strong> Adjust ping interval and timeout settings</li>
-    <li><strong>Max Attempts Reached:</strong> Check server availability and configuration</li>
-  </ul>
-  
-  <h3>Examples</h3>
-  
-  <h4>Local Development (No TLS)</h4>
-  <pre><code>Server: nats://localhost:4222
-Auth Method: No Authentication
-Enable TLS: Unchecked</code></pre>
-  
-  <h4>Production with Username/Password + TLS</h4>
-  <pre><code>Server: nats://production.example.com:4222
-Auth Method: Username/Password
-User: admin
-Password: ***
-Enable TLS: Checked
-CA Certificate: /etc/ssl/certs/ca.crt
-Verify Server Certificate: Checked</code></pre>
-  
-  <h4>Production with JWT + Mutual TLS</h4>
-  <pre><code>Server: nats://secure.example.com:4222
-Auth Method: JWT Authentication
-JWT: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-NKey Seed: SUACSSL3...
-Enable TLS: Checked
-CA Certificate: /etc/ssl/certs/ca.crt
-Client Certificate: /etc/ssl/certs/client.crt
-Client Key: /etc/ssl/private/client.key
-Verify Server Certificate: Checked</code></pre>
+  <h3>Reconnection</h3>
+  <p>Automatic exponential backoff: 5s → 10s → 20s → 40s → 60s (max)</p>
 </script>

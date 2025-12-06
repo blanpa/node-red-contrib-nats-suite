@@ -1,276 +1,282 @@
 <script type="text/javascript">
-    RED.nodes.registerType('nats-suite-health', {
-        category: 'NATS Suite',
-        color: '#2FAF9C',
-        defaults: {
-            name: { value: "" },
-            server: { value: "", type: "nats-suite-server" },
-            checkOnStart: { value: true },
-            periodicCheck: { value: false },
-            checkInterval: { value: 30 },
-            enableConnectivityTests: { value: true },
-            latencyThreshold: { value: 100 },
-            reconnectThreshold: { value: 5 },
-            throughputThreshold: { value: 1000 }
-        },
-        inputs: 1,
-        outputs: 1,
-        icon: "nats-icon-white.png",
-        align: "left",
-        label: function () {
-            return this.name || "nats suite health";
-        },
-        paletteLabel: 'nats health',
-    });
+  RED.nodes.registerType('nats-suite-health', {
+    category: 'NATS Suite',
+    color: '#2FAF9C',
+    defaults: {
+      name: { value: "" },
+      server: { value: "", type: "nats-suite-server" },
+      checkOnStart: { value: true },
+      periodicCheck: { value: false },
+      checkInterval: { value: 30 },
+      enableConnectivityTests: { value: true },
+      latencyThreshold: { value: 100 },
+      reconnectThreshold: { value: 5 },
+      throughputThreshold: { value: 1000 }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "nats-icon-white.png",
+    align: "left",
+    label: function () {
+      return this.name || "nats health";
+    },
+    paletteLabel: 'nats health',
+    oneditprepare: function() {
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Periodic check handler
+      $('#node-input-periodicCheck').on('change', function() {
+        if ($(this).is(':checked')) {
+          $('#check-interval-row').slideDown(200);
+        } else {
+          $('#check-interval-row').slideUp(200);
+        }
+      });
+      $('#node-input-periodicCheck').trigger('change');
+    }
+  });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-health">
-    <div class="form-row">
-        <label for="node-input-name"><i class="fa fa-heartbeat"></i> Name</label>        
-        <input type="text" id="node-input-name" placeholder="Name">        
+  <style>
+    .nats-health-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-form-row input[type="number"] { width: 120px; }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .nats-unit {
+      font-size: 12px;
+      color: #6c757d;
+      margin-left: 8px;
+    }
+    .nats-inline-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+
+  <div class="nats-health-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+      </div>
     </div>
-    <div class="form-row">
-        <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-        <input type="text" id="node-input-server" placeholder="localhost">
+    
+    <!-- Check Settings -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-heartbeat"></i>
+          <span>Health Check Settings</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-checkOnStart" checked>
+          <label for="node-input-checkOnStart"><i class="fa fa-play"></i>Check on Start</label>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-periodicCheck">
+          <label for="node-input-periodicCheck"><i class="fa fa-clock-o"></i>Periodic Check</label>
+        </div>
+        <div class="nats-form-row" id="check-interval-row" style="display: none;">
+          <label><i class="fa fa-clock-o"></i>Check Interval</label>
+          <div class="nats-inline-row">
+            <input type="number" id="node-input-checkInterval" placeholder="30" min="5" max="3600">
+            <span class="nats-unit">seconds</span>
+          </div>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableConnectivityTests" checked>
+          <label for="node-input-enableConnectivityTests"><i class="fa fa-plug"></i>Enable Connectivity Tests</label>
+        </div>
+      </div>
     </div>
-    <div class="form-row">
-        <label for="node-input-checkOnStart"><i class="fa fa-play"></i> Check on Start</label>
-        <input type="checkbox" id="node-input-checkOnStart" style="width: auto;">
+    
+    <!-- Thresholds -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sliders"></i>
+          <span>Alert Thresholds</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-tachometer"></i>Latency Threshold</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-input-latencyThreshold" placeholder="100" min="10" max="1000">
+              <span class="nats-unit">ms</span>
+            </div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-refresh"></i>Reconnect Threshold</label>
+            <input type="number" id="node-input-reconnectThreshold" placeholder="5" min="1" max="50">
+          </div>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-signal"></i>Throughput Threshold</label>
+          <div class="nats-inline-row">
+            <input type="number" id="node-input-throughputThreshold" placeholder="1000" min="100" max="10000">
+            <span class="nats-unit">msg/s</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="form-row">
-        <label for="node-input-periodicCheck"><i class="fa fa-clock-o"></i> Periodic Check</label>
-        <input type="checkbox" id="node-input-periodicCheck" style="width: auto;">
-    </div>
-    <div class="form-row">
-        <label for="node-input-checkInterval"><i class="fa fa-clock-o"></i> Check Interval (seconds)</label>
-        <input type="number" id="node-input-checkInterval" placeholder="30" min="5" max="3600">
-    </div>
-    <div class="form-row">
-        <label for="node-input-enableConnectivityTests"><i class="fa fa-plug"></i> Enable Connectivity Tests</label>
-        <input type="checkbox" id="node-input-enableConnectivityTests" style="width: auto;">
-    </div>
-    <div class="form-row">
-        <label for="node-input-latencyThreshold"><i class="fa fa-tachometer"></i> Latency Threshold (ms)</label>
-        <input type="number" id="node-input-latencyThreshold" placeholder="100" min="10" max="1000">
-    </div>
-    <div class="form-row">
-        <label for="node-input-reconnectThreshold"><i class="fa fa-refresh"></i> Reconnect Threshold</label>
-        <input type="number" id="node-input-reconnectThreshold" placeholder="5" min="1" max="50">
-    </div>
-    <div class="form-row">
-        <label for="node-input-throughputThreshold"><i class="fa fa-signal"></i> Throughput Threshold (msg/s)</label>
-        <input type="number" id="node-input-throughputThreshold" placeholder="1000" min="100" max="10000">
-    </div>
+    
+  </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-health">
-    <p>Monitors the health and status of the NATS server connection.</p>
+  <p>Monitors NATS server connection health.</p>
 
-    <h3>Inputs</h3>
-    <dl class="message-properties">
-        <dt>payload <span class="property-type">any</span></dt>
-        <dd>Any message will trigger a health check. Use "check" for manual health checks.</dd>
-    </dl>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload.status <span class="property-type">string</span></dt>
+    <dd>"healthy" or "unhealthy"</dd>
+    <dt>payload.connection <span class="property-type">object</span></dt>
+    <dd>Connection status, uptime, reconnects</dd>
+    <dt>payload.statistics <span class="property-type">object</span></dt>
+    <dd>Messages sent/received, errors</dd>
+  </dl>
 
-    <h3>Outputs</h3>
-    <dl class="message-properties">
-        <dt>payload <span class="property-type">object</span></dt>
-        <dd>Comprehensive health status information including server details, connection status, and performance statistics.</dd>
-        
-        <dt>status <span class="property-type">string</span></dt>
-        <dd>The status of the health check: "healthy" or "unhealthy".</dd>
-        
-        <dt>topic <span class="property-type">string</span></dt>
-        <dd>Always set to "nats.health".</dd>
-    </dl>
-
-    <h3>Enhanced Health Check Information</h3>
-    
-    <h4>Extended Server Information</h4>
-    <ul>
-        <li><strong>Server Details:</strong> Name, version, protocol, server ID</li>
-        <li><strong>Cluster Info:</strong> Cluster ports, connect URLs, cluster status</li>
-        <li><strong>JetStream:</strong> JetStream availability and status</li>
-        <li><strong>TLS/Security:</strong> TLS configuration and certificate status</li>
-        <li><strong>Resource Limits:</strong> Max payload size, connection limits</li>
-    </ul>
-    
-    <h4>Enhanced Connection Information</h4>
-    <ul>
-        <li><strong>Latency:</strong> Ping/Pong response time in milliseconds</li>
-        <li><strong>Connection Stability:</strong> Uptime and reconnect history</li>
-        <li><strong>Performance:</strong> Connection quality assessment</li>
-        <li><strong>Error Tracking:</strong> Last connection errors and issues</li>
-    </ul>
-    
-    <h4>Advanced Statistics</h4>
-    <ul>
-        <li><strong>Message Throughput:</strong> Messages per second calculation</li>
-        <li><strong>Bandwidth Usage:</strong> Bytes per second metrics</li>
-        <li><strong>Protocol Stats:</strong> Ping/Pong counts, pending messages</li>
-        <li><strong>Performance Trends:</strong> Historical performance data</li>
-    </ul>
-    
-    <h4>Connectivity Tests</h4>
-    <ul>
-        <li><strong>Publish/Subscribe Test:</strong> End-to-end message delivery verification</li>
-        <li><strong>Request/Response Test:</strong> Request-reply pattern validation</li>
-        <li><strong>Latency Measurement:</strong> Round-trip time for each test</li>
-        <li><strong>Test Results:</strong> Pass/fail status with detailed error information</li>
-    </ul>
-    
-    <h4>Connection Status</h4>
-    <ul>
-        <li><strong>Status:</strong> Connected, disconnected, connecting, or failed</li>
-        <li><strong>Uptime:</strong> Connection duration in human-readable format</li>
-        <li><strong>Reconnect Attempts:</strong> Number of reconnection attempts</li>
-        <li><strong>Last Error:</strong> Most recent connection error (if any)</li>
-    </ul>
-    
-    <h4>Alerting & Thresholds</h4>
-    <ul>
-        <li><strong>Latency Alerts:</strong> Warnings when latency exceeds threshold</li>
-        <li><strong>Reconnect Alerts:</strong> Notifications for excessive reconnections</li>
-        <li><strong>Throughput Alerts:</strong> High activity notifications</li>
-        <li><strong>Connectivity Alerts:</strong> Failed connectivity test notifications</li>
-    </ul>
-    
-    <h4>Health Summary</h4>
-    <ul>
-        <li><strong>Overall Status:</strong> Healthy, warning, or unhealthy</li>
-        <li><strong>Connection Quality:</strong> Stable, unstable, or excellent</li>
-        <li><strong>Performance Rating:</strong> Excellent, good, or poor</li>
-        <li><strong>Activity Level:</strong> High, moderate, or low</li>
-    </ul>
-
-    <h3>Configuration</h3>
-    <dl class="message-properties">
-        <dt>Name</dt>
-        <dd>Display name for the node.</dd>
-        
-        <dt>NATS Server</dt>
-        <dd>nats-suite server configuration node to monitor.</dd>
-        
-        <dt>Check on Start</dt>
-        <dd>If enabled, performs a health check automatically when the node starts.</dd>
-        
-        <dt>Periodic Check</dt>
-        <dd>If enabled, performs health checks at regular intervals.</dd>
-        
-        <dt>Check Interval (seconds)</dt>
-        <dd>The interval in seconds between periodic health checks (5-3600 seconds).</dd>
-        
-        <dt>Enable Connectivity Tests</dt>
-        <dd>If enabled, performs publish/subscribe and request/response connectivity tests.</dd>
-        
-        <dt>Latency Threshold (ms)</dt>
-        <dd>Warning threshold for connection latency in milliseconds (10-1000ms).</dd>
-        
-        <dt>Reconnect Threshold</dt>
-        <dd>Warning threshold for number of reconnection attempts (1-50).</dd>
-        
-        <dt>Throughput Threshold (msg/s)</dt>
-        <dd>Info threshold for message throughput in messages per second (100-10000).</dd>
-    </dl>
-
-    <h3>Health Check Examples</h3>
-    
-    <h4>Healthy Response</h4>
-    <pre><code>msg = {
-  payload: {
-    status: "healthy",
-    server: {
-      url: "nats://localhost:4222",
-      authentication: "none",
-      type: "single"
-    },
-    connection: {
-      status: "connected",
-      uptime: "2h 15m 30s",
-      reconnectAttempts: 0,
-      lastError: null
-    },
-    statistics: {
-      messagesSent: 1250,
-      messagesReceived: 980,
-      errors: 0,
-      responseTime: "5ms"
-    }
-  },
-  status: "healthy",
-  topic: "nats.health"
-};</code></pre>
-    
-    <h4>Unhealthy Response</h4>
-    <pre><code>msg = {
-  payload: {
-    status: "unhealthy",
-    server: {
-      url: "nats://localhost:4222",
-      authentication: "none",
-      type: "single"
-    },
-    connection: {
-      status: "disconnected",
-      uptime: "0s",
-      reconnectAttempts: 5,
-      lastError: "Connection timeout"
-    },
-    statistics: {
-      messagesSent: 0,
-      messagesReceived: 0,
-      errors: 5,
-      responseTime: "timeout"
-    }
-  },
-  status: "unhealthy",
-  topic: "nats.health"
-};</code></pre>
-
-    <h3>Usage Examples</h3>
-    
-    <h4>Manual Health Check</h4>
-    <pre><code>// Trigger health check manually
-msg.payload = "check";</code></pre>
-    
-    <h4>Periodic Monitoring</h4>
-    <pre><code>// Configure node:
-// - Check on Start: true
-// - Periodic Check: true
-// - Check Interval: 60
-
-// Health checks will run every 60 seconds automatically</code></pre>
-    
-    <h4>Health Status Monitoring</h4>
-    <pre><code>// Use Switch node to handle different statuses
-if (msg.payload.status === "healthy") {
-  // Connection is good
-} else {
-  // Handle unhealthy connection
-}</code></pre>
-
-    <h3>Features</h3>
-    <ul>
-        <li><strong>Comprehensive Monitoring:</strong> Detailed health information including server, connection, and performance metrics</li>
-        <li><strong>Automatic Checks:</strong> Configurable automatic health checks on start and periodic intervals</li>
-        <li><strong>Real-time Status:</strong> Live connection status and uptime monitoring</li>
-        <li><strong>Performance Metrics:</strong> Message counts, error tracking, and response time monitoring</li>
-        <li><strong>Error Reporting:</strong> Detailed error information for troubleshooting</li>
-    </ul>
-
-    <h3>Integration</h3>
-    <ul>
-        <li><strong>Dashboard Integration:</strong> Use with Node-RED dashboard for visual monitoring</li>
-        <li><strong>Alerting:</strong> Connect to notification systems for health alerts</li>
-        <li><strong>Logging:</strong> Health check results can be logged for historical analysis</li>
-        <li><strong>Automation:</strong> Trigger automated responses based on health status</li>
-    </ul>
-
-    <h3>Best Practices</h3>
-    <ul>
-        <li><strong>Check Interval:</strong> Set appropriate intervals based on your reliability requirements</li>
-        <li><strong>Error Handling:</strong> Always handle unhealthy status in your flows</li>
-        <li><strong>Monitoring:</strong> Use periodic checks for continuous monitoring</li>
-        <li><strong>Alerting:</strong> Set up alerts for critical health issues</li>
-    </ul>
+  <h3>Features</h3>
+  <ul>
+    <li>Automatic health checks on start</li>
+    <li>Periodic monitoring</li>
+    <li>Connectivity tests</li>
+    <li>Configurable alert thresholds</li>
+  </ul>
 </script>

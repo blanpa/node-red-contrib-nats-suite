@@ -32,33 +32,6 @@
         "debug": false
     },
     {
-        "id": "02aca3efc41bc952",
-        "type": "inject",
-        "z": "730548083f8fd69a",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 160,
-        "y": 60,
-        "wires": [
-            []
-        ]
-    },
-    {
         "id": "inject-headers",
         "type": "inject",
         "z": "headers-example",
@@ -94,7 +67,7 @@
         "z": "headers-example",
         "name": "Publish with Headers",
         "server": "f299d3b622714522",
-        "debug": false,
+        "debug": true,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",
@@ -112,8 +85,8 @@
         "rateLimit": "",
         "rateLimitWindow": "",
         "rateLimitBurst": "",
-        "enableHeaders": false,
-        "headers": "",
+        "enableHeaders": true,
+        "headers": "{\"X-App\":\"Node-RED\",\"X-Version\":\"1.0\"}",
         "enableMsgExpiration": false,
         "msgExpiration": "",
         "x": 380,

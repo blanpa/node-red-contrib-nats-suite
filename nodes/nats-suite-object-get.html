@@ -6,16 +6,9 @@
     align: 'left',
     defaults: {
       name: { value: "" },
-      server: { 
-        value: "",
-        type: 'nats-suite-server',
-        required: true
-      },
+      server: { value: "", type: 'nats-suite-server', required: true },
       bucket: { value: "" },
-      bucketConfig: { 
-        value: "",
-        required: false
-      },
+      bucketConfig: { value: "", required: false },
       objectName: { value: "" },
       nameFrom: { value: "msg" },
       outputFormat: { value: "buffer" },
@@ -35,181 +28,249 @@
     },
     paletteLabel: 'nats object get',
     oneditprepare: function() {
-      // Show/hide based on operation
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Operation handler
       $('#node-input-operation').on('change', function() {
-        const op = $(this).val();
-        
-        if (op === 'list') {
-          $('#object-config').hide();
+        if ($(this).val() === 'list') {
+          $('#object-config').slideUp(200);
         } else {
-          $('#object-config').show();
+          $('#object-config').slideDown(200);
         }
       });
       
-      // Show/hide object name input
+      // Name source handler
       $('#node-input-nameFrom').on('change', function() {
         if ($(this).val() === 'config') {
-          $('#object-name-row').show();
+          $('#object-name-row').slideDown(200);
         } else {
-          $('#object-name-row').hide();
+          $('#object-name-row').slideUp(200);
         }
       });
       
-      // Trigger initial state
-      $('#node-input-operation').trigger('change');
-      $('#node-input-nameFrom').trigger('change');
-      
-      // Show/hide bucket direct config based on bucketConfig
+      // Bucket config handler
       $('#node-input-bucketConfig').on('change', function() {
         if ($(this).val()) {
-          $('#bucket-direct-config').hide();
-          $('#bucket-settings').hide();
+          $('#bucket-direct-config').slideUp(200);
         } else {
-          $('#bucket-direct-config').show();
-          $('#bucket-settings').show();
+          $('#bucket-direct-config').slideDown(200);
         }
       });
+      
+      $('#node-input-operation').trigger('change');
+      $('#node-input-nameFrom').trigger('change');
       $('#node-input-bucketConfig').trigger('change');
     }
   });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-object-get">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Object Get">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-bucketConfig"><i class="fa fa-database"></i> Bucket Config (optional)</label>
-      <input type="text" id="node-input-bucketConfig">
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Optional: Use bucket config node OR configure bucket directly below
+  <style>
+    .nats-object-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+  </style>
+
+  <div class="nats-object-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-  
-  <div class="form-row" id="bucket-direct-config">
-      <label for="node-input-bucket"><i class="fa fa-database"></i> Bucket Name</label>
-      <input type="text" id="node-input-bucket" placeholder="my-bucket">
-  </div>
-  
-  <div class="form-row" id="bucket-settings" style="display: none;">
-      <label for="node-input-description"><i class="fa fa-info-circle"></i> Description</label>
-      <input type="text" id="node-input-description" placeholder="Optional description">
-      
-      <label for="node-input-maxAge"><i class="fa fa-clock-o"></i> Max Age (seconds)</label>
-      <input type="number" id="node-input-maxAge" placeholder="0" min="0" style="width: 100px;">
-      
-      <label for="node-input-maxBytes"><i class="fa fa-hdd-o"></i> Max Bytes</label>
-      <input type="number" id="node-input-maxBytes" placeholder="0" min="0" style="width: 150px;">
-      
-      <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
-      <select id="node-input-storage" style="width:70%">
-          <option value="file">File</option>
-          <option value="memory">Memory</option>
-      </select>
-      
-      <label for="node-input-replicas"><i class="fa fa-copy"></i> Replicas</label>
-      <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5" style="width: 100px;">
-      
-      <label for="node-input-compression"><i class="fa fa-compress"></i> Compression</label>
-      <input type="checkbox" id="node-input-compression" style="vertical-align: middle;">
-  </div>
-  
-  <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-  
-  <div class="form-row">
-      <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
-      <select id="node-input-operation" style="width:70%">
-          <option value="get">Get Object</option>
-          <option value="list">List Objects</option>
-      </select>
-  </div>
-  
-  <div id="object-config">
-  <div class="form-row">
-      <label for="node-input-nameFrom"><i class="fa fa-key"></i> Object Name From</label>
-      <select id="node-input-nameFrom" style="width:70%">
-          <option value="msg">msg.objectName / msg.name</option>
-          <option value="topic">msg.topic</option>
-          <option value="config">Configuration</option>
-      </select>
-  </div>
-  
-  <div class="form-row" id="object-name-row">
-      <label for="node-input-objectName"><i class="fa fa-file"></i> Object Name</label>
-      <input type="text" id="node-input-objectName" placeholder="my-object.txt">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-outputFormat"><i class="fa fa-code"></i> Output Format</label>
-      <select id="node-input-outputFormat" style="width:70%">
-          <option value="buffer">Buffer</option>
-          <option value="string">String</option>
-          <option value="json">JSON (auto-parse)</option>
-      </select>
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-debug"><i class="fa fa-bug"></i> Debug</label>
-      <input type="checkbox" id="node-input-debug" style="vertical-align: middle;">
-      <span style="margin-left: 10px; color: #999;">Enable debug logging</span>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-database"></i>Bucket Config (optional)</label>
+          <input type="text" id="node-input-bucketConfig">
+        </div>
+        <div class="nats-form-row" id="bucket-direct-config">
+          <label><i class="fa fa-database"></i>Bucket Name</label>
+          <input type="text" id="node-input-bucket" placeholder="my-bucket">
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Operation -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-download"></i>
+          <span>Operation</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-cogs"></i>Operation</label>
+          <select id="node-input-operation">
+            <option value="get">Get Object</option>
+            <option value="list">List Objects</option>
+          </select>
+        </div>
+        
+        <div id="object-config">
+          <div class="nats-form-row">
+            <label><i class="fa fa-key"></i>Object Name From</label>
+            <select id="node-input-nameFrom">
+              <option value="msg">msg.objectName / msg.name</option>
+              <option value="topic">msg.topic</option>
+              <option value="config">Configuration</option>
+            </select>
+          </div>
+          <div class="nats-form-row" id="object-name-row" style="display: none;">
+            <label><i class="fa fa-file"></i>Object Name</label>
+            <input type="text" id="node-input-objectName" placeholder="my-object.txt">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-code"></i>Output Format</label>
+            <select id="node-input-outputFormat">
+              <option value="buffer">Buffer</option>
+              <option value="string">String</option>
+              <option value="json">JSON (auto-parse)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-object-get">
   <p>Downloads objects from NATS Object Store.</p>
   
-  <h3>Inputs</h3>
-  <dl class="message-properties">
-    <dt>msg.objectName / msg.name</dt>
-    <dd>Object name to retrieve</dd>
-    
-    <dt>msg.topic</dt>
-    <dd>Object name (when nameFrom = "topic")</dd>
-  </dl>
-  
   <h3>Outputs</h3>
   <dl class="message-properties">
-    <dt>msg.payload</dt>
+    <dt>payload <span class="property-type">buffer|string|object</span></dt>
     <dd>Object data (format depends on outputFormat)</dd>
-    
-    <dt>msg.info</dt>
-    <dd>Object info (size, chunks, metadata)</dd>
-    
-    <dt>msg.size</dt>
+    <dt>info <span class="property-type">object</span></dt>
+    <dd>Object metadata (size, chunks, etc.)</dd>
+    <dt>size <span class="property-type">number</span></dt>
     <dd>Object size in bytes</dd>
-    
-    <dt>msg.metadata</dt>
-    <dd>Object metadata/headers</dd>
   </dl>
 </script>
-
-<script type="text/javascript">
-  $('#node-input-nameFrom').on('change', function() {
-    if ($(this).val() === 'config') {
-      $('#object-name-row').show();
-    } else {
-      $('#object-name-row').hide();
-    }
-  });
-  $('#node-input-nameFrom').trigger('change');
-  
-  // Show/hide bucket direct config based on bucketConfig
-  $('#node-input-bucketConfig').on('change', function() {
-    if ($(this).val()) {
-      $('#bucket-direct-config').hide();
-      $('#bucket-settings').hide();
-    } else {
-      $('#bucket-direct-config').show();
-      $('#bucket-settings').show();
-    }
-  });
-  $('#node-input-bucketConfig').trigger('change');
-</script>
-

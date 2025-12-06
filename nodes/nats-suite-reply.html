@@ -6,11 +6,7 @@
     align: 'right',
     defaults: {
       name: { value: "" },
-      server: { 
-        value: "",
-        type: 'nats-suite-server',
-        required: true
-      },
+      server: { value: "", type: 'nats-suite-server', required: true },
       subject: { value: "" }
     },
     inputs: 1,
@@ -23,47 +19,149 @@
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-reply">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Reply">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-subject"><i class="fa fa-envelope"></i> Subject</label>
-      <input type="text" id="node-input-subject" placeholder="service.request">
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Subject to listen for requests
+  <style>
+    .nats-reply-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #e1e4e8;
+    }
+    .nats-section-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .nats-info-box {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border: 1px solid #a5d6a7;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .nats-info-box h4 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #2e7d32;
+    }
+    .nats-info-box p {
+      margin: 0;
+      font-size: 11px;
+      color: #1b5e20;
+      line-height: 1.5;
+    }
+  </style>
+
+  <div class="nats-reply-config">
+    
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title"><i class="fa fa-reply"></i>Reply Configuration</div>
       </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-envelope"></i>Subject</label>
+          <input type="text" id="node-input-subject" placeholder="service.request">
+          <div class="nats-hint">
+            Subject to listen for incoming requests
+          </div>
+        </div>
+        
+        <div class="nats-info-box">
+          <h4><i class="fa fa-info-circle"></i> How it works</h4>
+          <p>
+            1. Listens for requests on the configured subject<br>
+            2. Outputs incoming request as <code>msg.payload</code><br>
+            3. Send reply back using <code>msg._reply</code> subject
+          </p>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-reply">
-  <p>Dedicated Reply node for Request/Reply pattern (server-side).</p>
+  <p>Reply node for Request/Reply pattern (server-side).</p>
   
   <h3>Usage</h3>
-  <p>Listens for requests on the configured subject and sends replies using msg.payload.</p>
+  <p>Listens for requests on the configured subject and sends replies.</p>
   
-  <h3>Inputs</h3>
+  <h3>Outputs (from incoming request)</h3>
   <dl class="message-properties">
-    <dt>msg.payload</dt>
-    <dd>Reply data to send</dd>
-    
-    <dt>msg._reply / msg.reply</dt>
-    <dd>Reply subject (from incoming request)</dd>
+    <dt>payload <span class="property-type">any</span></dt>
+    <dd>Request payload</dd>
+    <dt>_reply <span class="property-type">string</span></dt>
+    <dd>Reply subject (use this to send response)</dd>
   </dl>
   
-  <h3>Outputs</h3>
+  <h3>Inputs (to send reply)</h3>
   <dl class="message-properties">
-    <dt>msg.payload</dt>
-    <dd>Request payload</dd>
-    
-    <dt>msg._reply</dt>
-    <dd>Reply subject</dd>
+    <dt>payload <span class="property-type">any</span></dt>
+    <dd>Reply data to send</dd>
+    <dt>_reply <span class="property-type">string</span></dt>
+    <dd>Reply subject from original request</dd>
   </dl>
 </script>
-

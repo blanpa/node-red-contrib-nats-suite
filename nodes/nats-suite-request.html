@@ -3,252 +3,230 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: {
-        value: '',
-      },
-      server: {
-        value: '',
-        type: 'nats-suite-server',
-      },
-      dataformat: {
-        value: 'uns_command',
-      },
-      subject: {
-        value: '',
-        required: true,
-      },
-      timeout: {
-        value: 1000,
-      },
-      handleTimeout: {
-        value: true,
-      },
-      debug: {
-        value: false,
-      },
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server' },
+      dataformat: { value: 'specific_subject' },
+      subject: { value: '', required: true },
+      timeout: { value: 1000 },
+      handleTimeout: { value: true },
+      debug: { value: false },
     },
     inputs: 1,
     outputs: 1,
     icon: 'nats-icon-white.png',
     align: 'right',
     label: function () {
-      return this.name || 'nats suite request';
+      return this.name || 'nats request';
     },
     paletteLabel: 'nats request',
   });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-request">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-stack-exchange"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server" placeholder="localhost">
-  </div>
-  <div class="form-row">
-      <label for="node-input-dataformat"><i class="fa fa-stack-exchange"></i> Dataformat</label>
-      <select id="node-input-dataformat" style="width:70%">
-          <option value="uns_command">UNS Command</option>
-          <option value="uns_event">UNS Event</option>
-          <option value="uns_value">UNS Value</option>
-          <option value="specific_subject">Specific Subject</option>
-      </select>
-  </div>
-  <div class="form-row">
-      <label for="node-input-subject"><i class="fa fa-stack-exchange"></i> Subject</label>
-      <input type="text" id="node-input-subject" placeholder="Subject">
-  </div>
-  <div class="form-row">
-      <label for="node-input-timeout"><i class="fa fa-stack-exchange"></i> Timeout (ms)</label>
-      <input type="number" id="node-input-timeout" placeholder="1000">
-  </div>
-  <div class="form-row">
-      <label for="node-input-handleTimeout"><i class="fa fa-exclamation-triangle"></i> Handle Timeout as Message</label>
-      <input type="checkbox" id="node-input-handleTimeout" style="width: auto;">
-  </div>
-  <div class="form-row">
-      <label for="node-input-debug"><i class="fa fa-bug"></i> Debug Logging</label>
-      <input type="checkbox" id="node-input-debug" style="width: auto;">
+  <style>
+    .nats-request-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #e1e4e8;
+    }
+    .nats-section-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-form-row input[type="number"] { width: 120px; }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+    .nats-unit {
+      font-size: 12px;
+      color: #6c757d;
+      margin-left: 8px;
+    }
+    .nats-inline-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nats-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #d4edda;
+      color: #155724;
+    }
+  </style>
+
+  <div class="nats-request-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title"><i class="fa fa-cog"></i>Basic Configuration</div>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Request Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title"><i class="fa fa-paper-plane"></i>Request Configuration</div>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-envelope"></i>Subject <span class="nats-badge">msg.topic</span></label>
+          <input type="text" id="node-input-subject" placeholder="e.g. api.getStatus or service.request">
+          <div class="nats-hint">
+            Target subject for the request. Can be overridden via <code>msg.topic</code>
+          </div>
+        </div>
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-file-code-o"></i>Data Format</label>
+          <select id="node-input-dataformat">
+            <option value="specific_subject">Specific Subject (custom)</option>
+            <option value="uns_command">UNS Command (cmd.*)</option>
+            <option value="uns_event">UNS Event (evt.*)</option>
+            <option value="uns_value">UNS Value (val.*)</option>
+          </select>
+        </div>
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-clock-o"></i>Timeout</label>
+          <div class="nats-inline-row">
+            <input type="number" id="node-input-timeout" placeholder="1000" min="100" max="60000">
+            <span class="nats-unit">ms</span>
+          </div>
+          <div class="nats-hint">
+            Maximum time to wait for a response
+          </div>
+        </div>
+        
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-handleTimeout" checked>
+          <label for="node-input-handleTimeout"><i class="fa fa-exclamation-triangle"></i>Handle Timeout as Message</label>
+        </div>
+        <div class="nats-hint" style="margin-left: 24px;">
+          Send timeout as output message instead of node error
+        </div>
+      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-request">
-  <p>Sends requests to the nats-suite platform and receives responses using NATS request-reply pattern.</p>
+  <p>Sends requests using NATS request-reply pattern.</p>
 
   <h3>Inputs</h3>
   <dl class="message-properties">
     <dt>payload <span class="property-type">any</span></dt>
-    <dd>The request data to send to the nats-suite platform.</dd>
+    <dd>Request data to send</dd>
+    <dt class="optional">topic <span class="property-type">string</span></dt>
+    <dd>Override the configured subject</dd>
   </dl>
 
   <h3>Outputs</h3>
   <dl class="message-properties">
-    <dt>payload <span class="property-type">any | object</span></dt>
-    <dd>The response data from the server, or error object if timeout/service unavailable occurred.</dd>
-    
+    <dt>payload <span class="property-type">any</span></dt>
+    <dd>Response data or error object</dd>
     <dt>status <span class="property-type">string</span></dt>
-    <dd>The status of the request: "success", "timeout", or "service_unavailable".</dd>
-    
-    <dt>topic <span class="property-type">string</span></dt>
-    <dd>The NATS subject used for the request.</dd>
-    
-    <dt>error <span class="property-type">object</span></dt>
-    <dd>Error details (only present when status is "timeout" or "service_unavailable").</dd>
+    <dd>"success", "timeout", or "service_unavailable"</dd>
   </dl>
-
-  <h3>Data Formats</h3>
-  
-  <h4>UNS Command</h4>
-  <p>Sends commands to UNS datapoints and receives responses.</p>
-  <ul>
-    <li><strong>Subject:</strong> <code>cmd.{datapointid}</code></li>
-    <li><strong>Payload:</strong> Command data</li>
-    <li><strong>Response:</strong> Command execution result</li>
-  </ul>
-  
-  <h4>UNS Event</h4>
-  <p>Sends requests to UNS Event subjects.</p>
-  <ul>
-    <li><strong>Subject:</strong> <code>evt.{datapointid}</code></li>
-    <li><strong>Payload:</strong> Event data</li>
-    <li><strong>Response:</strong> Event processing result</li>
-  </ul>
-  
-  <h4>UNS Value</h4>
-  <p>Sends requests to UNS Value subjects.</p>
-  <ul>
-    <li><strong>Subject:</strong> <code>val.{datapointid}</code></li>
-    <li><strong>Payload:</strong> Value data</li>
-    <li><strong>Response:</strong> Value processing result</li>
-  </ul>
-  
-  <h4>Specific Subject</h4>
-  <p>Sends requests to custom NATS subjects.</p>
-  <ul>
-    <li><strong>Subject:</strong> Custom subject (e.g., <code>api.getStatus</code>)</li>
-    <li><strong>Payload:</strong> Request data</li>
-    <li><strong>Response:</strong> Response data from the service</li>
-  </ul>
-
-  <h3>Configuration</h3>
-  <dl class="message-properties">
-    <dt>Name</dt>
-    <dd>Display name for the node.</dd>
-    
-    <dt>NATS Server</dt>
-    <dd>nats-suite server configuration node.</dd>
-    
-    <dt>Data Format</dt>
-    <dd>Format of the request data.</dd>
-    
-    <dt>Subject</dt>
-    <dd>Target subject for the request.</dd>
-    
-    <dt>Timeout (ms)</dt>
-    <dd>Request timeout in milliseconds. Default: 1000ms</dd>
-    
-    <dt>Handle Timeout as Message</dt>
-    <dd>If enabled, timeout errors are sent as regular messages instead of node errors.</dd>
-  </dl>
-
-  <h3>Node Status Indicators</h3>
-  <p>The node provides visual feedback about its current state:</p>
-  <ul>
-    <li><strong>🟢 Grey "ready"</strong>: Node ready for requests</li>
-    <li><strong>🟡 Yellow "requesting..."</strong>: Request in progress</li>
-    <li><strong>🟠 Orange "timeout"</strong>: Request timed out</li>
-    <li><strong>🟠 Orange "no service"</strong>: Service unavailable (503)</li>
-    <li><strong>🟠 Orange "error"</strong>: Other errors</li>
-    <li><strong>🔴 Red</strong>: Server connection problem</li>
-  </ul>
 
   <h3>Timeout Handling</h3>
-  <p>When "Handle Timeout as Message" is enabled, timeout errors are sent as regular messages instead of node errors. This allows you to handle timeouts gracefully in your flow.</p>
-  
-  <h4>Success Response</h4>
-  <pre><code>msg = {
-  payload: { result: "success", data: {...} },
-  status: "success",
-  topic: "cmd.sensor.temperature"
-};</code></pre>
-  
-  <h4>Timeout Response</h4>
-  <pre><code>msg = {
-  payload: {
-    error: "Request timed out after 1000ms",
-    details: "No response received within timeout period"
-  },
-  status: "timeout",
-  topic: "cmd.sensor.temperature",
-  error: {
-    message: "Request timeout after 1000ms",
-    code: "TIMEOUT"
-  }
-};</code></pre>
-  
-  <h4>Service Unavailable Response (503)</h4>
-  <pre><code>msg = {
-  payload: {
-    error: "Service unavailable (503) for subject: cmd.sensor.temperature",
-    details: "No service is listening on this subject or service is down"
-  },
-  status: "service_unavailable",
-  topic: "cmd.sensor.temperature",
-  error: {
-    message: "Service unavailable (503) for subject: cmd.sensor.temperature",
-    code: "503",
-    details: "No service is listening on this subject or service is down"
-  }
-};</code></pre>
-
-  <h3>Usage Examples</h3>
-  
-  <h4>Send UNS Command</h4>
-  <pre><code>// Configure node:
-// - Data Format: "UNS Command"
-// - Subject: "sensor.temperature"
-
-// Input:
-msg.payload = { command: "getValue" };
-
-// Output (success):
-msg.payload = { value: 23.5, unit: "°C" };
-msg.status = "success";</code></pre>
-  
-  <h4>API Request</h4>
-  <pre><code>// Configure node:
-// - Data Format: "Specific Subject"
-// - Subject: "api.getStatus"
-
-// Input:
-msg.payload = { deviceId: "sensor-001" };
-
-// Output (success):
-msg.payload = { status: "online", uptime: 3600 };
-msg.status = "success";</code></pre>
-
-  <h3>Features</h3>
-  <ul>
-    <li><strong>Request-Reply Pattern:</strong> Implements NATS request-reply messaging</li>
-    <li><strong>Timeout Management:</strong> Configurable timeout with graceful error handling</li>
-    <li><strong>Error Handling:</strong> Comprehensive error handling with detailed status</li>
-    <li><strong>Performance Optimized:</strong> Efficient request processing for high throughput</li>
-  </ul>
-
-  <h3>Error Handling</h3>
-  <ul>
-    <li><strong>Connection Errors:</strong> Handled by the NATS server configuration</li>
-    <li><strong>Timeout Errors:</strong> Configurable timeout handling</li>
-    <li><strong>Invalid Subjects:</strong> Validation and error reporting</li>
-  </ul>
-
-  <h3>Best Practices</h3>
-  <ul>
-    <li><strong>Timeout Settings:</strong> Set appropriate timeout based on expected response time</li>
-    <li><strong>Error Handling:</strong> Always handle timeout responses in your flow</li>
-    <li><strong>Subject Naming:</strong> Use descriptive subject names for better debugging</li>
-    <li><strong>Payload Structure:</strong> Use consistent payload structures for commands</li>
-  </ul>
+  <p>When enabled, timeouts are sent as messages with <code>status: "timeout"</code> instead of throwing errors.</p>
 </script>

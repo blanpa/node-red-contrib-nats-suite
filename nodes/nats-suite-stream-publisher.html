@@ -3,48 +3,19 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: {
-        value: '',
-      },
-      server: {
-        value: '',
-        type: 'nats-suite-server',
-      },
-      streamName: {
-        value: 'default-stream',
-        required: true,
-      },
-      subjectPattern: {
-        value: '*',
-        required: true,
-      },
-      defaultSubject: {
-        value: '',
-      },
-      retention: {
-        value: 'limits',
-      },
-      maxMessages: {
-        value: 10000,
-      },
-      maxAge: {
-        value: '24h',
-      },
-      maxBytes: {
-        value: 10485760,
-      },
-      duplicateWindow: {
-        value: '2m',
-      },
-      storage: {
-        value: 'file',
-      },
-      replicas: {
-        value: 1,
-      },
-      operation: {
-        value: 'publish',
-      },
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server' },
+      streamName: { value: 'default-stream', required: true },
+      subjectPattern: { value: '*', required: true },
+      defaultSubject: { value: '' },
+      retention: { value: 'limits' },
+      maxMessages: { value: 10000 },
+      maxAge: { value: '24h' },
+      maxBytes: { value: 10485760 },
+      duplicateWindow: { value: '2m' },
+      storage: { value: 'file' },
+      replicas: { value: 1 },
+      operation: { value: 'publish' },
     },
     inputs: 1,
     outputs: 1,
@@ -55,19 +26,29 @@
       if (op === 'publish') {
         return this.name || `stream pub (${this.streamName || 'stream'})`;
       }
-      return this.name || `stream ${op} (${this.streamName || 'stream'})`;
+      return this.name || `stream ${op}`;
     },
     paletteLabel: 'nats stream publisher',
     oneditprepare: function() {
-      // Show/hide fields based on operation
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Operation handler
       $('#node-input-operation').on('change', function() {
         const op = $(this).val();
         if (op === 'publish') {
-          $('#publish-config').show();
-          $('#stream-mgmt-config').hide();
+          $('#publish-config').slideDown(200);
+          $('#stream-settings-section').slideDown(200);
         } else {
-          $('#publish-config').hide();
-          $('#stream-mgmt-config').show();
+          $('#publish-config').slideUp(200);
+          $('#stream-settings-section').slideUp(200);
         }
       });
       $('#node-input-operation').trigger('change');
@@ -76,273 +57,243 @@
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-stream-publisher">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
-      <select id="node-input-operation" style="width:70%">
-          <option value="publish">Publish Messages</option>
-          <option value="create">Create Stream</option>
-          <option value="update">Update Stream</option>
-          <option value="update-subjects">Update Subjects Only</option>
-          <option value="info">Stream Info</option>
-          <option value="delete">Delete Stream</option>
-          <option value="purge">Purge Stream</option>
-          <option value="list">List Streams</option>
-      </select>
-  </div>
-  
-  <div id="publish-config">
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server" placeholder="localhost">
-  </div>
-  
-  <h4><i class="fa fa-database"></i> Stream Configuration</h4>
-  <div class="form-row">
-      <label for="node-input-streamName"><i class="fa fa-database"></i> Stream Name</label>
-      <input type="text" id="node-input-streamName" placeholder="sensor-data">
-  </div>
-  <div class="form-row">
-      <label for="node-input-subjectPattern"><i class="fa fa-filter"></i> Subject Pattern</label>
-      <input type="text" id="node-input-subjectPattern" placeholder="sensor.*">
-  </div>
-  <div class="form-row">
-      <label for="node-input-defaultSubject"><i class="fa fa-paper-plane"></i> Default Subject</label>
-      <input type="text" id="node-input-defaultSubject" placeholder="sensor.temperature">
-  </div>
-  
-  <h4><i class="fa fa-cogs"></i> Stream Settings</h4>
-  <div class="form-row">
-      <label for="node-input-retention"><i class="fa fa-retention"></i> Retention Policy</label>
-      <select id="node-input-retention" style="width:70%">
-          <option value="limits">Limits</option>
-          <option value="interest">Interest</option>
-          <option value="workqueue">WorkQueue</option>
-      </select>
-  </div>
-  <div class="form-row">
-      <label for="node-input-storage"><i class="fa fa-hdd-o"></i> Storage</label>
-      <select id="node-input-storage" style="width:70%">
-          <option value="file">File</option>
-          <option value="memory">Memory</option>
-      </select>
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxMessages"><i class="fa fa-list-ol"></i> Max Messages</label>
-      <input type="number" id="node-input-maxMessages" placeholder="10000" min="1" max="1000000">
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxAge"><i class="fa fa-clock-o"></i> Max Age</label>
-      <input type="text" id="node-input-maxAge" placeholder="24h">
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxBytes"><i class="fa fa-database"></i> Max Bytes</label>
-      <input type="number" id="node-input-maxBytes" placeholder="10485760" min="1024" max="1073741824">
-  </div>
-  <div class="form-row">
-      <label for="node-input-duplicateWindow"><i class="fa fa-window-restore"></i> Duplicate Window</label>
-      <input type="text" id="node-input-duplicateWindow" placeholder="2m">
-  </div>
-  <div class="form-row">
-      <label for="node-input-replicas"><i class="fa fa-copy"></i> Replicas</label>
-      <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5">
-  </div>
-  </div>
-  
-  <div id="stream-mgmt-config" style="display: none;">
-      <div class="form-row">
-          <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-          <input type="text" id="node-input-server" placeholder="localhost">
+  <style>
+    .nats-stream-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .nats-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #d4edda;
+      color: #155724;
+    }
+  </style>
+
+  <div class="nats-stream-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-streamName"><i class="fa fa-database"></i> Stream Name</label>
-          <input type="text" id="node-input-streamName" placeholder="my-stream">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-subjectPattern"><i class="fa fa-tag"></i> Subjects (comma-separated)</label>
-          <input type="text" id="node-input-subjectPattern" placeholder="my.stream.>">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-retention"><i class="fa fa-clock-o"></i> Retention Policy</label>
-          <select id="node-input-retention" style="width:70%">
-              <option value="limits">Limits</option>
-              <option value="workqueue">Work Queue</option>
-              <option value="interest">Interest</option>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-cogs"></i>Operation</label>
+          <select id="node-input-operation">
+            <option value="publish">Publish Messages</option>
+            <option value="create">Create Stream</option>
+            <option value="update">Update Stream</option>
+            <option value="update-subjects">Update Subjects Only</option>
+            <option value="info">Stream Info</option>
+            <option value="delete">Delete Stream</option>
+            <option value="purge">Purge Stream</option>
+            <option value="list">List Streams</option>
           </select>
+        </div>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
-          <select id="node-input-storage" style="width:70%">
+    </div>
+    
+    <!-- Stream Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-database"></i>
+          <span>Stream Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-database"></i>Stream Name</label>
+          <input type="text" id="node-input-streamName" placeholder="sensor-data">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-filter"></i>Subject Pattern</label>
+          <input type="text" id="node-input-subjectPattern" placeholder="sensor.*">
+          <div class="nats-hint">Pattern for subjects captured by this stream</div>
+        </div>
+        <div class="nats-form-row" id="publish-config">
+          <label><i class="fa fa-paper-plane"></i>Default Subject <span class="nats-badge">msg.subject</span></label>
+          <input type="text" id="node-input-defaultSubject" placeholder="sensor.temperature">
+          <div class="nats-hint">Used when msg.subject is not provided</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Stream Settings -->
+    <div class="nats-section" id="stream-settings-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sliders"></i>
+          <span>Stream Settings</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-archive"></i>Retention Policy</label>
+            <select id="node-input-retention">
+              <option value="limits">Limits</option>
+              <option value="interest">Interest</option>
+              <option value="workqueue">WorkQueue</option>
+            </select>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hdd-o"></i>Storage</label>
+            <select id="node-input-storage">
               <option value="file">File</option>
               <option value="memory">Memory</option>
-          </select>
+            </select>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-list-ol"></i>Max Messages</label>
+            <input type="number" id="node-input-maxMessages" placeholder="10000" min="1">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-clock-o"></i>Max Age</label>
+            <input type="text" id="node-input-maxAge" placeholder="24h">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-database"></i>Max Bytes</label>
+            <input type="number" id="node-input-maxBytes" placeholder="10485760" min="1024">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-copy"></i>Replicas</label>
+            <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5">
+          </div>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-window-restore"></i>Duplicate Window</label>
+          <input type="text" id="node-input-duplicateWindow" placeholder="2m">
+          <div class="nats-hint">Time window for duplicate detection</div>
+        </div>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-maxMessages"><i class="fa fa-list"></i> Max Messages</label>
-          <input type="number" id="node-input-maxMessages" placeholder="10000" min="0" style="width: 150px;">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-maxBytes"><i class="fa fa-hdd-o"></i> Max Bytes</label>
-          <input type="number" id="node-input-maxBytes" placeholder="10485760" min="0" style="width: 150px;">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-maxAge"><i class="fa fa-clock-o"></i> Max Age (e.g., 24h, 7d)</label>
-          <input type="text" id="node-input-maxAge" placeholder="24h" style="width: 150px;">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-replicas"><i class="fa fa-copy"></i> Replicas</label>
-          <input type="number" id="node-input-replicas" placeholder="1" min="1" max="5" style="width: 100px;">
-      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-stream-publisher">
-  <p>Publishes messages to NATS JetStream streams with automatic stream management, acknowledgment tracking, and persistence.</p>
+  <p>Publishes messages to NATS JetStream with persistence and acknowledgment.</p>
 
   <h3>Inputs</h3>
   <dl class="message-properties">
     <dt>payload <span class="property-type">any</span></dt>
-    <dd>The data to publish to the stream.</dd>
-    
-    <dt>subject <span class="property-type">string</span></dt>
-    <dd>The subject to publish to (optional, uses default subject if not provided).</dd>
-    
-    <dt>headers <span class="property-type">object</span></dt>
-    <dd>Optional headers to include with the message.</dd>
+    <dd>Data to publish</dd>
+    <dt class="optional">subject <span class="property-type">string</span></dt>
+    <dd>Target subject (overrides default)</dd>
+    <dt class="optional">headers <span class="property-type">object</span></dt>
+    <dd>Message headers</dd>
   </dl>
 
   <h3>Outputs</h3>
   <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>The original message payload.</dd>
-    
-    <dt>stream <span class="property-type">string</span></dt>
-    <dd>The name of the stream the message was published to.</dd>
-    
     <dt>sequence <span class="property-type">number</span></dt>
-    <dd>The sequence number of the published message.</dd>
-    
+    <dd>Message sequence number</dd>
+    <dt>stream <span class="property-type">string</span></dt>
+    <dd>Stream name</dd>
     <dt>published <span class="property-type">boolean</span></dt>
-    <dd>Whether the message was successfully published.</dd>
-    
-    <dt>subject <span class="property-type">string</span></dt>
-    <dd>The subject the message was published to.</dd>
-    
-    <dt>error <span class="property-type">string</span></dt>
-    <dd>Error message if publishing failed.</dd>
+    <dd>Success status</dd>
   </dl>
-
-  <h3>Stream Configuration</h3>
-  
-  <h4>Stream Management</h4>
-  <ul>
-    <li><strong>Auto-Create:</strong> Streams are automatically created if they don't exist</li>
-    <li><strong>Configuration Validation:</strong> Stream configuration is validated on startup</li>
-    <li><strong>Status Monitoring:</strong> Real-time stream status and statistics</li>
-  </ul>
-  
-  <h4>Retention Policies</h4>
-  <ul>
-    <li><strong>Limits:</strong> Messages are retained until limits are reached</li>
-    <li><strong>Interest:</strong> Messages are retained as long as consumers are interested</li>
-    <li><strong>WorkQueue:</strong> Messages are delivered to only one consumer</li>
-  </ul>
-
-  <h3>Configuration</h3>
-  <dl class="message-properties">
-    <dt>Stream Name</dt>
-    <dd>The name of the NATS JetStream stream.</dd>
-    
-    <dt>Subject Pattern</dt>
-    <dd>The subject pattern for the stream (e.g., "sensor.*").</dd>
-    
-    <dt>Default Subject</dt>
-    <dd>The default subject to publish to if not specified in the message.</dd>
-    
-    <dt>Retention Policy</dt>
-    <dd>How messages are retained in the stream.</dd>
-    
-    <dt>Storage</dt>
-    <dd>Storage type for the stream (file or memory).</dd>
-    
-    <dt>Max Messages</dt>
-    <dd>Maximum number of messages to retain.</dd>
-    
-    <dt>Max Age</dt>
-    <dd>Maximum age of messages (e.g., "24h", "7d").</dd>
-    
-    <dt>Max Bytes</dt>
-    <dd>Maximum bytes to store in the stream.</dd>
-    
-    <dt>Duplicate Window</dt>
-    <dd>Time window for duplicate detection (e.g., "2m").</dd>
-    
-    <dt>Replicas</dt>
-    <dd>Number of stream replicas for high availability.</dd>
-  </dl>
-
-  <h3>Usage Examples</h3>
-  
-  <h4>Basic Publishing</h4>
-  <pre><code>// Input:
-msg.payload = { temperature: 23.5, humidity: 45 }
-msg.subject = "sensor.temperature"
-
-// Output:
-msg.payload = { temperature: 23.5, humidity: 45 }
-msg.stream = "sensor-data"
-msg.sequence = 12345
-msg.published = true
-msg.subject = "sensor.temperature"</code></pre>
-  
-  <h4>Publishing with Headers</h4>
-  <pre><code>// Input:
-msg.payload = { alarm: "high", message: "Temperature too high" }
-msg.subject = "alarm.temperature"
-msg.headers = { priority: "high", source: "sensor-1" }
-
-// Output:
-msg.payload = { alarm: "high", message: "Temperature too high" }
-msg.stream = "alarms"
-msg.sequence = 12346
-msg.published = true
-msg.subject = "alarm.temperature"</code></pre>
-
-  <h3>Status Indicators</h3>
-  <ul>
-    <li><strong>🟢 Green "stream-name (X msgs)"</strong>: Stream active with message count</li>
-    <li><strong>🟢 Green "published"</strong>: Message successfully published</li>
-    <li><strong>🟡 Yellow "connecting"</strong>: Connecting to NATS server</li>
-    <li><strong>🔴 Red "disconnected"</strong>: Connection failed</li>
-    <li><strong>🔴 Red "publish failed"</strong>: Message publish error</li>
-  </ul>
-
-  <h3>Requirements</h3>
-  <ul>
-    <li><strong>NATS Server:</strong> Must support JetStream (NATS 2.2.0+)</li>
-    <li><strong>Permissions:</strong> Requires stream management and publish permissions</li>
-    <li><strong>Storage:</strong> Sufficient storage for stream data (file or memory)</li>
-  </ul>
-
-  <h3>Features</h3>
-  <ul>
-    <li><strong>Auto-Create Streams:</strong> Automatically creates streams if they don't exist</li>
-    <li><strong>Acknowledgment Tracking:</strong> Returns sequence number for each published message</li>
-    <li><strong>Deduplication:</strong> Optional message deduplication with configurable window</li>
-    <li><strong>Headers Support:</strong> Include custom headers with messages</li>
-    <li><strong>Persistence:</strong> Messages stored durably (file) or in-memory</li>
-    <li><strong>High Availability:</strong> Configurable replicas for fault tolerance</li>
-  </ul>
 </script>

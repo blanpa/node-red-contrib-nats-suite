@@ -3,57 +3,22 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: {
-        value: '',
-      },
-      server: {
-        value: '',
-        type: 'nats-suite-server',
-      },
-      streamName: {
-        value: 'default-stream',
-        required: true,
-      },
-      consumerName: {
-        value: 'default-consumer',
-        required: true,
-      },
-      filterSubject: {
-        value: '',
-      },
-      consumerType: {
-        value: 'pull',
-      },
-      ackPolicy: {
-        value: 'explicit',
-      },
-      deliverPolicy: {
-        value: 'new',
-      },
-      ackWait: {
-        value: '30s',
-      },
-      maxDeliver: {
-        value: 5,
-      },
-      maxAckPending: {
-        value: 1000,
-      },
-      idleHeartbeat: {
-        value: '5s',
-      },
-      flowControl: {
-        value: false,
-      },
-      batchSize: {
-        value: 1,
-      },
-      maxWait: {
-        value: 1000,
-      },
-      operation: {
-        value: 'consume',
-      },
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server' },
+      streamName: { value: 'default-stream', required: true },
+      consumerName: { value: 'default-consumer', required: true },
+      filterSubject: { value: '' },
+      consumerType: { value: 'pull' },
+      ackPolicy: { value: 'explicit' },
+      deliverPolicy: { value: 'new' },
+      ackWait: { value: '30s' },
+      maxDeliver: { value: 5 },
+      maxAckPending: { value: 1000 },
+      idleHeartbeat: { value: '5s' },
+      flowControl: { value: false },
+      batchSize: { value: 1 },
+      maxWait: { value: 1000 },
+      operation: { value: 'consume' },
     },
     inputs: 1,
     outputs: 1,
@@ -64,399 +29,317 @@
       if (op === 'consume') {
         return this.name || `stream sub (${this.consumerName || 'consumer'})`;
       }
-      return this.name || `stream ${op} (${this.streamName || 'stream'})`;
+      return this.name || `stream ${op}`;
     },
     paletteLabel: 'nats stream consumer',
     oneditprepare: function() {
-      // Show/hide fields based on operation
+      // Collapsible sections
+      $('.nats-section-header').on('click', function() {
+        const $header = $(this);
+        const $content = $header.next('.nats-section-content');
+        const $icon = $header.find('.nats-section-toggle');
+        $content.slideToggle(200);
+        $icon.toggleClass('fa-chevron-down fa-chevron-right');
+        $header.toggleClass('collapsed');
+      });
+      
+      // Operation handler
       $('#node-input-operation').on('change', function() {
         const op = $(this).val();
         if (op === 'consume') {
-          $('#consume-config').show();
-          $('#consumer-mgmt-config').hide();
-          $('#stream-mgmt-config').hide();
-        } else if (['create', 'info', 'delete', 'list', 'pause', 'resume', 'monitor'].includes(op)) {
-          $('#consume-config').hide();
-          $('#consumer-mgmt-config').show();
-          $('#stream-mgmt-config').hide();
-          if (op === 'create') {
-            $('#consumer-create-config').show();
-          } else {
-            $('#consumer-create-config').hide();
-          }
+          $('#consume-config').slideDown(200);
+          $('#consumer-settings-section').slideDown(200);
         } else {
-          $('#consume-config').hide();
-          $('#consumer-mgmt-config').hide();
-          $('#stream-mgmt-config').show();
+          $('#consume-config').slideUp(200);
+          $('#consumer-settings-section').slideUp(200);
         }
       });
-      $('#node-input-operation').trigger('change');
       
-      // Show/hide idle heartbeat field based on consumer type
-      const updateIdleHeartbeat = () => {
-        const consumerType = $('#node-input-consumerType').val();
-        if (consumerType === 'push') {
-          $('#idle-heartbeat-row').show();
+      // Consumer type handler
+      $('#node-input-consumerType').on('change', function() {
+        if ($(this).val() === 'push') {
+          $('#idle-heartbeat-row').slideDown(200);
         } else {
-          $('#idle-heartbeat-row').hide();
+          $('#idle-heartbeat-row').slideUp(200);
         }
-      };
+      });
       
-      // Initialize
-      updateIdleHeartbeat();
-      
-      // Bind event handler
-      $('#node-input-consumerType').on('change', updateIdleHeartbeat);
+      $('#node-input-operation').trigger('change');
+      $('#node-input-consumerType').trigger('change');
     }
   });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-stream-consumer">
-  <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  
-  <div class="form-row">
-      <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
-      <select id="node-input-operation" style="width:70%">
-          <option value="consume">Consume Messages</option>
-          <option value="create">Create Consumer</option>
-          <option value="info">Consumer Info</option>
-          <option value="delete">Delete Consumer</option>
-          <option value="list">List Consumers</option>
-          <option value="pause">Pause Consumer</option>
-          <option value="resume">Resume Consumer</option>
-          <option value="monitor">Monitor Consumer Stats</option>
-          <option value="purge">Purge Stream</option>
-      </select>
-  </div>
-  
-  <div id="consume-config">
-  <div class="form-row">
-      <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-      <input type="text" id="node-input-server" placeholder="localhost">
-  </div>
-  
-  <h4><i class="fa fa-database"></i> Stream Configuration</h4>
-  <div class="form-row">
-      <label for="node-input-streamName"><i class="fa fa-database"></i> Stream Name</label>
-      <input type="text" id="node-input-streamName" placeholder="sensor-data">
-  </div>
-  <div class="form-row">
-      <label for="node-input-consumerName"><i class="fa fa-user"></i> Consumer Name</label>
-      <input type="text" id="node-input-consumerName" placeholder="processor-1">
-  </div>
-  <div class="form-row">
-      <label for="node-input-filterSubject"><i class="fa fa-filter"></i> Filter Subject</label>
-      <input type="text" id="node-input-filterSubject" placeholder="sensor.temperature">
-  </div>
-  
-  <h4><i class="fa fa-cogs"></i> Consumer Settings</h4>
-  <div class="form-row">
-      <label for="node-input-consumerType"><i class="fa fa-exchange"></i> Consumer Type</label>
-      <select id="node-input-consumerType" style="width:70%">
-          <option value="pull">Pull-based (Default)</option>
-          <option value="push">Push-based</option>
-      </select>
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Pull-based: Node-RED fetches messages | Push-based: NATS pushes messages (requires idle_heartbeat)
+  <style>
+    .nats-stream-config {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .nats-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .nats-section-header {
+      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e1e4e8;
+      transition: background 0.2s ease;
+      user-select: none;
+    }
+    .nats-section-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+    .nats-section-header.collapsed { border-bottom: none; }
+    .nats-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c3e50;
+    }
+    .nats-section-title i {
+      width: 18px;
+      text-align: center;
+      color: #2FAF9C;
+      font-size: 14px;
+    }
+    .nats-section-toggle {
+      color: #6c757d;
+      font-size: 11px;
+    }
+    .nats-section-content { padding: 14px; }
+    .nats-form-row { margin-bottom: 12px; }
+    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-form-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    .nats-form-row label i {
+      margin-right: 6px;
+      color: #2FAF9C;
+      width: 14px;
+      text-align: center;
+    }
+    .nats-form-row input[type="text"],
+    .nats-form-row input[type="number"],
+    .nats-form-row select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fff;
+    }
+    .nats-form-row input:focus,
+    .nats-form-row select:focus {
+      border-color: #2FAF9C;
+      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      outline: none;
+    }
+    .nats-hint {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+    .nats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .nats-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .nats-checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2FAF9C;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+    }
+    .nats-checkbox-row label i {
+      margin-right: 8px;
+      color: #2FAF9C;
+    }
+  </style>
+
+  <div class="nats-stream-config">
+    
+    <!-- Basic Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-cog"></i>
+          <span>Basic Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-  </div>
-  <div class="form-row">
-      <label for="node-input-ackPolicy"><i class="fa fa-check"></i> Acknowledgment Policy</label>
-      <select id="node-input-ackPolicy" style="width:70%">
-          <option value="explicit">Explicit</option>
-          <option value="all">All</option>
-          <option value="none">None</option>
-      </select>
-  </div>
-  <div class="form-row">
-      <label for="node-input-deliverPolicy"><i class="fa fa-truck"></i> Delivery Policy</label>
-      <select id="node-input-deliverPolicy" style="width:70%">
-          <option value="new">New Only</option>
-          <option value="all">All</option>
-          <option value="last">Last</option>
-          <option value="by_start_sequence">By Start Sequence</option>
-          <option value="by_start_time">By Start Time</option>
-      </select>
-  </div>
-  <div class="form-row">
-      <label for="node-input-ackWait"><i class="fa fa-clock-o"></i> Acknowledgment Wait</label>
-      <input type="text" id="node-input-ackWait" placeholder="30s">
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxDeliver"><i class="fa fa-refresh"></i> Max Deliveries</label>
-      <input type="number" id="node-input-maxDeliver" placeholder="5" min="1" max="100">
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxAckPending"><i class="fa fa-hourglass"></i> Max Ack Pending</label>
-      <input type="number" id="node-input-maxAckPending" placeholder="1000" min="1" max="10000">
-  </div>
-  <div class="form-row" id="idle-heartbeat-row" style="display: none;">
-      <label for="node-input-idleHeartbeat"><i class="fa fa-heartbeat"></i> Idle Heartbeat</label>
-      <input type="text" id="node-input-idleHeartbeat" placeholder="5s">
-      <div style="margin-top: 5px; color: #999; font-size: 11px; margin-left: 110px;">
-          Only required for Push-based consumers (e.g., "5s", "30s", "1m")
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-tag"></i>Name</label>
+          <input type="text" id="node-input-name" placeholder="Optional display name">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-server"></i>NATS Server</label>
+          <input type="text" id="node-input-server">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-cogs"></i>Operation</label>
+          <select id="node-input-operation">
+            <option value="consume">Consume Messages</option>
+            <option value="create">Create Consumer</option>
+            <option value="info">Consumer Info</option>
+            <option value="delete">Delete Consumer</option>
+            <option value="list">List Consumers</option>
+            <option value="pause">Pause Consumer</option>
+            <option value="resume">Resume Consumer</option>
+            <option value="monitor">Monitor Stats</option>
+            <option value="purge">Purge Stream</option>
+          </select>
+        </div>
       </div>
-  </div>
-  <div class="form-row">
-      <label for="node-input-flowControl"><i class="fa fa-tint"></i> Flow Control</label>
-      <input type="checkbox" id="node-input-flowControl" style="width: auto;">
-  </div>
-  
-  <h4><i class="fa fa-list"></i> Consumption Settings</h4>
-  <div class="form-row">
-      <label for="node-input-batchSize"><i class="fa fa-list-ol"></i> Batch Size</label>
-      <input type="number" id="node-input-batchSize" placeholder="1" min="1" max="100">
-  </div>
-  <div class="form-row">
-      <label for="node-input-maxWait"><i class="fa fa-hourglass"></i> Max Wait (ms)</label>
-      <input type="number" id="node-input-maxWait" placeholder="1000" min="100" max="30000">
-  </div>
-  </div>
-  
-  <div id="consumer-mgmt-config" style="display: none;">
-      <div class="form-row">
-          <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-          <input type="text" id="node-input-server" placeholder="localhost">
+    </div>
+    
+    <!-- Consumer Configuration -->
+    <div class="nats-section" id="consume-config">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-user"></i>
+          <span>Consumer Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
-      
-      <div class="form-row">
-          <label for="node-input-streamName"><i class="fa fa-database"></i> Stream Name</label>
-          <input type="text" id="node-input-streamName" placeholder="my-stream">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-consumerName"><i class="fa fa-user"></i> Consumer Name</label>
-          <input type="text" id="node-input-consumerName" placeholder="my-consumer">
-      </div>
-      
-      <div class="form-row" id="consumer-create-config" style="display: none;">
-          <label for="node-input-filterSubject"><i class="fa fa-filter"></i> Filter Subject</label>
-          <input type="text" id="node-input-filterSubject" placeholder="optional">
-          
-          <label for="node-input-deliverPolicy"><i class="fa fa-paper-plane"></i> Deliver Policy</label>
-          <select id="node-input-deliverPolicy" style="width:70%">
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-database"></i>Stream Name</label>
+          <input type="text" id="node-input-streamName" placeholder="sensor-data">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-user"></i>Consumer Name</label>
+          <input type="text" id="node-input-consumerName" placeholder="processor-1">
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-filter"></i>Filter Subject</label>
+          <input type="text" id="node-input-filterSubject" placeholder="sensor.temperature (optional)">
+        </div>
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-exchange"></i>Consumer Type</label>
+            <select id="node-input-consumerType">
+              <option value="pull">Pull-based</option>
+              <option value="push">Push-based</option>
+            </select>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-truck"></i>Deliver Policy</label>
+            <select id="node-input-deliverPolicy">
+              <option value="new">New Only</option>
               <option value="all">All</option>
-              <option value="new">New</option>
               <option value="last">Last</option>
-              <option value="by_start_sequence">By Start Sequence</option>
-              <option value="by_start_time">By Start Time</option>
-          </select>
-          
-          <label for="node-input-ackPolicy"><i class="fa fa-check"></i> Ack Policy</label>
-          <select id="node-input-ackPolicy" style="width:70%">
+              <option value="by_start_sequence">By Sequence</option>
+              <option value="by_start_time">By Time</option>
+            </select>
+          </div>
+        </div>
+        <div class="nats-form-row" id="idle-heartbeat-row" style="display: none;">
+          <label><i class="fa fa-heartbeat"></i>Idle Heartbeat</label>
+          <input type="text" id="node-input-idleHeartbeat" placeholder="5s">
+          <div class="nats-hint">Required for push-based consumers</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Consumer Settings -->
+    <div class="nats-section" id="consumer-settings-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sliders"></i>
+          <span>Acknowledgment & Delivery</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-check"></i>Ack Policy</label>
+            <select id="node-input-ackPolicy">
               <option value="explicit">Explicit</option>
-              <option value="none">None</option>
               <option value="all">All</option>
-          </select>
-          
-          <label for="node-input-maxDeliver"><i class="fa fa-redo"></i> Max Deliver</label>
-          <input type="number" id="node-input-maxDeliver" placeholder="5" min="-1" style="width: 100px;">
-          
-          <label for="node-input-ackWait"><i class="fa fa-clock-o"></i> Ack Wait (e.g., 30s)</label>
-          <input type="text" id="node-input-ackWait" placeholder="30s" style="width: 100px;">
-          
-          <label for="node-input-maxAckPending"><i class="fa fa-list"></i> Max Ack Pending</label>
-          <input type="number" id="node-input-maxAckPending" placeholder="1000" min="0" style="width: 150px;">
-          
-          <label for="node-input-flowControl"><i class="fa fa-tachometer"></i> Flow Control</label>
-          <input type="checkbox" id="node-input-flowControl" style="vertical-align: middle;">
+              <option value="none">None</option>
+            </select>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-clock-o"></i>Ack Wait</label>
+            <input type="text" id="node-input-ackWait" placeholder="30s">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-refresh"></i>Max Deliveries</label>
+            <input type="number" id="node-input-maxDeliver" placeholder="5" min="1">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass"></i>Max Ack Pending</label>
+            <input type="number" id="node-input-maxAckPending" placeholder="1000" min="1">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-list-ol"></i>Batch Size</label>
+            <input type="number" id="node-input-batchSize" placeholder="1" min="1">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass-half"></i>Max Wait (ms)</label>
+            <input type="number" id="node-input-maxWait" placeholder="1000" min="100">
+          </div>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-flowControl">
+          <label for="node-input-flowControl"><i class="fa fa-tint"></i>Enable Flow Control</label>
+        </div>
       </div>
-  </div>
-  
-  <div id="stream-mgmt-config" style="display: none;">
-      <div class="form-row">
-          <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
-          <input type="text" id="node-input-server" placeholder="localhost">
-      </div>
-      
-      <div class="form-row">
-          <label for="node-input-streamName"><i class="fa fa-database"></i> Stream Name</label>
-          <input type="text" id="node-input-streamName" placeholder="my-stream">
-      </div>
+    </div>
+    
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-stream-consumer">
-  <p>Consumes messages from NATS JetStream streams with explicit acknowledgment control, batch processing, and replay capabilities.</p>
-
-  <h3>Inputs</h3>
-  <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>Any message will trigger consumption from the stream.</dd>
-  </dl>
+  <p>Consumes messages from NATS JetStream with acknowledgment control.</p>
 
   <h3>Outputs</h3>
   <dl class="message-properties">
     <dt>payload <span class="property-type">any</span></dt>
-    <dd>The message payload from the stream.</dd>
-    
-    <dt>stream <span class="property-type">string</span></dt>
-    <dd>The name of the stream the message came from.</dd>
-    
-    <dt>consumer <span class="property-type">string</span></dt>
-    <dd>The name of the consumer that processed the message.</dd>
-    
-    <dt>subject <span class="property-type">string</span></dt>
-    <dd>The subject the message was published to.</dd>
-    
+    <dd>Message payload</dd>
     <dt>sequence <span class="property-type">number</span></dt>
-    <dd>The sequence number of the message in the stream.</dd>
-    
-    <dt>timestamp <span class="property-type">number</span></dt>
-    <dd>The timestamp when the message was published.</dd>
-    
-    <dt>headers <span class="property-type">object</span></dt>
-    <dd>Message headers if present.</dd>
-    
+    <dd>Message sequence number</dd>
     <dt>ack <span class="property-type">function</span></dt>
-    <dd>Function to acknowledge the message.</dd>
-    
+    <dd>Acknowledge message</dd>
     <dt>nak <span class="property-type">function</span></dt>
-    <dd>Function to negatively acknowledge the message (retry).</dd>
-    
+    <dd>Negative acknowledge (retry)</dd>
     <dt>term <span class="property-type">function</span></dt>
-    <dd>Function to terminate the message (no retry).</dd>
-    
-    <dt>inProgress <span class="property-type">function</span></dt>
-    <dd>Function to mark message as in progress.</dd>
+    <dd>Terminate (no retry)</dd>
   </dl>
 
-  <h3>Consumer Configuration</h3>
-  
-  <h4>Consumer Management</h4>
-  <ul>
-    <li><strong>Auto-Create:</strong> Consumers are automatically created if they don't exist</li>
-    <li><strong>Configuration Validation:</strong> Consumer configuration is validated on startup</li>
-    <li><strong>Status Monitoring:</strong> Real-time consumer status and statistics</li>
-  </ul>
-  
-  <h4>Consumer Types</h4>
-  <ul>
-    <li><strong>Pull-based (Default):</strong> Node-RED fetches messages on demand (recommended)</li>
-    <li><strong>Push-based:</strong> NATS pushes messages to the consumer (requires idle_heartbeat)</li>
-  </ul>
-  
-  <h4>Acknowledgment Policies</h4>
-  <ul>
-    <li><strong>Explicit:</strong> Messages must be manually acknowledged</li>
-    <li><strong>All:</strong> All messages are automatically acknowledged</li>
-    <li><strong>None:</strong> No acknowledgment required</li>
-  </ul>
-  
-  <h4>Delivery Policies</h4>
-  <ul>
-    <li><strong>New Only:</strong> Only new messages (default)</li>
-    <li><strong>All:</strong> All messages in the stream</li>
-    <li><strong>Last:</strong> Only the last message</li>
-    <li><strong>By Start Sequence:</strong> From specific sequence number</li>
-    <li><strong>By Start Time:</strong> From specific timestamp</li>
-  </ul>
-
-  <h3>Configuration</h3>
-  <dl class="message-properties">
-    <dt>Stream Name</dt>
-    <dd>The name of the NATS JetStream stream to consume from.</dd>
-    
-    <dt>Consumer Name</dt>
-    <dd>The name of the consumer instance.</dd>
-    
-    <dt>Filter Subject</dt>
-    <dd>Optional subject filter for messages (e.g., "sensor.temperature").</dd>
-    
-    <dt>Acknowledgment Policy</dt>
-    <dd>How messages are acknowledged.</dd>
-    
-    <dt>Delivery Policy</dt>
-    <dd>Which messages to deliver.</dd>
-    
-    <dt>Acknowledgment Wait</dt>
-    <dd>Time to wait for acknowledgment before retry (e.g., "30s").</dd>
-    
-    <dt>Max Deliveries</dt>
-    <dd>Maximum number of delivery attempts.</dd>
-    
-    <dt>Max Ack Pending</dt>
-    <dd>Maximum number of unacknowledged messages.</dd>
-    
-    <dt>Idle Heartbeat</dt>
-    <dd>Heartbeat interval for idle consumers (e.g., "5s").</dd>
-    
-    <dt>Flow Control</dt>
-    <dd>Enable flow control for backpressure handling.</dd>
-    
-    <dt>Batch Size</dt>
-    <dd>Number of messages to fetch in one batch.</dd>
-    
-    <dt>Max Wait</dt>
-    <dd>Maximum time to wait for messages in milliseconds.</dd>
-  </dl>
-
-  <h3>Usage Examples</h3>
-  
-  <h4>Basic Consumption</h4>
-  <pre><code>// Input (trigger):
-msg.payload = "consume"
-
-// Output:
-msg.payload = { temperature: 23.5, humidity: 45 }
-msg.stream = "sensor-data"
-msg.consumer = "processor-1"
-msg.subject = "sensor.temperature"
-msg.sequence = 12345
-msg.timestamp = 1703123456789
-msg.ack = function() { /* acknowledge message */ }
-msg.nak = function() { /* retry message */ }</code></pre>
-  
-  <h4>Manual Acknowledgment</h4>
-  <pre><code>// In a Function Node:
-if (msg.payload && msg.ack) {
-  // Process the message
-  processMessage(msg.payload);
-  
-  // Acknowledge successful processing
-  msg.ack();
-} else if (msg.error) {
-  // Handle error
-  node.error(`Consumer error: ${msg.error}`);
-}</code></pre>
-  
-  <h4>Batch Processing</h4>
-  <pre><code>// Configure batch size = 10
-// Input triggers consumption of up to 10 messages
-
-// Output for each message in batch:
-msg.payload = { temperature: 23.5 }
-msg.sequence = 12345
-msg.ack = function() { /* acknowledge this message */ }</code></pre>
-
-  <h3>Status Indicators</h3>
-  <ul>
-    <li><strong>🟢 Green "consumer-name (ready)"</strong>: Consumer ready to consume</li>
-    <li><strong>🔵 Blue "consumer-name (X pending)"</strong>: Processing messages (X remaining)</li>
-    <li><strong>🟢 Green "consumer-name (idle)"</strong>: No messages available</li>
-    <li><strong>🟡 Yellow "connecting"</strong>: Connecting to NATS server</li>
-    <li><strong>🔴 Red "disconnected"</strong>: Connection failed</li>
-  </ul>
-
-  <h3>Requirements</h3>
-  <ul>
-    <li><strong>NATS Server:</strong> Must support JetStream (NATS 2.2.0+)</li>
-    <li><strong>Stream:</strong> Stream must exist before consumer can be created</li>
-    <li><strong>Permissions:</strong> Requires consumer management and subscribe permissions</li>
-  </ul>
-
-  <h3>Features</h3>
-  <ul>
-    <li><strong>Auto-Create Consumers:</strong> Automatically creates durable consumers if they don't exist</li>
-    <li><strong>Explicit Acknowledgment:</strong> Full control over message acknowledgment (ACK/NAK/TERM/InProgress)</li>
-    <li><strong>Batch Processing:</strong> Fetch multiple messages in one request</li>
-    <li><strong>Replay Capability:</strong> Replay from start, by time, or by sequence number</li>
-    <li><strong>Durable State:</strong> Consumer state persists across restarts</li>
-    <li><strong>Redelivery:</strong> Automatic redelivery with configurable max attempts</li>
-    <li><strong>Flow Control:</strong> Backpressure handling with flow control</li>
-    <li><strong>Subject Filtering:</strong> Consume only messages matching subject filter</li>
-  </ul>
+  <h3>Acknowledgment</h3>
+  <pre>// In a function node:
+msg.ack();   // Success
+msg.nak();   // Retry later
+msg.term();  // Don't retry</pre>
 </script>
