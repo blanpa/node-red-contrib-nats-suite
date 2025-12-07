@@ -11,7 +11,7 @@
       topicfield: { value: 'subject' },
       subscriptionMode: { value: 'static' },
     },
-    inputs: 1,
+    inputs: 0,
     outputs: 1,
     icon: 'nats-icon-white.png',
     align: 'left',
@@ -32,7 +32,8 @@
       
       // Subscription mode handler
       $('#node-input-subscriptionMode').on('change', function() {
-        if ($(this).val() === 'static') {
+        const mode = $(this).val();
+        if (mode === 'static') {
           $('#nats-subject-row').slideDown(200);
         } else {
           $('#nats-subject-row').slideUp(200);
@@ -44,6 +45,15 @@
     },
     oneditsave: function() {
       const mode = $('#node-input-subscriptionMode').val();
+      
+      // Set the number of inputs based on the subscription mode
+      if (mode === 'static') {
+        this.inputs = 0;
+      } else {
+        this.inputs = 1;
+      }
+      
+      // Validate subject is required in static mode
       if (mode === 'static') {
         const subject = $('#node-input-datapointid').val();
         if (!subject || subject.trim().length === 0) {

@@ -74,81 +74,6 @@ module.exports = function (RED) {
     // Subscription mode: static or dynamic
     const subscriptionMode = config.subscriptionMode || 'static';
 
-    // Add status listener to server config
-    const statusListener = status => {
-      // Handle both old format (string) and new format (object)
-      const statusValue = typeof status === 'object' ? status.status : status;
-      
-      switch (statusValue) {
-        case 'connected':
-          if (isDebug) {
-            node.log(`[[NATS-SUITE SUBSCRIBE] Server connected`);
-          }
-          
-          // Clear connection timeout
-          if (connectionTimeout) {
-            clearTimeout(connectionTimeout);
-            connectionTimeout = null;
-          }
-          
-          const connectionTime = connectionStartTime ? Math.floor((Date.now() - connectionStartTime) / 1000) : 0;
-          if (connectionTime > 5) {
-            node.warn(`NATS connection established after ${connectionTime}s`);
-          }
-          
-          setStatusGreen();
-          // Only setup subscription if we have a subject (from config or previous input)
-          if (currentSubject || baseSubject) {
-            setupSubscription();
-          }
-          break;
-        case 'disconnected':
-          if (isDebug) {
-            node.log(`[[NATS-SUITE SUBSCRIBE] Server disconnected`);
-          }
-          
-          // Clear connection timeout
-          if (connectionTimeout) {
-            clearTimeout(connectionTimeout);
-            connectionTimeout = null;
-          }
-          
-          setStatusRed();
-          if (subscription) {
-            subscription.unsubscribe();
-            subscription = null;
-          }
-          break;
-        case 'connecting':
-          if (isDebug) {
-            node.log(`[[NATS-SUITE SUBSCRIBE] Server connecting...`);
-          }
-          
-          setStatusYellow();
-          
-          // Start connection timeout warning
-          connectionStartTime = Date.now();
-          if (connectionTimeout) {
-            clearTimeout(connectionTimeout);
-          }
-          
-          // Warn after 10 seconds
-          connectionTimeout = setTimeout(() => {
-            const elapsed = Math.floor((Date.now() - connectionStartTime) / 1000);
-            node.warn(`NATS connection taking longer than expected (${elapsed}s). Check server availability.`);
-            setStatusYellow();
-          }, 10000);
-          break;
-        default:
-          // Unknown status - ignore
-      }
-    };
-
-    this.config.addStatusListener(statusListener);
-    
-    // Connection Pool: Register this node as connection user
-    this.config.registerConnectionUser(node.id);
-
     // Create StringCodec once for performance
     const sc = StringCodec();
 
@@ -522,7 +447,83 @@ module.exports = function (RED) {
         node.error(cleanError, { topic: currentSubject || baseSubject });
       }
     };
+
+    // Add status listener to server config
+    const statusListener = status => {
+      // Handle both old format (string) and new format (object)
+      const statusValue = typeof status === 'object' ? status.status : status;
+      
+      switch (statusValue) {
+        case 'connected':
+          if (isDebug) {
+            node.log(`[[NATS-SUITE SUBSCRIBE] Server connected`);
+          }
+          
+          // Clear connection timeout
+          if (connectionTimeout) {
+            clearTimeout(connectionTimeout);
+            connectionTimeout = null;
+          }
+          
+          const connectionTime = connectionStartTime ? Math.floor((Date.now() - connectionStartTime) / 1000) : 0;
+          if (connectionTime > 5) {
+            node.warn(`NATS connection established after ${connectionTime}s`);
+          }
+          
+          setStatusGreen();
+          // Only setup subscription if we have a subject (from config or previous input)
+          if (currentSubject || baseSubject) {
+            setupSubscription();
+          }
+          break;
+        case 'disconnected':
+          if (isDebug) {
+            node.log(`[[NATS-SUITE SUBSCRIBE] Server disconnected`);
+          }
+          
+          // Clear connection timeout
+          if (connectionTimeout) {
+            clearTimeout(connectionTimeout);
+            connectionTimeout = null;
+          }
+          
+          setStatusRed();
+          if (subscription) {
+            subscription.unsubscribe();
+            subscription = null;
+          }
+          break;
+        case 'connecting':
+          if (isDebug) {
+            node.log(`[[NATS-SUITE SUBSCRIBE] Server connecting...`);
+          }
+          
+          setStatusYellow();
+          
+          // Start connection timeout warning
+          connectionStartTime = Date.now();
+          if (connectionTimeout) {
+            clearTimeout(connectionTimeout);
+          }
+          
+          // Warn after 10 seconds
+          connectionTimeout = setTimeout(() => {
+            const elapsed = Math.floor((Date.now() - connectionStartTime) / 1000);
+            node.warn(`NATS connection taking longer than expected (${elapsed}s). Check server availability.`);
+            setStatusYellow();
+          }, 10000);
+          break;
+        default:
+          // Unknown status - ignore
+      }
+    };
+
+    this.config.addStatusListener(statusListener);
     
+    // Connection Pool: Register this node as connection user
+    this.config.registerConnectionUser(node.id);
+
+
     // Input handler for dynamic subscription changes
     node.on('input', async (msg) => {
       try {
