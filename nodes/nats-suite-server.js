@@ -234,6 +234,9 @@ module.exports = function (RED) {
         this.error(`[NATS] TLS configuration error: ${tlsErr.message}`);
         if (isDebug) this.log(`[NATS] TLS error stack: ${tlsErr.stack}`);
       }
+    } else {
+      if (isDebug) this.log(`[NATS] TLS is disabled for this connection`);
+      ConnectionOptions.tls = null;
     }
 
     const connectNats = async () => {
