@@ -128,10 +128,12 @@
         "noAdvertise": false,
         "connectRetries": "",
         "enableLeafNodeMode": false,
-        "x": 340,
+        "x": 380,
         "y": 140,
         "wires": [
-            []
+            [
+                "f3c49e96d5ab9b45"
+            ]
         ]
     },
     {
@@ -166,7 +168,7 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": 0,
-        "x": 410,
+        "x": 530,
         "y": 260,
         "wires": [
             []
@@ -189,13 +191,63 @@
         "topic": "test.basic",
         "payload": "{\"temperature\":23.5,\"humidity\":45}",
         "payloadType": "json",
-        "x": 180,
+        "x": 320,
         "y": 260,
         "wires": [
             [
                 "443684332dd71c8b"
             ]
         ]
+    },
+    {
+        "id": "f3c49e96d5ab9b45",
+        "type": "debug",
+        "z": "d970d99ab7b62ec8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 600,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "78874a82ba1e7509",
+        "type": "nats-suite-subscribe",
+        "z": "d970d99ab7b62ec8",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "dataformat": "auto",
+        "datapointid": "test",
+        "topicfield": "subject",
+        "subscriptionMode": "static",
+        "x": 280,
+        "y": 360,
+        "wires": [
+            [
+                "060c7560e4168a96"
+            ]
+        ]
+    },
+    {
+        "id": "060c7560e4168a96",
+        "type": "debug",
+        "z": "d970d99ab7b62ec8",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 500,
+        "y": 360,
+        "wires": []
     },
     {
         "id": "inject-headers",
@@ -1005,7 +1057,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Basic",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",
@@ -1069,7 +1121,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Headers",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",
@@ -1133,7 +1185,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Expiration",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",
@@ -1192,7 +1244,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Buffer (Count)",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": true,
         "bufferSize": 100,
         "bufferSizeType": "count",
@@ -1293,7 +1345,7 @@
                 "p": "payload"
             }
         ],
-        "repeat": "5",
+        "repeat": "1",
         "crontab": "",
         "once": false,
         "onceDelay": 0.1,
@@ -1314,7 +1366,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Batch",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",
@@ -1324,7 +1376,7 @@
         "datapointid": "test.batch",
         "enableBatch": true,
         "batchSize": 10,
-        "batchInterval": 1000,
+        "batchInterval": "10000",
         "batchMode": "hybrid",
         "enableAutoReply": false,
         "replyTimeout": "",
@@ -1373,7 +1425,7 @@
         "z": "7af22689f9d37b1b",
         "name": "Publish Rate Limit",
         "server": "f299d3b622714522",
-        "debug": true,
+        "debug": false,
         "enableBuffer": false,
         "bufferSize": "",
         "bufferSizeBytes": "",

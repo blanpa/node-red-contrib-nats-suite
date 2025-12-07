@@ -48,6 +48,7 @@ module.exports = function (RED) {
 
     let natsServerProcess = null;
     let serverPort = null;
+    let natsServerVersion = null; // Declare natsServerVersion here
     let configFile = null; // Declare configFile here to be accessible by stopServer
 
     const log = (message) => {
@@ -66,50 +67,72 @@ module.exports = function (RED) {
       node.status(statusMap[status] || statusMap.stopped);
     };
 
+    // Helper function to get NATS server version
+    const getNatsServerVersion = async (natsServerBinPath) => {
+      return new Promise((resolve) => {
+        const versionProcess = spawn(natsServerBinPath, ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+        let versionOutput = '';
+        versionProcess.stdout.on('data', (data) => { versionOutput += data.toString(); });
+        versionProcess.stderr.on('data', (data) => { versionOutput += data.toString(); }); // NATS prints version to stderr
+        versionProcess.on('close', (code) => {
+          const match = versionOutput.match(/v(\d+\.\d+\.\d+)/);
+          if (match && match[1]) {
+            resolve(match[1]);
+          } else {
+            resolve('unknown');
+          }
+        });
+        versionProcess.on('error', () => { resolve('unknown'); });
+      });
+    };
+
     // Start embedded NATS server (direct binary execution for reliability)
     const startEmbeddedServer = async () => {
-      return new Promise((resolve, reject) => {
-        try {
-          const requestedPort = parseInt(node.port) || 4222;
-          const enableJetStream = node.enableJetStream !== false; // Default true
-          const enableLeafNode = node.enableLeafNodeMode !== false; // Default false
+      try {
+        const requestedPort = parseInt(node.port) || 4222;
+        const enableJetStream = node.enableJetStream !== false; // Default true
+        const enableLeafNode = node.enableLeafNodeMode !== false; // Default false
 
-          let actualPort = requestedPort;
-          let startupLogMessage = `Starting embedded NATS server on port ${requestedPort}...`;
-          let statusText = 'starting embedded...';
+        let actualPort = requestedPort;
+        let startupLogMessage = `Starting embedded NATS server on port ${requestedPort}...`;
+        let statusText = 'starting embedded...';
 
-          // Find nats-server binary in various locations
-          const possibleBinPaths = [
-            path.join(__dirname, '../node_modules/.cache/nats-memory-server/nats-server'),
-            path.join(__dirname, '../node_modules/nats-memory-server/.cache/nats-server'),
-            '/data/node_modules/node-red-contrib-nats-suite/node_modules/.cache/nats-memory-server/nats-server',
-            '/usr/local/bin/nats-server',
-            '/usr/bin/nats-server',
-            'nats-server' // System PATH
-          ];
+        // Find nats-server binary in various locations
+        const possibleBinPaths = [
+          path.join(__dirname, '../node_modules/.cache/nats-memory-server/nats-server'),
+          path.join(__dirname, '../node_modules/nats-memory-server/.cache/nats-server'),
+          '/data/node_modules/node-red-contrib-nats-suite/node_modules/.cache/nats-memory-server/nats-server',
+          '/usr/local/bin/nats-server',
+          '/usr/bin/nats-server',
+          'nats-server' // System PATH
+        ];
 
-          let natsServerBin = null;
-          for (const binPath of possibleBinPaths) {
-            try {
-              if (binPath === 'nats-server' || fs.existsSync(binPath)) {
-                natsServerBin = binPath;
-                log(`Found nats-server binary at: ${binPath}`);
-                break;
-              }
-            } catch (err) {
-              // Continue to next path
+        let natsServerBin = null;
+        for (const binPath of possibleBinPaths) {
+          try {
+            if (binPath === 'nats-server' || fs.existsSync(binPath)) {
+              natsServerBin = binPath;
+              log(`Found nats-server binary at: ${binPath}`);
+              break;
             }
+          } catch (err) {
+            // Continue to next path
           }
+        }
 
-          if (!natsServerBin) {
-            const installHint = 'For embedded server: npm install nats-memory-server (downloads binary)';
-            node.error(`nats-server binary not found. ${installHint}`);
-            node.warn('💡 Alternative: ensure nats-server is in system PATH for process mode.');
-            setStatus('error', 'nats-server not found');
-            reject(new Error('nats-server binary not found'));
-            return;
-          }
+        if (!natsServerBin) {
+          const installHint = 'For embedded server: npm install nats-memory-server (downloads binary)';
+          node.error(`nats-server binary not found. ${installHint}`);
+          node.warn('💡 Alternative: ensure nats-server is in system PATH for process mode.');
+          setStatus('error', 'nats-server not found');
+          throw new Error('nats-server binary not found');
+        }
 
+        // Get NATS server version once at the start
+        natsServerVersion = await getNatsServerVersion(natsServerBin);
+        log(`NATS server binary version: v${natsServerVersion}`);
+
+        return new Promise((resolve, reject) => {
           const args = [];
 
           if (enableLeafNode) {
@@ -245,14 +268,16 @@ module.exports = function (RED) {
             if (!started && (startupOutput.includes('Server is ready') || startupOutput.includes('Listening for client connections'))) {
               started = true;
               serverPort = actualPort; // Use actualPort (embedded or leaf port)
-              log(`Embedded NATS server is running on port ${serverPort}`);
-              setStatus('running', `embedded:${serverPort}`);
+              const versionText = natsServerVersion !== 'unknown' ? ` (v${natsServerVersion})` : '';
+              log(`Embedded NATS server is running on port ${serverPort}${versionText}`);
+              setStatus('running', `embedded:${serverPort}${versionText}`);
               
               const startedPayload = {
                 type: enableLeafNode ? 'leaf' : 'embedded',
                 port: serverPort,
                 url: `nats://localhost:${serverPort}`,
                 pid: natsServerProcess.pid,
+                version: natsServerVersion, // Add NATS server version here
                 jetstream: enableJetStream,
                 config: {
                   serverName: node.serverName || null,
@@ -357,12 +382,12 @@ module.exports = function (RED) {
             }
           }, 10000);
 
-        } catch (err) {
-          node.error(`Failed to start embedded server: ${err.message}`);
-          setStatus('error', err.message.substring(0, 20));
-          reject(err);
-        }
-      });
+        });
+      } catch (err) {
+        node.error(`Failed to start embedded server: ${err.message}`);
+        setStatus('error', err.message.substring(0, 20));
+        throw err; // Re-throw the error to be caught by the caller
+      }
     };
 
     // Stop server
@@ -425,9 +450,10 @@ module.exports = function (RED) {
             topic: 'server.status',
             payload: {
               running: !!(natsServerProcess),
-              type: node.serverType,
+              type: 'embedded', // Always embedded now
               port: serverPort,
-              url: serverPort ? `nats://localhost:${serverPort}` : null
+              url: serverPort ? `nats://localhost:${serverPort}` : null,
+              version: natsServerVersion // Add NATS server version here
             }
           });
           break;

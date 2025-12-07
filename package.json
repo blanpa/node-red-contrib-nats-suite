@@ -37,10 +37,10 @@
   "author": "blanpa",
   "license": "MIT",
   "dependencies": {
-    "nats": "^2.20.0"
+    "nats": "^2.29.3",
+    "nats-memory-server": "^2.0.21"
   },
   "optionalDependencies": {
-    "nats-memory-server": "^2.0.21"
   },
   "engines": {
     "node": ">=14.0.0"

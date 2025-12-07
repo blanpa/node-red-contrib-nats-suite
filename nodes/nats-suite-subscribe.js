@@ -347,11 +347,15 @@ module.exports = function (RED) {
         // Determine queue group
         const targetQueueGroup = newQueueGroup !== null ? newQueueGroup : queueGroup;
         
-        // Only update if subject or queue group actually changed
+        // Check if subscription already exists and is active
+        const hasActiveSubscription = subscription !== null;
+        
+        // Only update if subject or queue group actually changed, OR if no subscription exists yet
         const subjectChanged = targetSubject !== currentSubject;
         const queueGroupChanged = targetQueueGroup !== queueGroup;
+        const needsNewSubscription = !hasActiveSubscription || subjectChanged || queueGroupChanged;
         
-        if (subjectChanged || queueGroupChanged) {
+        if (needsNewSubscription) {
           // Cleanup old subscription
           if (subscription) {
             subscription.unsubscribe();

@@ -572,6 +572,7 @@
 
 <script type="text/html" data-help-name="nats-suite-server-manager">
   <p>Starts and manages an embedded NATS server from Node-RED.</p>
+  <p><i>Note: The embedded server uses NATS Server <b>v2.9.16</b> (provided by nats-memory-server).</i></p>
 
   <h3>Configuration Options</h3>
   <dl class="message-properties">
@@ -618,13 +619,15 @@ msg.payload.command = "toggle"  // Toggle start/stop</pre>
     <dt>topic <span class="property-type">string</span></dt>
     <dd>"server.started", "server.stopped", "server.status"</dd>
     <dt>payload.type <span class="property-type">string</span></dt>
-    <dd>"embedded", "process", or "leaf"</dd>
+    <dd>"embedded" or "leaf"</dd>
     <dt>payload.port <span class="property-type">number</span></dt>
     <dd>The port the server is running on</dd>
     <dt>payload.url <span class="property-type">string</span></dt>
     <dd>Connection URL (e.g., "nats://localhost:4222")</dd>
     <dt>payload.pid <span class="property-type">number</span></dt>
-    <dd>Process ID (for process/leaf types)</dd>
+    <dd>Process ID</dd>
+    <dt>payload.version <span class="property-type">string</span></dt>
+    <dd>NATS Server Version (e.g., "2.9.16")</dd>
   </dl>
 
   <h3>HTTP Monitoring Endpoints</h3>
