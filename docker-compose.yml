@@ -7,8 +7,8 @@ services:
       - '1880:1880'
       - '4223:4223' # Expose embedded NATS server port
     volumes:
+      - ./node-red:/data
       - ./:/data/node_modules/node-red-contrib-nats-suite
-      - ./examples:/data
     environment:
       - TZ=Europe/Berlin
     depends_on:
@@ -32,6 +32,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  dev_data:
   nats-data:
  

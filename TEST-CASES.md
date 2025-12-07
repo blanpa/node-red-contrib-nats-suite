@@ -45,19 +45,21 @@ nats-server -js
 
 Flow:
 ```
-[inject] → [nats-suite-health] → [debug]
+[inject] → [nats-suite-service (mode: health)] → [debug]
 ```
 
 **Config:**
 - Server Node: `nats://localhost:4222`
+- Mode: `health`
 - No Authentication
 
 **Expected Output:**
 ```json
 {
   "payload": {
-    "status": "connected",
-    "server": "nats://localhost:4222"
+    "status": "healthy",
+    "server": "nats://localhost:4222",
+    "latency": 5
   }
 }
 ```
@@ -195,37 +197,52 @@ Flow:
 
 ---
 
-### 5. Request/Reply Pattern
+### 5. Request/Reply Pattern (using Publish/Subscribe)
 
-**Test: Request-Reply**
+**Test: Request-Reply with Pub/Sub**
 
 Flow 1 (Client):
 ```
-[inject] → [nats-suite-request] → [debug]
+[inject] → [function: add replyTo] → [nats-suite-publish] → ...
+[nats-suite-subscribe: reply subject] → [debug]
 ```
 
 Flow 2 (Server):
 ```
-[nats-suite-subscribe] → [function] → [nats-suite-publish]
+[nats-suite-subscribe] → [function: process & extract replyTo] → [nats-suite-publish]
 ```
 
-**Request Config:**
-- Server: nats-server
-- Dataformat: `specific_subject`
-- Subject: `service.echo`
-- Timeout: `5000` ms
-- Handle Timeout as Message: TRUE
+**Client Function (Add replyTo):**
+```javascript
+// Add replyTo to payload (only payload is sent over NATS)
+msg.payload = {
+  message: msg.payload.message,
+  replyTo: 'demo.reply.inbox'
+};
+msg.topic = 'service.echo';
+return msg;
+```
 
-**Subscribe Config:**
+**Publish Config (Client):**
 - Server: nats-server
-- Dataformat: `specific_subject`
+- Subject: `service.echo`
+
+**Subscribe Config (Server):**
+- Server: nats-server
 - Subject: `service.echo`
 
 **Function Node (Echo Server):**
 ```javascript
-// Echo back the request with timestamp
+// Extract replyTo from payload and echo back
+const replyTo = msg.payload.replyTo;
+if (!replyTo) {
+  node.warn('No replyTo in payload!');
+  return null;
+}
+
+msg.topic = replyTo;
 msg.payload = {
-  echo: msg.payload,
+  echo: msg.payload.message,
   timestamp: Date.now()
 };
 return msg;
@@ -233,7 +250,11 @@ return msg;
 
 **Publish Config (Reply):**
 - Server: nats-server
-- Dataformat: `reply`
+- Subject: (from msg.topic)
+
+**Subscribe Config (Client Reply):**
+- Server: nats-server
+- Subject: `demo.reply.inbox`
 
 **Inject (Client Request):**
 ```json
@@ -248,28 +269,27 @@ return msg;
 ```json
 {
   "payload": {
-    "echo": {
-      "message": "Echo this!"
-    },
+    "echo": "Echo this!",
     "timestamp": 1234567890
-  },
-  "status": "success"
+  }
 }
 ```
 
 ---
 
-### 6. Health & Stats
+### 6. Health & Stats (via nats-suite-service)
 
 **Test A: Health Check**
 
 Flow:
 ```
-[inject] → [nats-suite-health] → [debug]
+[inject] → [nats-suite-service (mode: health)] → [debug]
 ```
 
 **Config:**
 - Server: nats-server
+- Mode: `health`
+- Enable Connectivity Tests: TRUE
 
 **Inject:**
 ```json
@@ -280,29 +300,47 @@ Flow:
 ```json
 {
   "payload": {
+    "status": "healthy",
     "connected": true,
     "server": "localhost:4222",
-    "uptime": "2h 15m"
+    "latency": 5,
+    "checks": {
+      "connectivity": "passed"
+    }
   }
 }
 ```
 
-**Test B: Server Stats**
+**Test B: NATS Stats**
 
 Flow:
 ```
-[inject] → [nats-suite-stats] → [debug]
+[inject] → [nats-suite-service (mode: nats-stats)] → [debug]
 ```
+
+**Config:**
+- Server: nats-server
+- Mode: `nats-stats`
+- Stats Type: `all`
 
 **Expected Output:**
 ```json
 {
   "payload": {
-    "connections": 5,
-    "in_msgs": 1234,
-    "out_msgs": 5678,
-    "in_bytes": 123456,
-    "out_bytes": 567890
+    "server": {
+      "serverId": "...",
+      "version": "2.9.x"
+    },
+    "jetstream": {
+      "memory": 0,
+      "storage": 0
+    },
+    "connection": {
+      "inMsgs": 1234,
+      "outMsgs": 5678,
+      "inBytes": 123456,
+      "outBytes": 567890
+    }
   }
 }
 ```
@@ -1084,9 +1122,10 @@ Flow 1 (Service):
 [nats-suite-service] → [function] → (response)
 ```
 
-Flow 2 (Client):
+Flow 2 (Client - using Pub/Sub):
 ```
-[inject] → [nats-suite-request] → [debug]
+[inject] → [function: add replyTo] → [nats-suite-publish] → ...
+[nats-suite-subscribe: reply subject] → [debug]
 ```
 
 **Service Config:**
@@ -1125,9 +1164,21 @@ msg.respond(response);
 return null;
 ```
 
-**Client Request Config:**
+**Client Function (Add replyTo):**
+```javascript
+msg.payload = {
+  message: msg.payload.message,
+  replyTo: 'echo.reply.inbox'
+};
+msg.topic = 'echo.process';
+return msg;
+```
+
+**Client Publish Config:**
 - Subject: `echo.process`
-- Timeout: 5000ms
+
+**Client Subscribe Config (for reply):**
+- Subject: `echo.reply.inbox`
 
 **Inject (Client):**
 ```json
@@ -1146,8 +1197,7 @@ return null;
     "timestamp": 1234567890,
     "service": "echo-service",
     "version": "1.0.0"
-  },
-  "status": "success"
+  }
 }
 ```
 
@@ -1343,9 +1393,10 @@ return null;
 ```
 [inject] 
   → [nats-suite-service: discover] 
-  → [function: select-service] 
-  → [nats-suite-request: auth] 
-  → [debug]
+  → [function: select-service & add replyTo] 
+  → [nats-suite-publish: auth.validate] 
+  → ...
+[nats-suite-subscribe: gateway.reply] → [debug]
 ```
 
 **Test Inject:**

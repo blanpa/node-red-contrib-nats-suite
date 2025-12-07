@@ -73,11 +73,12 @@ Or in the Node-RED Editor:
 |------|----------|-------|--------|
 | **nats-suite-publish** | Publishes messages to subjects + Headers + Message Expiration (TTL) | `msg.payload`, `msg.topic`, `msg.headers`, `msg.expiration` | - |
 | **nats-suite-subscribe** | Subscribes to messages from subjects | - | `msg.payload`, `msg.topic`, `msg.headers` |
-| **nats-suite-request** | Request/Reply pattern (Client) | `msg.payload`, `msg.topic` | `msg.payload` (Response) |
-| **nats-suite-reply** | Request/Reply pattern (Server) | `msg.payload` | `msg.payload` (Request) |
-| **nats-suite-health** | Server health monitoring | - | `msg.payload` (Health Status) |
-| **nats-suite-stats** | Detailed server statistics | - | `msg.payload` (Stats) |
-| **nats-suite-service** | Service API (Discovery, Stats, Endpoints) | `msg.operation` | `msg.payload` (Services/Stats/Requests) |
+
+### Service API
+
+| Node | Function | Input | Output |
+|------|----------|-------|--------|
+| **nats-suite-service** | Multi-mode service node: Service Endpoints, Discovery, Stats, Ping, Health Check, NATS Stats | `msg.operation`, `msg.payload` | `msg.payload` (Services/Stats/Health/Requests) |
 
 ### JetStream
 
@@ -109,10 +110,11 @@ Or in the Node-RED Editor:
 [Inject] → [nats-suite-publish] → NATS Server → [nats-suite-subscribe] → [Debug]
 ```
 
-### Request/Reply Pattern
+### Request/Reply Pattern (using Publish/Subscribe)
 ```
-[Inject] → [nats-suite-request] → NATS Server → [nats-suite-subscribe] → [Function] → [nats-suite-publish]
+[Inject] → [nats-suite-publish] → NATS Server → [nats-suite-subscribe] → [Function] → [nats-suite-publish]
 ```
+Note: Include `replyTo` subject in your payload for manual request/reply patterns.
 
 ### JetStream Workflow
 ```
@@ -135,12 +137,13 @@ Or in the Node-RED Editor:
 - `nats-suite-publish`: Subject `my.topic`, `msg.payload` = message
 - `nats-suite-subscribe`: Subject `my.topic`
 
-### 2. Request/Reply
+### 2. Request/Reply (via Service API)
 ```
-[Inject] → [nats-suite-request] → [Debug]
+[nats-suite-service (mode: service)] → [Function Handler] → msg.respond()
+[Inject] → [nats-suite-publish] → Service → [nats-suite-subscribe] → [Debug]
 ```
-- `nats-suite-request`: Subject `service.request`, Timeout 10000ms
-- Response is automatically received
+- Use `nats-suite-service` in "service" mode to create service endpoints
+- Call services via publish/subscribe with `replyTo` in payload
 
 ### 3. JetStream Streams
 ```
@@ -228,31 +231,39 @@ Use the `nats-suite-server-manager` node:
 - Lists all keys of a bucket
 - Output: Array with all keys + count
 
-### Service API (NEW)
+### Service API (nats-suite-service)
 
-Completely new node for NATS Service API (Microservice Discovery):
+Multi-mode node for NATS Service API, Health Monitoring, and Statistics:
 
-#### **Service Discovery**
-- Finds all available NATS services in the network
-- Filter by service name or all services (`*`)
-- Output: Name, Version, ID, Metadata
+#### **Modes:**
 
-#### **Service Stats**
-- Retrieve performance metrics for services
-- Request counts, endpoints, stats
-- Monitoring and health checks
+| Mode | Description |
+|------|-------------|
+| **service** | Creates NATS service endpoints with `msg.respond()` and `msg.respondError()` |
+| **discover** | Finds all available NATS services in the network |
+| **stats** | Retrieves performance metrics for services |
+| **ping** | Checks service availability |
+| **health** | Connection health check with latency, throughput, and reconnect monitoring |
+| **nats-stats** | Detailed NATS server/JetStream/connection statistics |
 
 #### **Service Endpoints**
-- Creates NATS service endpoints
 - Request handler with `msg.respond()` and `msg.respondError()`
 - Automatic load balancing via Queue Groups
 - Metadata support (JSON)
 - Auto-start option
 - Automatic stats tracking (requests, errors, avg processing time)
 
-#### **Ping Services**
-- Checks service availability
-- Ping responses from all service instances
+#### **Health Check**
+- Connectivity tests with latency measurement
+- Throughput monitoring
+- Reconnect tracking
+- Configurable alert thresholds
+- Periodic health checks
+
+#### **NATS Stats**
+- Server statistics
+- JetStream statistics
+- Connection statistics
 
 ---
 
