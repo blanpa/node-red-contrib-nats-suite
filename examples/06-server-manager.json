@@ -2,9 +2,55 @@
     {
         "id": "server-manager-examples",
         "type": "tab",
-        "label": "Server Manager Node - All Features",
+        "label": "Server Manager Examples",
         "disabled": false,
-        "info": "Comprehensive examples for nats-suite-server-manager node\n\nFeatures demonstrated:\n- Start/Stop/Restart server\n- Status check\n- Embedded server (standalone or leaf node)"
+        "info": "Examples for nats-suite-server-manager node\n\nFeatures demonstrated:\n- Start/Stop/Restart embedded NATS server\n- Status check\n- Standalone and Leaf Node modes"
+    },
+    {
+        "id": "comment-server-manager",
+        "type": "comment",
+        "z": "server-manager-examples",
+        "name": "=== EMBEDDED NATS SERVER ===",
+        "info": "",
+        "x": 180,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "server-manager",
+        "type": "nats-suite-server-manager",
+        "z": "server-manager-examples",
+        "name": "Embedded Server",
+        "port": 4222,
+        "enableJetStream": true,
+        "storeDir": "",
+        "enableLeafNodeMode": false,
+        "leafPort": 7422,
+        "leafRemoteUrl": "",
+        "leafRemoteUser": "",
+        "leafRemotePass": "",
+        "autoStart": false,
+        "debug": true,
+        "x": 400,
+        "y": 100,
+        "wires": [["debug-server"]]
+    },
+    {
+        "id": "debug-server",
+        "type": "debug",
+        "z": "server-manager-examples",
+        "name": "Server Result",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload.status",
+        "statusType": "auto",
+        "x": 620,
+        "y": 100,
+        "wires": []
     },
     {
         "id": "inject-start",
@@ -20,44 +66,8 @@
         "payload": "{\"command\":\"start\"}",
         "payloadType": "json",
         "x": 160,
-        "y": 60,
-        "wires": [["server-manager-embedded"]]
-    },
-    {
-        "id": "server-manager-embedded",
-        "type": "nats-suite-server-manager",
-        "z": "server-manager-examples",
-        "name": "Embedded Server",
-        "port": 4222,
-        "enableJetStream": true,
-        "storeDir": "",
-        "enableLeafNodeMode": false,
-        "leafPort": 7422,
-        "leafRemoteUrl": "",
-        "leafRemoteUser": "",
-        "leafRemotePass": "",
-        "autoStart": false,
-        "debug": true,
-        "x": 400,
-        "y": 60,
-        "wires": [["debug-start"]]
-    },
-    {
-        "id": "debug-start",
-        "type": "debug",
-        "z": "server-manager-examples",
-        "name": "Start Result",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 620,
-        "y": 60,
-        "wires": []
+        "y": 100,
+        "wires": [["server-manager"]]
     },
     {
         "id": "inject-stop",
@@ -73,8 +83,8 @@
         "payload": "{\"command\":\"stop\"}",
         "payloadType": "json",
         "x": 160,
-        "y": 120,
-        "wires": [["server-manager-embedded"]]
+        "y": 160,
+        "wires": [["server-manager"]]
     },
     {
         "id": "inject-restart",
@@ -90,8 +100,8 @@
         "payload": "{\"command\":\"restart\"}",
         "payloadType": "json",
         "x": 170,
-        "y": 180,
-        "wires": [["server-manager-embedded"]]
+        "y": 220,
+        "wires": [["server-manager"]]
     },
     {
         "id": "inject-status",
@@ -106,9 +116,9 @@
         "topic": "",
         "payload": "{\"command\":\"status\"}",
         "payloadType": "json",
-        "x": 180,
-        "y": 240,
-        "wires": [["server-manager-embedded"]]
+        "x": 160,
+        "y": 280,
+        "wires": [["server-manager"]]
     }
 ]
 

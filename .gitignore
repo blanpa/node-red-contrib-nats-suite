@@ -10,6 +10,6 @@ package-lock.json
 yarn.lock
 
 # Ignore everything in examples directory except flows.json
-examples/**
-!examples/flows.json
+node-red/**
+!node-red/flows.json
 

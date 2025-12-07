@@ -15,18 +15,14 @@
       "nats-suite-server": "nodes/nats-suite-server.js",
       "nats-suite-publish": "nodes/nats-suite-publish.js",
       "nats-suite-subscribe": "nodes/nats-suite-subscribe.js",
-      "nats-suite-request": "nodes/nats-suite-request.js",
-      "nats-suite-reply": "nodes/nats-suite-reply.js",
-      "nats-suite-health": "nodes/nats-suite-health.js",
-      "nats-suite-kv-get": "nodes/nats-suite-kv-get.js",
-      "nats-suite-kv-put": "nodes/nats-suite-kv-put.js",
       "nats-suite-stream-publisher": "nodes/nats-suite-stream-publisher.js",
       "nats-suite-stream-consumer": "nodes/nats-suite-stream-consumer.js",
+      "nats-suite-kv-get": "nodes/nats-suite-kv-get.js",
+      "nats-suite-kv-put": "nodes/nats-suite-kv-put.js",
       "nats-suite-object-put": "nodes/nats-suite-object-put.js",
       "nats-suite-object-get": "nodes/nats-suite-object-get.js",
-      "nats-suite-stats": "nodes/nats-suite-stats.js",
-      "nats-suite-server-manager": "nodes/nats-suite-server-manager.js",
-      "nats-suite-service": "nodes/nats-suite-service.js"
+      "nats-suite-service": "nodes/nats-suite-service.js",
+      "nats-suite-server-manager": "nodes/nats-suite-server-manager.js"
     }
   },
   "scripts": {

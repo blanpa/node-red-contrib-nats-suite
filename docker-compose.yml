@@ -2,7 +2,7 @@ services:
   nodered:
     image: nodered/node-red:latest
     container_name: nodered-dev
-    user: "1000:1000"  # Node-RED läuft als UID 1000
+    user: "1000:1000"  # Node-RED runs as UID 1000
     ports:
       - '1880:1880'
       - '4223:4223' # Expose embedded NATS server port

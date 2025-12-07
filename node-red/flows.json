@@ -15,20 +15,6 @@
         "info": "Test for Message Headers feature\n\n1. Deploy the flow\n2. Click the inject node\n3. Check debug output: headers should be present"
     },
     {
-        "id": "pause-resume-example",
-        "type": "tab",
-        "label": "02 - Consumer Pause/Resume Test",
-        "disabled": true,
-        "info": "Test for Consumer Pause/Resume feature\n\n1. Deploy the flow\n2. Click 'Create Stream'\n3. Click 'Fill Stream' (10 messages)\n4. Click 'Start Consume'\n5. While consuming: click 'Pause'\n6. Click 'Resume'\n7. Click 'Continue Consume'"
-    },
-    {
-        "id": "service-echo-example",
-        "type": "tab",
-        "label": "03 - Service API Echo Service",
-        "disabled": true,
-        "info": "Test for Service API feature - Echo Service\n\n1. Deploy the flow (service starts automatically)\n2. Click 'Discover Services' → service is discovered\n3. Click 'Call Echo Service' → receives echo response\n4. Click 'Get Service Stats' → shows request statistics"
-    },
-    {
         "id": "7af22689f9d37b1b",
         "type": "tab",
         "label": "Publish Node - All Features",
@@ -36,11 +22,11 @@
         "info": "Comprehensive examples for nats-suite-publish node\n\nFeatures demonstrated:\n- Basic publish (JSON, String, Buffer)\n- Message Headers (static + dynamic)\n- Message Expiration (TTL)\n- Buffering (count + bytes, persistence)\n- Batch Processing\n- Rate Limiting\n- Auto-Reply Handler"
     },
     {
-        "id": "request-examples",
+        "id": "fdf4576e5737a4e2",
         "type": "tab",
-        "label": "Request Node - All Features",
-        "disabled": true,
-        "info": "Comprehensive examples for nats-suite-request node\n\nFeatures demonstrated:\n- Basic request/reply\n- Timeout handling\n- Different data formats\n- Error handling"
+        "label": "Request-Reply (Pub/Sub)",
+        "disabled": false,
+        "info": "Request-Reply Pattern with Publish/Subscribe\n\nThis flow demonstrates how to build Request-Reply\nusing simple Publish and Subscribe nodes,\nwithout using nats-suite-request or nats-suite-reply.\n\nPrinciple:\n1. Requester publishes with own Reply-Subject\n2. Service subscribes, processes and publishes response\n3. Requester subscribes to Reply-Subject for response"
     },
     {
         "id": "f299d3b622714522",
@@ -75,23 +61,6 @@
         "pingInterval": "",
         "maxPingOut": "",
         "debug": true
-    },
-    {
-        "id": "a1f8112d99dd599c",
-        "type": "nats-suite-server",
-        "server": "nats://localhost:4223",
-        "authMethod": "none",
-        "enableTLS": false,
-        "tlsRejectUnauthorized": true,
-        "tlsCaFile": "",
-        "tlsCertFile": "",
-        "tlsKeyFile": "",
-        "maxReconnectAttempts": 10,
-        "reconnectTimeWait": 1000,
-        "timeout": 10000,
-        "pingInterval": 30000,
-        "maxPingOut": 3,
-        "debug": false
     },
     {
         "id": "572868ddc8f6bb8e",
@@ -250,6 +219,36 @@
         "wires": []
     },
     {
+        "id": "22a323e606cf6bd1",
+        "type": "nats-suite-service",
+        "z": "d970d99ab7b62ec8",
+        "name": "",
+        "server": "f299d3b622714522",
+        "mode": "ping",
+        "serviceName": "my-service",
+        "serviceVersion": "1.0.0",
+        "serviceDescription": "",
+        "endpoint": "process",
+        "endpointSubject": "",
+        "queueGroup": "",
+        "metadata": "",
+        "autoStart": true,
+        "statsType": "server",
+        "checkOnStart": true,
+        "periodicCheck": false,
+        "checkInterval": 30,
+        "enableConnectivityTests": true,
+        "latencyThreshold": 100,
+        "reconnectThreshold": 5,
+        "throughputThreshold": 1000,
+        "debug": false,
+        "x": 430,
+        "y": 720,
+        "wires": [
+            []
+        ]
+    },
+    {
         "id": "inject-headers",
         "type": "inject",
         "z": "headers-example",
@@ -284,7 +283,7 @@
         "type": "nats-suite-publish",
         "z": "headers-example",
         "name": "Publish with Headers",
-        "server": "a1f8112d99dd599c",
+        "server": "f299d3b622714522",
         "debug": true,
         "enableBuffer": false,
         "bufferSize": "",
@@ -405,626 +404,6 @@
                 "subscribe-headers"
             ]
         ]
-    },
-    {
-        "id": "inject-create-stream",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "1. Create Stream",
-        "props": [
-            {
-                "p": "operation",
-                "v": "create",
-                "vt": "str"
-            },
-            {
-                "p": "stream",
-                "v": "test-stream",
-                "vt": "str"
-            },
-            {
-                "p": "subjects",
-                "v": "test.>",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 140,
-        "y": 100,
-        "wires": [
-            [
-                "stream-publisher"
-            ]
-        ]
-    },
-    {
-        "id": "inject-fill-stream",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "2. Fill Stream (10 msgs)",
-        "props": [],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 160,
-        "y": 140,
-        "wires": [
-            [
-                "function-fill"
-            ]
-        ]
-    },
-    {
-        "id": "function-fill",
-        "type": "function",
-        "z": "pause-resume-example",
-        "name": "Generate 10 Messages",
-        "func": "for (let i = 0; i < 10; i++) {\n  node.send({\n    payload: {\n      id: i,\n      data: `Message ${i}`,\n      timestamp: Date.now()\n    }\n  });\n}\nreturn null;",
-        "outputs": 1,
-        "noerr": 0,
-        "x": 380,
-        "y": 140,
-        "wires": [
-            [
-                "stream-publisher"
-            ]
-        ]
-    },
-    {
-        "id": "stream-publisher",
-        "type": "nats-suite-stream-publisher",
-        "z": "pause-resume-example",
-        "name": "Stream Publisher",
-        "server": "63f3bd466aaef063",
-        "streamName": "test-stream",
-        "subjectPattern": "",
-        "defaultSubject": "",
-        "maxMessages": "",
-        "maxAge": "",
-        "maxBytes": "",
-        "duplicateWindow": "",
-        "replicas": "",
-        "operation": "publish",
-        "x": 620,
-        "y": 120,
-        "wires": [
-            [
-                "debug-publisher"
-            ]
-        ]
-    },
-    {
-        "id": "debug-publisher",
-        "type": "debug",
-        "z": "pause-resume-example",
-        "name": "Publisher Output",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 840,
-        "y": 120,
-        "wires": []
-    },
-    {
-        "id": "inject-start-consume",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "3. Start Consume",
-        "props": [
-            {
-                "p": "batchSize",
-                "v": "10",
-                "vt": "num"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 140,
-        "y": 240,
-        "wires": [
-            [
-                "stream-consumer"
-            ]
-        ]
-    },
-    {
-        "id": "inject-pause",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "4. ✋ PAUSE",
-        "props": [
-            {
-                "p": "operation",
-                "v": "pause",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 120,
-        "y": 300,
-        "wires": [
-            [
-                "stream-consumer"
-            ]
-        ]
-    },
-    {
-        "id": "inject-resume",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "5. ▶️ RESUME",
-        "props": [
-            {
-                "p": "operation",
-                "v": "resume",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 130,
-        "y": 340,
-        "wires": [
-            [
-                "stream-consumer"
-            ]
-        ]
-    },
-    {
-        "id": "inject-continue",
-        "type": "inject",
-        "z": "pause-resume-example",
-        "name": "6. Continue Consume",
-        "props": [
-            {
-                "p": "batchSize",
-                "v": "10",
-                "vt": "num"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 150,
-        "y": 380,
-        "wires": [
-            [
-                "stream-consumer"
-            ]
-        ]
-    },
-    {
-        "id": "stream-consumer",
-        "type": "nats-suite-stream-consumer",
-        "z": "pause-resume-example",
-        "name": "Stream Consumer",
-        "server": "63f3bd466aaef063",
-        "streamName": "test-stream",
-        "consumerName": "test-consumer",
-        "filterSubject": "",
-        "consumerType": "pull",
-        "ackPolicy": "explicit",
-        "ackWait": "",
-        "maxDeliver": "",
-        "maxAckPending": "",
-        "idleHeartbeat": "",
-        "flowControl": false,
-        "batchSize": "10",
-        "maxWait": "",
-        "operation": "consume",
-        "x": 400,
-        "y": 300,
-        "wires": [
-            [
-                "function-ack",
-                "debug-consumer"
-            ]
-        ]
-    },
-    {
-        "id": "function-ack",
-        "type": "function",
-        "z": "pause-resume-example",
-        "name": "ACK Message",
-        "func": "if (msg.ack) {\n  msg.ack();\n  node.log('Message acknowledged');\n}\nreturn msg;",
-        "outputs": 1,
-        "noerr": 0,
-        "x": 610,
-        "y": 300,
-        "wires": [
-            []
-        ]
-    },
-    {
-        "id": "debug-consumer",
-        "type": "debug",
-        "z": "pause-resume-example",
-        "name": "Consumer Output",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "x": 630,
-        "y": 340,
-        "wires": []
-    },
-    {
-        "id": "comment-pause-resume",
-        "type": "comment",
-        "z": "pause-resume-example",
-        "name": "✨ New Feature: Consumer Pause/Resume ✨",
-        "info": "# Consumer Pause/Resume Test\n\n## Flow:\n1. Create stream\n2. Write 10 messages into the stream\n3. Start consumer (batch 10)\n4. Click **PAUSE** → consumer stops\n5. Click **RESUME** → consumer continues\n6. Click Continue Consume → further messages\n\n## Expected:\n- After pause: status shows \"paused\"\n- After resume: status shows \"resumed\"\n- Consumption can be continued",
-        "x": 210,
-        "y": 40,
-        "wires": []
-    },
-    {
-        "id": "service-echo",
-        "type": "nats-suite-service",
-        "z": "service-echo-example",
-        "name": "Echo Service",
-        "server": "",
-        "mode": "service",
-        "serviceName": "echo-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "Simple Echo Service for Testing",
-        "endpoint": "process",
-        "endpointSubject": "echo.process",
-        "queueGroup": "echo-service",
-        "autoStart": true,
-        "debug": true,
-        "x": 150,
-        "y": 120,
-        "wires": [
-            [
-                "function-echo-handler"
-            ]
-        ]
-    },
-    {
-        "id": "function-echo-handler",
-        "type": "function",
-        "z": "service-echo-example",
-        "name": "Echo Handler",
-        "func": "// Validate request\nif (!msg.payload || !msg.payload.message) {\n  msg.respondError('Missing message field', 'VALIDATION_ERROR');\n  node.error('Validation failed: Missing message field');\n  return null;\n}\n\n// Process request\nconst response = {\n  echo: msg.payload.message,\n  timestamp: Date.now(),\n  service: 'echo-service',\n  version: '1.0.0',\n  requestId: msg.payload.requestId || 'unknown'\n};\n\nnode.log('Echo request processed: ' + msg.payload.message);\n\n// Respond to caller\nmsg.respond(response);\n\n// Don't send to output (response already sent)\nreturn null;",
-        "outputs": 0,
-        "noerr": 0,
-        "x": 350,
-        "y": 120,
-        "wires": []
-    },
-    {
-        "id": "inject-discover",
-        "type": "inject",
-        "z": "service-echo-example",
-        "name": "1. Discover Services",
-        "props": [
-            {
-                "p": "operation",
-                "v": "discover",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 150,
-        "y": 220,
-        "wires": [
-            [
-                "service-discover"
-            ]
-        ]
-    },
-    {
-        "id": "service-discover",
-        "type": "nats-suite-service",
-        "z": "service-echo-example",
-        "name": "Discover",
-        "server": "",
-        "mode": "discover",
-        "serviceName": "*",
-        "debug": true,
-        "x": 340,
-        "y": 220,
-        "wires": [
-            [
-                "debug-discover"
-            ]
-        ]
-    },
-    {
-        "id": "debug-discover",
-        "type": "debug",
-        "z": "service-echo-example",
-        "name": "Services Found",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 520,
-        "y": 220,
-        "wires": []
-    },
-    {
-        "id": "inject-call-service",
-        "type": "inject",
-        "z": "service-echo-example",
-        "name": "2. Call Echo Service",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "{\"message\":\"Hello from client!\",\"requestId\":\"req-12345\"}",
-        "payloadType": "json",
-        "x": 150,
-        "y": 300,
-        "wires": [
-            [
-                "request-echo"
-            ]
-        ]
-    },
-    {
-        "id": "request-echo",
-        "type": "nats-suite-request",
-        "z": "service-echo-example",
-        "name": "Request Echo",
-        "server": "",
-        "dataformat": "specific_subject",
-        "subject": "echo.process",
-        "timeout": 5000,
-        "handleTimeout": true,
-        "debug": true,
-        "x": 350,
-        "y": 300,
-        "wires": [
-            [
-                "debug-echo-response"
-            ]
-        ]
-    },
-    {
-        "id": "debug-echo-response",
-        "type": "debug",
-        "z": "service-echo-example",
-        "name": "Echo Response",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "true",
-        "targetType": "full",
-        "x": 550,
-        "y": 300,
-        "wires": []
-    },
-    {
-        "id": "inject-stats",
-        "type": "inject",
-        "z": "service-echo-example",
-        "name": "3. Get Service Stats",
-        "props": [
-            {
-                "p": "operation",
-                "v": "stats",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 150,
-        "y": 380,
-        "wires": [
-            [
-                "service-stats"
-            ]
-        ]
-    },
-    {
-        "id": "service-stats",
-        "type": "nats-suite-service",
-        "z": "service-echo-example",
-        "name": "Get Stats",
-        "server": "",
-        "mode": "stats",
-        "serviceName": "*",
-        "debug": true,
-        "x": 340,
-        "y": 380,
-        "wires": [
-            [
-                "debug-stats"
-            ]
-        ]
-    },
-    {
-        "id": "debug-stats",
-        "type": "debug",
-        "z": "service-echo-example",
-        "name": "Service Stats",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 510,
-        "y": 380,
-        "wires": []
-    },
-    {
-        "id": "inject-ping",
-        "type": "inject",
-        "z": "service-echo-example",
-        "name": "4. Ping Service",
-        "props": [
-            {
-                "p": "operation",
-                "v": "ping",
-                "vt": "str"
-            },
-            {
-                "p": "serviceName",
-                "v": "echo-service",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 130,
-        "y": 460,
-        "wires": [
-            [
-                "service-ping"
-            ]
-        ]
-    },
-    {
-        "id": "service-ping",
-        "type": "nats-suite-service",
-        "z": "service-echo-example",
-        "name": "Ping",
-        "server": "",
-        "mode": "ping",
-        "serviceName": "echo-service",
-        "debug": true,
-        "x": 310,
-        "y": 460,
-        "wires": [
-            [
-                "debug-ping"
-            ]
-        ]
-    },
-    {
-        "id": "debug-ping",
-        "type": "debug",
-        "z": "service-echo-example",
-        "name": "Ping Response",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 470,
-        "y": 460,
-        "wires": []
-    },
-    {
-        "id": "comment-service",
-        "type": "comment",
-        "z": "service-echo-example",
-        "name": "✨ New Feature: Service API ✨",
-        "info": "# Service API Test - Echo Service\n\n## Service:\n- Name: echo-service\n- Version: 1.0.0\n- Endpoint: process (echo.process)\n- Auto-Start: TRUE\n\n## Tests:\n1. **Discover:** Finds all services\n2. **Call:** Sends a request and receives an echo\n3. **Stats:** Shows request statistics\n4. **Ping:** Checks service availability\n\n## Expected outputs:\n\n### Discover:\n```json\n[\n  {\n    \"name\": \"echo-service\",\n    \"version\": \"1.0.0\",\n    \"description\": \"Simple Echo Service\"\n  }\n]\n```\n\n### Call response:\n```json\n{\n  \"echo\": \"Hello from client!\",\n  \"timestamp\": 1234567890,\n  \"service\": \"echo-service\",\n  \"version\": \"1.0.0\",\n  \"requestId\": \"req-12345\"\n}\n```\n\n### Stats:\n```json\n[\n  {\n    \"name\": \"echo-service\",\n    \"stats\": {\n      \"requests\": 5,\n      \"errors\": 0\n    }\n  }\n]\n```",
-        "x": 180,
-        "y": 40,
-        "wires": []
-    },
-    {
-        "id": "inject-load-test",
-        "type": "inject",
-        "z": "service-echo-example",
-        "name": "5. Load Test (100 Requests)",
-        "props": [],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "x": 180,
-        "y": 540,
-        "wires": [
-            [
-                "function-load-test"
-            ]
-        ]
-    },
-    {
-        "id": "function-load-test",
-        "type": "function",
-        "z": "service-echo-example",
-        "name": "Send 100 Requests",
-        "func": "for (let i = 0; i < 100; i++) {\n  node.send({\n    payload: {\n      message: `Load test message ${i}`,\n      requestId: `load-test-${i}`\n    }\n  });\n}\nreturn null;",
-        "outputs": 1,
-        "noerr": 0,
-        "x": 400,
-        "y": 540,
-        "wires": [
-            [
-                "request-echo-load"
-            ]
-        ]
-    },
-    {
-        "id": "request-echo-load",
-        "type": "nats-suite-request",
-        "z": "service-echo-example",
-        "name": "Request Echo",
-        "server": "",
-        "dataformat": "specific_subject",
-        "subject": "echo.process",
-        "timeout": 5000,
-        "handleTimeout": true,
-        "x": 610,
-        "y": 540,
-        "wires": [
-            [
-                "function-count-responses"
-            ]
-        ]
-    },
-    {
-        "id": "function-count-responses",
-        "type": "function",
-        "z": "service-echo-example",
-        "name": "Count Responses",
-        "func": "// Count successful responses\nlet count = context.get('responseCount') || 0;\ncount++;\ncontext.set('responseCount', count);\n\nif (count % 10 === 0) {\n  node.log(`Received ${count} responses`);\n}\n\nif (count === 100) {\n  node.log('✅ Load test complete: 100/100 responses received');\n  context.set('responseCount', 0);\n}\n\nreturn null;",
-        "outputs": 0,
-        "noerr": 0,
-        "x": 810,
-        "y": 540,
-        "wires": []
     },
     {
         "id": "05e0df2336c2c1ad",
@@ -1573,185 +952,378 @@
         ]
     },
     {
-        "id": "inject-request",
-        "type": "inject",
-        "z": "request-examples",
-        "name": "1. Basic Request",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "service.echo",
-        "payload": "{\"message\":\"Hello from request\"}",
-        "payloadType": "json",
-        "x": 150,
-        "y": 60,
+        "id": "d4698eb7f9f5a9ee",
+        "type": "nats-suite-subscribe",
+        "z": "fdf4576e5737a4e2",
+        "name": "Subscribe: demo.service.request",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "dataformat": "auto",
+        "datapointid": "demo.service.request",
+        "topicfield": "subject",
+        "subscriptionMode": "static",
+        "x": 200,
+        "y": 160,
         "wires": [
             [
-                "request-basic"
+                "580d422590d643b5"
             ]
         ]
     },
     {
-        "id": "request-basic",
-        "type": "nats-suite-request",
-        "z": "request-examples",
-        "name": "Request Basic",
-        "server": "",
-        "dataformat": "uns_command",
-        "subject": "service.echo",
-        "timeout": 5000,
-        "handleTimeout": true,
-        "debug": true,
-        "x": 360,
-        "y": 60,
+        "id": "580d422590d643b5",
+        "type": "function",
+        "z": "fdf4576e5737a4e2",
+        "name": "Service Handler",
+        "func": "// Service Handler - Processes the request\n// and prepares the response\n\n// The replyTo subject is sent IN THE PAYLOAD\n// (not as a separate msg property, since only payload is sent over NATS)\nconst replyTo = msg.payload.replyTo;\n\nif (!replyTo) {\n    node.warn('No replyTo address in payload!');\n    node.warn('Received payload: ' + JSON.stringify(msg.payload));\n    return null;\n}\n\n// Process the request (Example: Echo with timestamp)\nconst request = msg.payload;\nconst response = {\n    success: true,\n    originalRequest: request,\n    processedAt: new Date().toISOString(),\n    service: 'demo-service',\n    message: 'Request successfully processed!'\n};\n\n// Set the topic to the Reply-Subject\nmsg.topic = replyTo;\nmsg.payload = response;\n\nnode.status({fill:'green', shape:'dot', text:'Reply to: ' + replyTo});\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 160,
         "wires": [
             [
-                "debug-request"
+                "9a611ff152522e5f"
             ]
         ]
     },
     {
-        "id": "debug-request",
+        "id": "9a611ff152522e5f",
+        "type": "nats-suite-publish",
+        "z": "fdf4576e5737a4e2",
+        "name": "Publish Response",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "enableBuffer": false,
+        "bufferSize": "",
+        "bufferSizeBytes": "",
+        "bufferMode": "drop-oldest",
+        "bufferAutoSaveInterval": "",
+        "dataformat": "json",
+        "datapointid": "",
+        "enableBatch": false,
+        "batchSize": "",
+        "batchInterval": "",
+        "batchMode": "hybrid",
+        "enableAutoReply": false,
+        "replyTimeout": "",
+        "enableRateLimit": false,
+        "rateLimit": "",
+        "rateLimitWindow": "",
+        "rateLimitBurst": "",
+        "enableHeaders": false,
+        "headers": "",
+        "enableMsgExpiration": false,
+        "msgExpiration": "",
+        "x": 690,
+        "y": 160,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "585f98bdef316cd5",
+        "type": "nats-suite-subscribe",
+        "z": "fdf4576e5737a4e2",
+        "name": "Subscribe: demo.reply.inbox",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "dataformat": "auto",
+        "datapointid": "demo.reply.inbox",
+        "topicfield": "subject",
+        "subscriptionMode": "static",
+        "x": 820,
+        "y": 100,
+        "wires": [
+            [
+                "3c59f4ff4fa5a610"
+            ]
+        ]
+    },
+    {
+        "id": "3c59f4ff4fa5a610",
         "type": "debug",
-        "z": "request-examples",
-        "name": "Request Response",
+        "z": "fdf4576e5737a4e2",
+        "name": "Response received",
         "active": true,
         "tosidebar": true,
         "console": false,
-        "tostatus": false,
+        "tostatus": true,
         "complete": "payload",
         "targetType": "msg",
-        "statusVal": "",
+        "statusVal": "payload.message",
         "statusType": "auto",
-        "x": 570,
-        "y": 60,
-        "wires": []
-    },
-    {
-        "id": "inject-timeout",
-        "type": "inject",
-        "z": "request-examples",
-        "name": "2. Timeout Test",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "service.slow",
-        "payload": "{\"delay\":10000}",
-        "payloadType": "json",
-        "x": 150,
-        "y": 120,
-        "wires": [
-            [
-                "request-timeout"
-            ]
-        ]
-    },
-    {
-        "id": "request-timeout",
-        "type": "nats-suite-request",
-        "z": "request-examples",
-        "name": "Request Timeout",
-        "server": "",
-        "dataformat": "uns_command",
-        "subject": "service.slow",
-        "timeout": 2000,
-        "handleTimeout": true,
-        "debug": true,
-        "x": 370,
-        "y": 120,
-        "wires": [
-            [
-                "switch-timeout"
-            ]
-        ]
-    },
-    {
-        "id": "switch-timeout",
-        "type": "switch",
-        "z": "request-examples",
-        "name": "Check Status",
-        "property": "status",
-        "propertyType": "msg",
-        "rules": [
-            {
-                "t": "eq",
-                "v": "success",
-                "vt": "str"
-            },
-            {
-                "t": "eq",
-                "v": "timeout",
-                "vt": "str"
-            }
-        ],
-        "checkall": "true",
-        "repair": false,
-        "outputs": 2,
-        "x": 580,
-        "y": 120,
-        "wires": [
-            [
-                "debug-success"
-            ],
-            [
-                "debug-timeout"
-            ]
-        ]
-    },
-    {
-        "id": "debug-success",
-        "type": "debug",
-        "z": "request-examples",
-        "name": "Success",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 750,
+        "x": 1080,
         "y": 100,
         "wires": []
     },
     {
-        "id": "debug-timeout",
+        "id": "8d9d84c5ed6d5a6b",
+        "type": "inject",
+        "z": "fdf4576e5737a4e2",
+        "name": "Send Request",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "replyTo",
+                "v": "demo.reply.inbox",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "demo.service.request",
+        "payload": "{\"action\":\"greet\",\"name\":\"Node-RED\",\"timestamp\":\"${new Date().toISOString()}\"}",
+        "payloadType": "json",
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "866c54cd833f8501"
+            ]
+        ]
+    },
+    {
+        "id": "866c54cd833f8501",
+        "type": "function",
+        "z": "fdf4576e5737a4e2",
+        "name": "Prepare Request",
+        "func": "// Prepare the request\n// IMPORTANT: The replyTo must be IN THE PAYLOAD,\n// since only the payload is sent over NATS!\n\nmsg.payload = {\n    action: 'greet',\n    name: 'Node-RED',\n    timestamp: new Date().toISOString(),\n    requestId: Math.random().toString(36).substring(7),\n    replyTo: 'demo.reply.inbox'  // Reply-Subject in payload!\n};\n\nnode.status({fill:'blue', shape:'dot', text:'Request sent'});\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 100,
+        "wires": [
+            [
+                "dac9933e2fb896f6"
+            ]
+        ]
+    },
+    {
+        "id": "dac9933e2fb896f6",
+        "type": "nats-suite-publish",
+        "z": "fdf4576e5737a4e2",
+        "name": "Publish Request",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "enableBuffer": false,
+        "bufferSize": "",
+        "bufferSizeBytes": "",
+        "bufferMode": "drop-oldest",
+        "bufferAutoSaveInterval": "",
+        "dataformat": "json",
+        "datapointid": "demo.service.request",
+        "enableBatch": false,
+        "batchSize": "",
+        "batchInterval": "",
+        "batchMode": "hybrid",
+        "enableAutoReply": false,
+        "replyTimeout": "",
+        "enableRateLimit": false,
+        "rateLimit": "",
+        "rateLimitWindow": "",
+        "rateLimitBurst": "",
+        "enableHeaders": false,
+        "headers": "",
+        "enableMsgExpiration": false,
+        "msgExpiration": "",
+        "x": 580,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "049db6dd9ac62ff1",
+        "type": "inject",
+        "z": "fdf4576e5737a4e2",
+        "name": "Request with dynamic Reply-Subject",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "payload": "{\"data\":\"Important Data\"}",
+        "payloadType": "json",
+        "x": 240,
+        "y": 300,
+        "wires": [
+            [
+                "cc7011c81895c4ef"
+            ]
+        ]
+    },
+    {
+        "id": "cc7011c81895c4ef",
+        "type": "function",
+        "z": "fdf4576e5737a4e2",
+        "name": "Dynamic Reply-Subject",
+        "func": "// Create a unique Reply-Subject for this request\nconst requestId = Date.now() + '-' + Math.random().toString(36).substring(7);\nconst replySubject = 'demo.reply.' + requestId;\n\nmsg.topic = 'demo.service.request';\n// IMPORTANT: replyTo must be IN THE PAYLOAD!\nmsg.payload = {\n    data: msg.payload.data,\n    requestId: requestId,\n    sentAt: new Date().toISOString(),\n    replyTo: replySubject  // Reply-Subject in payload!\n};\n\n// Store the Reply-Subject for later use\nflow.set('lastReplySubject', replySubject);\n\nnode.status({fill:'blue', shape:'dot', text:'Reply: ' + replySubject});\nnode.warn('Reply-Subject: ' + replySubject + ' - Subscribe to this to receive response!');\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 540,
+        "y": 300,
+        "wires": [
+            [
+                "adc04242e545520b"
+            ]
+        ]
+    },
+    {
+        "id": "adc04242e545520b",
+        "type": "nats-suite-publish",
+        "z": "fdf4576e5737a4e2",
+        "name": "Publish Dynamic Request",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "enableBuffer": false,
+        "bufferSize": "",
+        "bufferSizeBytes": "",
+        "bufferMode": "drop-oldest",
+        "bufferAutoSaveInterval": "",
+        "dataformat": "auto",
+        "datapointid": "",
+        "enableBatch": false,
+        "batchSize": "",
+        "batchInterval": "",
+        "batchMode": "hybrid",
+        "enableAutoReply": false,
+        "replyTimeout": "",
+        "enableRateLimit": false,
+        "rateLimit": "",
+        "rateLimitWindow": "",
+        "rateLimitBurst": "",
+        "enableHeaders": false,
+        "headers": "",
+        "enableMsgExpiration": false,
+        "msgExpiration": "",
+        "x": 820,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "30525ef1c7e920e5",
+        "type": "nats-suite-subscribe",
+        "z": "fdf4576e5737a4e2",
+        "name": "Subscribe: demo.reply.* (Wildcard)",
+        "server": "f299d3b622714522",
+        "debug": false,
+        "dataformat": "auto",
+        "datapointid": "demo.reply.*",
+        "topicfield": "subject",
+        "subscriptionMode": "static",
+        "x": 220,
+        "y": 380,
+        "wires": [
+            [
+                "11499731227b0d2c"
+            ]
+        ]
+    },
+    {
+        "id": "11499731227b0d2c",
         "type": "debug",
-        "z": "request-examples",
-        "name": "Timeout",
+        "z": "fdf4576e5737a4e2",
+        "name": "Dynamic Response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "subject",
+        "statusType": "auto",
+        "x": 560,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "ee6edbb4145d3ee3",
+        "type": "comment",
+        "z": "fdf4576e5737a4e2",
+        "name": "Request",
+        "info": "",
+        "x": 100,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "b901d179a1de519f",
+        "type": "nats-suite-service",
+        "z": "fdf4576e5737a4e2",
+        "name": "",
+        "server": "f299d3b622714522",
+        "mode": "discover",
+        "serviceName": "my-service",
+        "serviceVersion": "1.0.0",
+        "serviceDescription": "",
+        "endpoint": "process",
+        "endpointSubject": "",
+        "queueGroup": "",
+        "metadata": "",
+        "autoStart": true,
+        "debug": false,
+        "x": 360,
+        "y": 620,
+        "wires": [
+            [
+                "6998d7ecd2dcab84"
+            ]
+        ]
+    },
+    {
+        "id": "6998d7ecd2dcab84",
+        "type": "debug",
+        "z": "fdf4576e5737a4e2",
+        "name": "debug 3",
         "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
+        "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 750,
-        "y": 140,
+        "x": 620,
+        "y": 620,
         "wires": []
     },
     {
-        "id": "inject-specific",
+        "id": "bc59fc49a3d33220",
         "type": "inject",
-        "z": "request-examples",
-        "name": "3. Specific Subject",
+        "z": "fdf4576e5737a4e2",
+        "name": "",
         "props": [
             {
                 "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
             }
         ],
         "repeat": "",
@@ -1759,50 +1331,14 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "payload": "{\"query\":\"SELECT * FROM users\"}",
-        "payloadType": "json",
-        "x": 170,
-        "y": 180,
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 600,
         "wires": [
             [
-                "request-specific"
+                "b901d179a1de519f"
             ]
         ]
-    },
-    {
-        "id": "request-specific",
-        "type": "nats-suite-request",
-        "z": "request-examples",
-        "name": "Request Specific",
-        "server": "",
-        "dataformat": "specific_subject",
-        "subject": "db.query",
-        "timeout": 10000,
-        "handleTimeout": true,
-        "debug": false,
-        "x": 390,
-        "y": 180,
-        "wires": [
-            [
-                "debug-specific"
-            ]
-        ]
-    },
-    {
-        "id": "debug-specific",
-        "type": "debug",
-        "z": "request-examples",
-        "name": "Specific Response",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 600,
-        "y": 180,
-        "wires": []
     }
 ]
