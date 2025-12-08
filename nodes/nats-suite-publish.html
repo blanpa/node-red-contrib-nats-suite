@@ -7,6 +7,7 @@
       server: { value: '', type: 'nats-suite-server' },
       debug: { value: false },
       enableBuffer: { value: false },
+      mode: { value: 'publish' }, // 'publish', 'reply', 'request'
       bufferSize: { value: 1000 },
       bufferSizeType: { value: 'count' },
       bufferSizeBytes: { value: 10485760 },
@@ -16,11 +17,11 @@
       message: { value: '' },
       dataformat: { value: 'json', required: true },
       datapointid: { value: '' },
+      enableTopicOverride: { value: false },
       enableBatch: { value: false },
       batchSize: { value: 100 },
       batchInterval: { value: 1000 },
       batchMode: { value: 'hybrid' },
-      enableRequestReply: { value: false },
       requestTimeout: { value: 5000 },
       enableAutoReply: { value: false },
       replyTimeout: { value: 5000 },
@@ -33,9 +34,10 @@
       headers: { value: '' },
       enableMsgExpiration: { value: false },
       msgExpiration: { value: 0 },
+      outputs: { value: 0 }
     },
     inputs: 1,
-    outputs: 1,
+    outputs: 0,
     icon: 'nats-icon-white.png',
     align: 'right',
     label: function () {
@@ -92,23 +94,10 @@
         }
       });
       
-      // Request-Reply configuration
-      $('#node-input-enableRequestReply').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#requestreply-options').slideDown(200);
-          // Disable Auto-Reply when Request-Reply is enabled (they are mutually exclusive)
-          $('#node-input-enableAutoReply').prop('checked', false).trigger('change');
-        } else {
-          $('#requestreply-options').slideUp(200);
-        }
-      });
-      
       // Auto-Reply configuration
       $('#node-input-enableAutoReply').on('change', function() {
         if ($(this).is(':checked')) {
           $('#autoreply-options').slideDown(200);
-          // Disable Request-Reply when Auto-Reply is enabled (they are mutually exclusive)
-          $('#node-input-enableRequestReply').prop('checked', false).trigger('change');
         } else {
           $('#autoreply-options').slideUp(200);
         }
@@ -141,18 +130,54 @@
         }
       });
       
+      // Mode configuration - affects outputs and visibility
+      $('#node-input-mode').on('change', function() {
+        const mode = $(this).val();
+        
+        // Show/hide request timeout section
+        if (mode === 'request') {
+          $('#requestreply-options').slideDown(200);
+        } else {
+          $('#requestreply-options').slideUp(200);
+        }
+        
+        // Show/hide subject field and topic override (hidden in reply mode as it comes from msg._reply)
+        if (mode === 'reply') {
+          $('#subject-row').slideUp(200);
+          $('#topic-override-row').slideUp(200);
+        } else {
+          $('#subject-row').slideDown(200);
+          $('#topic-override-row').slideDown(200);
+        }
+      });
+      
       // Set defaults
       if (!this.bufferMode) $('#node-input-bufferMode').val('drop-oldest');
       if (!this.batchMode) $('#node-input-batchMode').val('hybrid');
       
+      // Initialize outputs based on current mode
+      const currentMode = this.mode || 'publish';
+      this.outputs = (currentMode === 'request') ? 1 : 0;
+      
       // Trigger initial state
+      $('#node-input-mode').trigger('change');
       $('#node-input-enableBuffer').trigger('change');
       $('#node-input-enableBatch').trigger('change');
-      $('#node-input-enableRequestReply').trigger('change');
       $('#node-input-enableAutoReply').trigger('change');
       $('#node-input-enableRateLimit').trigger('change');
       $('#node-input-enableHeaders').trigger('change');
       $('#node-input-enableMsgExpiration').trigger('change');
+    },
+
+    oneditsave: function() {
+      const mode = $('#node-input-mode').val();
+      
+      // Set the number of outputs based on the subscription mode
+      if (mode === 'publish'|| mode === 'reply') {
+        this.outputs = 0;
+      } else {
+        this.outputs = 1;
+      }
     }
   });
 </script>
@@ -408,12 +433,24 @@
         <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
       <div class="nats-section-content">
+
         <div class="nats-form-row">
-          <label><i class="fa fa-exchange"></i>NATS Subject <span class="nats-badge nats-badge-dynamic">msg.topic</span></label>
-          <input type="text" id="node-input-datapointid" placeholder="e.g. sensor.temperature or events.>">
-          <div class="nats-hint">
-            Wildcards: <code>*</code> (single level), <code>&gt;</code> (multi-level) • Can be overridden via <code>msg.topic</code>
-          </div>
+          <label><i class="fa fa-file-code-o"></i>Mode</label>
+          <select id="node-input-mode">
+            <option value="publish">Publish</option>
+            <option value="reply">Reply</option>
+            <option value="request">Request</option>
+          </select>
+        </div>
+
+        <div class="nats-form-row" id="subject-row">
+          <label><i class="fa fa-exchange"></i>NATS Subject</label>
+          <input type="text" id="node-input-datapointid" placeholder="e.g. sensor.temperature">
+        </div>
+
+        <div class="nats-checkbox-row" id="topic-override-row">
+          <input type="checkbox" id="node-input-enableTopicOverride">
+          <label for="node-input-enableTopicOverride"><i class="fa fa-exchange"></i>Allow msg.topic to override subject</label>
         </div>
         
         <div class="nats-form-row">
@@ -422,17 +459,10 @@
             <option value="json">JSON (auto-stringify objects)</option>
             <option value="string">String (as-is)</option>
             <option value="buffer">Buffer (binary data)</option>
-            <option value="reply">Reply (request/reply pattern)</option>
           </select>
         </div>
         
-        <div class="nats-divider"></div>
-        
-        <!-- Request-Reply Mode (Client Side) -->
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableRequestReply">
-          <label for="node-input-enableRequestReply"><i class="fa fa-exchange"></i>Request-Reply Mode</label>
-        </div>
+        <!-- Request Timeout (shown when mode is 'request') -->
         <div id="requestreply-options" class="nats-options">
           <div class="nats-form-row">
             <label><i class="fa fa-hourglass-half"></i>Request Timeout</label>
@@ -682,7 +712,7 @@
     <dd>The data to publish. Format depends on the selected data format.</dd>
     
     <dt class="optional">topic <span class="property-type">string</span></dt>
-    <dd>Override the configured NATS subject.</dd>
+    <dd>Override the configured NATS subject (only if "Allow msg.topic to override subject" is enabled in publish/request modes).</dd>
     
     <dt class="optional">headers <span class="property-type">object</span></dt>
     <dd>Dynamic NATS headers to include with the message.</dd>

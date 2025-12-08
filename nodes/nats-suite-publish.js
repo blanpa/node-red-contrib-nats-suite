@@ -411,7 +411,8 @@ module.exports = function (RED) {
     }
     
     // Request-Reply Mode (Client Side): Send request and wait for reply
-    const enableRequestReply = !!config.enableRequestReply;
+    const mode = config.mode || 'publish';
+    const enableRequestReply = (mode === 'request');
     const requestTimeout = config.requestTimeout || 5000;
     
     if (enableRequestReply && isDebug) {
@@ -1184,12 +1185,33 @@ module.exports = function (RED) {
         let message;
         let subject;
 
-        // Get subject from config or msg.topic
-        subject = msg.topic || config.datapointid;
-        
-        if (!subject) {
-          node.error('No subject specified. Set subject in node config or provide msg.topic', msg);
-          return;
+        // Get subject based on mode
+        if (mode === 'reply') {
+          // Reply mode: Use the reply-to subject from incoming message
+          if (!msg._reply) {
+            node.warn('Reply mode: No reply subject (msg._reply) found in incoming message. Cannot send reply.', msg);
+            return;
+          }
+          subject = msg._reply;
+          
+          if (isDebug) {
+            node.log(`[NATS-SUITE PUBLISH] Reply mode: Sending reply to ${subject}`);
+          }
+        } else {
+          // Publish or Request mode: Get subject from config or msg.topic (if override enabled)
+          const enableTopicOverride = !!config.enableTopicOverride;
+          
+          // Use msg.topic only if override is enabled AND msg.topic is provided
+          if (enableTopicOverride && msg.topic) {
+            subject = msg.topic;
+          } else {
+            subject = config.datapointid;
+          }
+          
+          if (!subject) {
+            node.error('No subject specified. Set subject in node config' + (enableTopicOverride ? ' or provide msg.topic' : ''), msg);
+            return;
+          }
         }
 
         switch (config.dataformat) {
