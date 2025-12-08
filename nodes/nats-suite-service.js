@@ -237,16 +237,22 @@ module.exports = function (RED) {
         const serviceName = config.serviceName || '*';
         const services = [];
 
-        // Ping services
-        const infos = await nc.services.ping(serviceName === '*' ? undefined : serviceName);
-
-        for (const info of infos) {
+        // Get service client
+        const client = nc.services.client();
+        
+        // Use info() for discovery - it returns service information
+        const filter = serviceName === '*' ? undefined : serviceName;
+        
+        // Collect service info using async iterator
+        for await (const info of await client.info(filter)) {
           services.push({
             name: info.name,
             id: info.id,
             version: info.version,
-            type: info.type,
-            metadata: info.metadata || {}
+            type: info.type || 'service',
+            description: info.description || '',
+            metadata: info.metadata || {},
+            endpoints: info.endpoints || []
           });
         }
 
@@ -266,16 +272,20 @@ module.exports = function (RED) {
         const serviceName = config.serviceName || '*';
         const stats = [];
 
-        // Get stats for services
-        const infos = await nc.services.stats(serviceName === '*' ? undefined : serviceName);
-
-        for (const info of infos) {
+        // Get service client
+        const client = nc.services.client();
+        
+        // Get stats for services using async iterator
+        const filter = serviceName === '*' ? undefined : serviceName;
+        
+        for await (const info of await client.stats(filter)) {
           stats.push({
             name: info.name,
             id: info.id,
             version: info.version,
             endpoints: info.endpoints || [],
-            stats: info.stats || {}
+            started: info.started,
+            type: info.type || 'service'
           });
         }
 
@@ -689,6 +699,31 @@ module.exports = function (RED) {
 
     node.on('input', async function (msg) {
       try {
+        // For service mode, only handle start/stop operations
+        // Service requests are handled automatically by the endpoint handler
+        if (config.mode === 'service') {
+          const operation = msg.operation;
+          
+          if (operation === 'start') {
+            await startService();
+            msg.payload = { operation: 'start', success: true, running: isServiceRunning };
+            node.send(msg);
+            return;
+          }
+          
+          if (operation === 'stop') {
+            await stopService();
+            msg.payload = { operation: 'stop', success: true, running: isServiceRunning };
+            node.send(msg);
+            return;
+          }
+          
+          // For service mode, ignore other operations (service runs automatically)
+          // Requests come through the endpoint handler, not the input handler
+          return;
+        }
+        
+        // For other modes, handle operations normally
         const operation = msg.operation || config.operation || config.mode || 'discover';
 
         switch (operation) {
@@ -722,15 +757,29 @@ module.exports = function (RED) {
             node.send(msg);
             break;
 
-          case 'ping':
-            const serviceName = msg.serviceName || config.serviceName;
+          case 'ping': {
+            const pingServiceName = msg.serviceName || config.serviceName;
             nc = await node.serverConfig.getConnection();
-            const pingResults = await nc.services.ping(serviceName);
+            const client = nc.services.client();
+            const pingResults = [];
+            const filter = pingServiceName === '*' || !pingServiceName ? undefined : pingServiceName;
+            
+            for await (const info of await client.ping(filter)) {
+              pingResults.push({
+                name: info.name,
+                id: info.id,
+                version: info.version,
+                type: info.type || 'service'
+              });
+            }
+            
             msg.payload = pingResults;
             msg.operation = 'ping';
             msg.count = pingResults.length;
+            node.status({ fill: 'blue', shape: 'dot', text: `${pingResults.length} services` });
             node.send(msg);
             break;
+          }
 
           case 'health':
             await performHealthCheck();

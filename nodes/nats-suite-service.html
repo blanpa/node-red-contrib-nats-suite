@@ -33,20 +33,49 @@
     icon: 'nats-icon-white.png',
     align: 'left',
     label: function () {
-      if (this.name) {
-        return this.name;
+      try {
+        // If custom name is set, use it
+        if (this.name && typeof this.name === 'string' && this.name.trim() !== '') {
+          return this.name;
+        }
+        
+        const mode = this.mode || 'discover';
+        
+        if (mode === 'service') {
+          const serviceName = (this.serviceName && typeof this.serviceName === 'string') 
+            ? this.serviceName.trim() 
+            : 'service';
+          return serviceName ? `service (${serviceName})` : 'service';
+        }
+        
+        if (mode === 'health') {
+          return 'health';
+        }
+        
+        if (mode === 'nats-stats') {
+          const statsType = (this.statsType && typeof this.statsType === 'string') 
+            ? this.statsType 
+            : 'server';
+          return `stats (${statsType})`;
+        }
+        
+        if (mode === 'discover') {
+          return 'service discover';
+        }
+        
+        if (mode === 'stats') {
+          return 'service stats';
+        }
+        
+        if (mode === 'ping') {
+          return 'service ping';
+        }
+        
+        return `service ${mode}`;
+      } catch (err) {
+        // Fallback if label function fails
+        return 'nats service';
       }
-      const mode = this.mode || 'discover';
-      if (mode === 'service') {
-        return `service (${this.serviceName || 'service'})`;
-      }
-      if (mode === 'health') {
-        return 'health';
-      }
-      if (mode === 'nats-stats') {
-        return `stats (${this.statsType || 'server'})`;
-      }
-      return `service ${mode}`;
     },
     paletteLabel: 'nats service',
     oneditprepare: function() {
@@ -85,7 +114,27 @@
           $('#nats-stats-config').slideUp(200);
         }
       });
+      
+      // Initialize mode-based visibility
       $('#node-input-mode').trigger('change');
+      
+      // Ensure service name is preserved when switching modes
+      // Store the value before mode change
+      let savedServiceName = $('#node-input-serviceName').val() || '';
+      
+      // Update saved value when service name changes
+      $('#node-input-serviceName').on('input change', function() {
+        savedServiceName = $(this).val() || '';
+      });
+      
+      // Restore service name when mode changes back to service
+      $('#node-input-mode').on('change', function() {
+        const mode = $(this).val();
+        if (mode === 'service' && savedServiceName) {
+          // Restore the saved service name
+          $('#node-input-serviceName').val(savedServiceName);
+        }
+      });
       
       // Periodic check handler
       $('#node-input-periodicCheck').on('change', function() {
@@ -96,6 +145,44 @@
         }
       });
       $('#node-input-periodicCheck').trigger('change');
+      
+      // Note: Node-RED will automatically update the label when the node is saved
+      // The label() function will be called with the updated config values
+    },
+    oneditsave: function() {
+      // Ensure serviceName is saved correctly
+      // Get the value from the visible field (both fields share the same ID)
+      const mode = $('#node-input-mode').val();
+      
+      // Find the visible serviceName input field
+      let serviceNameValue = '';
+      if (mode === 'service') {
+        // In service mode, get value from service-config section
+        serviceNameValue = $('#service-config #node-input-serviceName').val() || '';
+      } else {
+        // In other modes, get value from discovery-config section
+        serviceNameValue = $('#discovery-config #node-input-serviceName').val() || '';
+      }
+      
+      // If no value found, try the general field
+      if (!serviceNameValue) {
+        serviceNameValue = $('#node-input-serviceName').val() || '';
+      }
+      
+      // Ensure the value is set (don't allow empty for service mode)
+      if (mode === 'service' && (!serviceNameValue || serviceNameValue.trim() === '')) {
+        serviceNameValue = 'my-service';
+      }
+      
+      // Set the value in all fields to ensure consistency
+      $('#node-input-serviceName').val(serviceNameValue);
+      
+      return true;
+    },
+    oneditresize: function(size) {
+      // This is called when the edit dialog is resized
+      // Can be used to trigger label update
+      return size;
     }
   });
 </script>

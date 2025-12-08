@@ -410,6 +410,14 @@ module.exports = function (RED) {
       node.log(`[NATS-SUITE PUBLISH] Batch publishing enabled: size=${batchSize}, interval=${batchInterval}ms, mode=${batchMode}`);
     }
     
+    // Request-Reply Mode (Client Side): Send request and wait for reply
+    const enableRequestReply = !!config.enableRequestReply;
+    const requestTimeout = config.requestTimeout || 5000;
+    
+    if (enableRequestReply && isDebug) {
+      node.log(`[NATS-SUITE PUBLISH] Request-Reply mode enabled: timeout=${requestTimeout}ms`);
+    }
+    
     // Auto-Reply Handler: Automatically handle request-reply pattern
     const enableAutoReply = !!config.enableAutoReply;
     const replyTimeout = config.replyTimeout || 5000;
@@ -945,6 +953,123 @@ module.exports = function (RED) {
     // on input send message
     node.on('input', async function (msg) {
       try {
+        // Request-Reply Mode (Client Side): Send request and wait for reply
+        if (enableRequestReply && !msg._requestReplyProcessed) {
+          msg._requestReplyProcessed = true;
+          
+          // Check connection status
+          if (this.config.connectionStatus !== 'connected') {
+            msg.error = {
+              message: 'Cannot send request - NATS server is not connected',
+              code: 'NOT_CONNECTED',
+              status: this.config.connectionStatus
+            };
+            node.error(msg.error, msg);
+            node.send(msg);
+            return;
+          }
+          
+          const natsnc = await this.config.getConnection();
+          const subject = msg.topic || config.datapointid;
+          
+          if (!subject) {
+            msg.error = {
+              message: 'No subject specified. Set subject in node config or provide msg.topic',
+              code: 'NO_SUBJECT'
+            };
+            node.error(msg.error, msg);
+            node.send(msg);
+            return;
+          }
+          
+          // Prepare the request payload
+          let requestPayload;
+          if (typeof msg.payload === 'object') {
+            requestPayload = JSON.stringify(msg.payload);
+          } else {
+            requestPayload = String(msg.payload);
+          }
+          
+          const startTime = Date.now();
+          
+          if (isDebug) {
+            node.log(`[NATS-SUITE PUBLISH] Request-Reply: Sending request to ${subject} (timeout: ${requestTimeout}ms)`);
+          }
+          
+          node.status({ fill: 'blue', shape: 'ring', text: `request: ${subject}` });
+          
+          try {
+            // Use NATS request() method - it handles inbox creation automatically
+            const response = await natsnc.request(subject, sc.encode(requestPayload), { timeout: requestTimeout });
+            
+            const requestTime = Date.now() - startTime;
+            
+            // Decode response
+            let responsePayload;
+            try {
+              const responseStr = sc.decode(response.data);
+              responsePayload = JSON.parse(responseStr);
+            } catch (parseErr) {
+              responsePayload = sc.decode(response.data);
+            }
+            
+            // Set response on message
+            msg.payload = responsePayload;
+            msg.requestTime = requestTime;
+            msg.subject = response.subject;
+            delete msg.error;
+            
+            if (isDebug) {
+              node.log(`[NATS-SUITE PUBLISH] Request-Reply: Response received in ${requestTime}ms`);
+            }
+            
+            node.status({ fill: 'green', shape: 'dot', text: `reply: ${requestTime}ms` });
+            
+            // Clear status after 3 seconds
+            setTimeout(() => {
+              if (this.config.connectionStatus === 'connected') {
+                node.status({ fill: 'green', shape: 'dot', text: 'connected' });
+              }
+            }, 3000);
+            
+            node.send(msg);
+            
+          } catch (requestErr) {
+            const requestTime = Date.now() - startTime;
+            
+            // Handle timeout or other errors
+            msg.error = {
+              message: requestErr.message || 'Request failed',
+              code: requestErr.code || 'REQUEST_FAILED',
+              requestTime: requestTime
+            };
+            
+            if (requestErr.code === 'TIMEOUT' || requestErr.message.includes('timeout')) {
+              msg.error.code = 'TIMEOUT';
+              msg.error.message = `Request timeout after ${requestTimeout}ms`;
+              node.status({ fill: 'yellow', shape: 'ring', text: `timeout: ${requestTimeout}ms` });
+            } else {
+              node.status({ fill: 'red', shape: 'ring', text: 'request failed' });
+            }
+            
+            if (isDebug) {
+              node.log(`[NATS-SUITE PUBLISH] Request-Reply: Error - ${msg.error.message}`);
+            }
+            
+            node.error(msg.error, msg);
+            node.send(msg);
+            
+            // Clear status after 3 seconds
+            setTimeout(() => {
+              if (this.config.connectionStatus === 'connected') {
+                node.status({ fill: 'green', shape: 'dot', text: 'connected' });
+              }
+            }, 3000);
+          }
+          
+          return;
+        }
+        
         // Auto-Reply Handler: Forward message to output and wait for reply
         if (enableAutoReply && !msg._autoReplyProcessed) {
           msg._autoReplyProcessed = true;

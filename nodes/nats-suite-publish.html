@@ -20,6 +20,8 @@
       batchSize: { value: 100 },
       batchInterval: { value: 1000 },
       batchMode: { value: 'hybrid' },
+      enableRequestReply: { value: false },
+      requestTimeout: { value: 5000 },
       enableAutoReply: { value: false },
       replyTimeout: { value: 5000 },
       enableRateLimit: { value: false },
@@ -90,10 +92,23 @@
         }
       });
       
+      // Request-Reply configuration
+      $('#node-input-enableRequestReply').on('change', function() {
+        if ($(this).is(':checked')) {
+          $('#requestreply-options').slideDown(200);
+          // Disable Auto-Reply when Request-Reply is enabled (they are mutually exclusive)
+          $('#node-input-enableAutoReply').prop('checked', false).trigger('change');
+        } else {
+          $('#requestreply-options').slideUp(200);
+        }
+      });
+      
       // Auto-Reply configuration
       $('#node-input-enableAutoReply').on('change', function() {
         if ($(this).is(':checked')) {
           $('#autoreply-options').slideDown(200);
+          // Disable Request-Reply when Auto-Reply is enabled (they are mutually exclusive)
+          $('#node-input-enableRequestReply').prop('checked', false).trigger('change');
         } else {
           $('#autoreply-options').slideUp(200);
         }
@@ -133,6 +148,7 @@
       // Trigger initial state
       $('#node-input-enableBuffer').trigger('change');
       $('#node-input-enableBatch').trigger('change');
+      $('#node-input-enableRequestReply').trigger('change');
       $('#node-input-enableAutoReply').trigger('change');
       $('#node-input-enableRateLimit').trigger('change');
       $('#node-input-enableHeaders').trigger('change');
@@ -409,6 +425,27 @@
             <option value="reply">Reply (request/reply pattern)</option>
           </select>
         </div>
+        
+        <div class="nats-divider"></div>
+        
+        <!-- Request-Reply Mode (Client Side) -->
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableRequestReply">
+          <label for="node-input-enableRequestReply"><i class="fa fa-exchange"></i>Request-Reply Mode</label>
+        </div>
+        <div id="requestreply-options" class="nats-options">
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass-half"></i>Request Timeout</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-input-requestTimeout" placeholder="5000" min="100" max="60000">
+              <span class="nats-unit">ms</span>
+            </div>
+            <div class="nats-hint">
+              Sends request and waits for reply. Reply appears at output.<br>
+              On timeout: <code>msg.error</code> is set with timeout info.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -456,26 +493,6 @@
             </div>
             <div class="nats-hint">
               Messages expire if not consumed within this time. Requires JetStream.
-            </div>
-          </div>
-        </div>
-        
-        <div class="nats-divider"></div>
-        
-        <!-- Auto-Reply -->
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableAutoReply">
-          <label for="node-input-enableAutoReply"><i class="fa fa-reply"></i>Auto-Reply Handler</label>
-        </div>
-        <div id="autoreply-options" class="nats-options">
-          <div class="nats-form-row">
-            <label><i class="fa fa-hourglass-half"></i>Reply Timeout</label>
-            <div class="nats-inline-row">
-              <input type="number" id="node-input-replyTimeout" placeholder="5000" min="100" max="60000">
-              <span class="nats-unit">ms</span>
-            </div>
-            <div class="nats-hint">
-              Forwards input to output, sends <code>msg.payload</code> as reply
             </div>
           </div>
         </div>
@@ -700,8 +717,27 @@
   <h4>Rate Limiting</h4>
   <p>Prevents message flooding using a token bucket algorithm. Configurable rate, time window, and burst allowance.</p>
 
-  <h4>Auto-Reply Handler</h4>
-  <p>Automatically handles request-reply patterns. Forwards input to output, then sends the returned payload as a reply.</p>
+  <h4>Request-Reply Mode (Client Side)</h4>
+  <p>Enables the NATS request-reply pattern. The node sends a request to the configured subject and waits for a reply.</p>
+  <ul>
+    <li>Automatically generates a unique inbox subject for the reply</li>
+    <li>Waits for response up to the configured timeout</li>
+    <li>Reply message appears at the node output</li>
+    <li>On timeout: <code>msg.error</code> contains timeout information</li>
+  </ul>
+  <pre>// Input
+msg.payload = { action: "getData", id: 123 };
+msg.topic = "my.service";
+
+// Output (on success)
+msg.payload = { result: "data..." };
+msg.requestTime = 45; // ms
+
+// Output (on timeout)
+msg.error = { message: "Request timeout", code: "TIMEOUT" };</pre>
+
+  <h4>Auto-Reply Handler (Service Side)</h4>
+  <p>For building services: Forwards input to output for processing, then sends the returned payload as a reply to <code>msg.replyTo</code>.</p>
 
   <h3>Subject Wildcards</h3>
   <ul>
