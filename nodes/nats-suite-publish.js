@@ -1095,8 +1095,8 @@ module.exports = function (RED) {
             return;
           }
           
-          // If buffering is enabled, queue the message
-          if (enableBuffer) {
+          // If buffering is enabled (only for publish mode), queue the message
+          if (enableBuffer && mode === 'publish') {
             // Store original timestamp before buffering (to preserve it during flush)
             if (!msg._originalTimestamp) {
               msg._originalTimestamp = Date.now();
@@ -1134,8 +1134,8 @@ module.exports = function (RED) {
           return; // Drop message to prevent data loss during reconnection
         }
         
-        // Rate Limiting: Check if message is allowed (Token Bucket)
-        if (enableRateLimit && !msg._rateLimited && !msg._batched && !msg._flushing) {
+        // Rate Limiting: Check if message is allowed (Token Bucket) - only for publish mode
+        if (enableRateLimit && mode === 'publish' && !msg._rateLimited && !msg._batched && !msg._flushing) {
           if (!canSendMessage()) {
             // Rate limit exceeded
             droppedByRateLimit++;
@@ -1175,8 +1175,8 @@ module.exports = function (RED) {
           consumeToken();
         }
         
-        // Batch Publishing: Add to batch queue if enabled
-        if (enableBatch && !msg._batched && !msg._flushing && !msg._rateLimited) {
+        // Batch Publishing: Add to batch queue if enabled - only for publish mode
+        if (enableBatch && mode === 'publish' && !msg._batched && !msg._flushing && !msg._rateLimited) {
           addToBatch(msg);
           return;
         }

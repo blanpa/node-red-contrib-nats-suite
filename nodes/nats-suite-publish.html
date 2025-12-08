@@ -149,6 +149,13 @@
           $('#subject-row').slideDown(200);
           $('#topic-override-row').slideDown(200);
         }
+        
+        // Show/hide Performance & Reliability section (only in publish mode)
+        if (mode === 'publish') {
+          $('#performance-section').slideDown(200);
+        } else {
+          $('#performance-section').slideUp(200);
+        }
       });
       
       // Set defaults
@@ -531,7 +538,7 @@
     </div>
     
     <!-- Performance & Reliability -->
-    <div class="nats-section">
+    <div class="nats-section" id="performance-section">
       <div class="nats-section-header">
         <div class="nats-section-title">
           <i class="fa fa-tachometer"></i>
