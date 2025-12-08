@@ -9,6 +9,7 @@ services:
     volumes:
       - ./node-red:/data
       - ./:/data/node_modules/node-red-contrib-nats-suite
+      - ./config/certs:/data/certs:ro
     environment:
       - TZ=Europe/Berlin
     depends_on:
@@ -29,6 +30,7 @@ services:
     volumes:
       - ./config/nats-server.conf:/etc/nats/nats-server.conf:ro
       - nats-data:/data           # Persistent JetStream storage
+      - ./config/certs:/etc/nats/certs:ro
     restart: unless-stopped
 
 volumes:

@@ -92,19 +92,23 @@ dev:
 # Docker commands
 docker-up:
 	@echo "Starting Node-RED with Docker Compose..."
-	docker-compose up -d
+	docker compose up -d
+
+docker-dev:
+	@echo "Starting Node-RED in development mode with Docker Compose..."
+	docker compose up
 
 docker-down:
 	@echo "Stopping Node-RED Docker container..."
-	docker-compose down
+	docker compose down
 
 docker-logs:
 	@echo "Showing Docker logs..."
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-restart:
 	@echo "Restarting Docker container..."
-	docker-compose restart
+	docker compose restart
 
 # Package management
 package:
@@ -125,9 +129,9 @@ audit-fix:
 	npm audit fix
 
 # Development workflow
-dev-setup: install docker-up
+dev-setup: install docker-dev
 	@echo "Development environment ready!"
-	@echo "Node-RED available at: http://localhost:1885"
+	@echo "Node-RED available at: http://localhost:1880"
 
 # CI/CD helpers
 ci-test: install test lint audit
