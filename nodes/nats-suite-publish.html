@@ -23,6 +23,7 @@
       batchInterval: { value: 1000 },
       batchMode: { value: 'hybrid' },
       requestTimeout: { value: 5000 },
+      requestFallbackToPublish: { value: true },
       enableAutoReply: { value: false },
       replyTimeout: { value: 5000 },
       enableRateLimit: { value: false },
@@ -481,6 +482,10 @@
               Sends request and waits for reply. Reply appears at output.<br>
               On timeout: <code>msg.error</code> is set with timeout info.
             </div>
+          </div>
+          <div class="nats-checkbox-row">
+            <input type="checkbox" id="node-input-requestFallbackToPublish">
+            <label for="node-input-requestFallbackToPublish"><i class="fa fa-mail-forward"></i>Send as publish on timeout</label>
           </div>
         </div>
       </div>

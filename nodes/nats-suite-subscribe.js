@@ -300,13 +300,21 @@ module.exports = function (RED) {
           };
         }
 
-        // Add reply subject if present
+        // Add reply subject if present (NATS message has reply property)
         if (msg.reply) {
           send_message._unsreply = msg.reply;
           send_message._reply = msg.reply;
           if (isDebug) {
             node.log(`[[NATS-SUITE SUBSCRIBE] Reply-To subject: ${msg.reply}`);
           }
+        }
+        
+        // Also preserve any existing reply fields from the message
+        if (msg._reply && !send_message._reply) {
+          send_message._reply = msg._reply;
+        }
+        if (msg._unsreply && !send_message._unsreply) {
+          send_message._unsreply = msg._unsreply;
         }
 
         if (isDebug) {

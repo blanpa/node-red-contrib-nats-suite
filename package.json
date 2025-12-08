@@ -19,9 +19,6 @@
       "nats-suite-stream-consumer": "nodes/nats-suite-stream-consumer.js",
       "nats-suite-kv-get": "nodes/nats-suite-kv-get.js",
       "nats-suite-kv-put": "nodes/nats-suite-kv-put.js",
-      "nats-suite-object-put": "nodes/nats-suite-object-put.js",
-      "nats-suite-object-get": "nodes/nats-suite-object-get.js",
-      "nats-suite-service": "nodes/nats-suite-service.js",
       "nats-suite-server-manager": "nodes/nats-suite-server-manager.js"
     }
   },

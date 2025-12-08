@@ -18,7 +18,7 @@
         "id": "7af22689f9d37b1b",
         "type": "tab",
         "label": "Publish Node - All Features",
-        "disabled": false,
+        "disabled": true,
         "info": "Comprehensive examples for nats-suite-publish node\n\nFeatures demonstrated:\n- Basic publish (JSON, String, Buffer)\n- Message Headers (static + dynamic)\n- Message Expiration (TTL)\n- Buffering (count + bytes, persistence)\n- Batch Processing\n- Rate Limiting\n- Auto-Reply Handler"
     },
     {
@@ -27,14 +27,6 @@
         "label": "Request-Reply (Pub/Sub)",
         "disabled": false,
         "info": "Request-Reply Pattern mit Publish/Subscribe\n\nDieser Flow demonstriert, wie man Request-Reply\nmit einfachen Publish und Subscribe Nodes aufbaut,\nohne nats-suite-request oder nats-suite-reply zu verwenden.\n\nPrinzip:\n1. Requester published mit eigenem Reply-Subject\n2. Service subscribed, verarbeitet und published Antwort\n3. Requester subscribed auf Reply-Subject für Antwort"
-    },
-    {
-        "id": "56fda4fe68183684",
-        "type": "tab",
-        "label": "Nats Service",
-        "disabled": false,
-        "info": "",
-        "env": []
     },
     {
         "id": "324298df8d0fb52b",
@@ -56,14 +48,6 @@
         "id": "9e93672bca22fbc8",
         "type": "tab",
         "label": "Steam",
-        "disabled": false,
-        "info": "",
-        "env": []
-    },
-    {
-        "id": "59fa03450d156788",
-        "type": "tab",
-        "label": "Object",
         "disabled": false,
         "info": "",
         "env": []
@@ -110,6 +94,7 @@
         "server": "63f3bd466aaef063",
         "debug": false,
         "enableBuffer": false,
+        "mode": "request",
         "bufferSize": 1000,
         "bufferSizeType": "count",
         "bufferSizeBytes": 10485760,
@@ -119,10 +104,12 @@
         "message": "",
         "dataformat": "json",
         "datapointid": "test",
+        "enableTopicOverride": false,
         "enableBatch": false,
         "batchSize": 100,
         "batchInterval": 1000,
         "batchMode": "hybrid",
+        "requestTimeout": "",
         "enableAutoReply": false,
         "replyTimeout": 5000,
         "enableRateLimit": false,
@@ -134,6 +121,7 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": 0,
+        "outputs": 1,
         "x": 530,
         "y": 260,
         "wires": [
@@ -257,11 +245,10 @@
         "headers": "{\"X-App\":\"Node-RED\",\"X-Version\":\"1.0\"}",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 380,
         "y": 100,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "subscribe-headers",
@@ -409,11 +396,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 500,
         "y": 60,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "2369e962f57dfe33",
@@ -473,11 +459,10 @@
         "headers": "{\"X-App\":\"Node-RED\",\"X-Version\":\"1.0\"}",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 500,
         "y": 120,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "f58b4aa45694ce3c",
@@ -537,11 +522,10 @@
         "headers": "",
         "enableMsgExpiration": true,
         "msgExpiration": 5,
+        "outputs": 0,
         "x": 510,
         "y": 180,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "4e322a146c88ba34",
@@ -598,11 +582,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 520,
         "y": 240,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "b5acabb908b688c6",
@@ -659,11 +642,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 520,
         "y": 300,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "ba608afc20f5fb70",
@@ -718,11 +700,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 500,
         "y": 360,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "cf1ea7f80f893a51",
@@ -778,11 +759,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 510,
         "y": 420,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "50686c82457fa12b",
@@ -837,11 +817,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 500,
         "y": 480,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "7c6994af4cce8fc9",
@@ -896,44 +875,24 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
+        "outputs": 0,
         "x": 500,
         "y": 540,
-        "wires": [
-            []
-        ]
-    },
-    {
-        "id": "d4698eb7f9f5a9ee",
-        "type": "nats-suite-subscribe",
-        "z": "fdf4576e5737a4e2",
-        "name": "Subscribe: demo.service.request",
-        "server": "f299d3b622714522",
-        "debug": false,
-        "dataformat": "auto",
-        "datapointid": "demo.service.request",
-        "topicfield": "subject",
-        "subscriptionMode": "static",
-        "x": 230,
-        "y": 180,
-        "wires": [
-            [
-                "580d422590d643b5"
-            ]
-        ]
+        "wires": []
     },
     {
         "id": "580d422590d643b5",
         "type": "function",
         "z": "fdf4576e5737a4e2",
         "name": "Service Handler",
-        "func": "// Service Handler - Verarbeitet die Anfrage\n// und bereitet die Antwort vor\n\n// Das replyTo-Subject wird IM PAYLOAD mitgeschickt\n// (nicht als separate msg-Eigenschaft, da nur payload über NATS gesendet wird)\nconst replyTo = msg.payload.replyTo;\n\nif (!replyTo) {\n    node.warn('Keine replyTo-Adresse im Payload!');\n    node.warn('Empfangener Payload: ' + JSON.stringify(msg.payload));\n    return null;\n}\n\n// Verarbeite die Anfrage (Beispiel: Echo mit Timestamp)\nconst request = msg.payload;\nconst response = {\n    success: true,\n    originalRequest: request,\n    processedAt: new Date().toISOString(),\n    service: 'demo-service',\n    message: 'Anfrage erfolgreich verarbeitet!'\n};\n\n// Setze das Topic auf das Reply-Subject\nmsg.topic = replyTo;\nmsg.payload = response;\n\nnode.status({fill:'green', shape:'dot', text:'Reply an: ' + replyTo});\nreturn msg;",
+        "func": "// Service Handler - Verarbeitet die Anfrage\n// und bereitet die Antwort vor\n\n// Bei NATS request() wird das Reply-Subject automatisch\n// als msg.reply gesetzt (vom Subscribe-Node als msg._reply weitergegeben)\n// Alternativ kann es auch im Payload sein (für manuellen Pub/Sub Ansatz)\nconst replyTo = msg._reply || msg._unsreply || msg.payload.replyTo;\n\nif (!replyTo) {\n    node.warn('Keine replyTo-Adresse gefunden!');\n    node.warn('Verfügbare Felder: _reply=' + msg._reply + ', _unsreply=' + msg._unsreply + ', payload.replyTo=' + (msg.payload.replyTo || 'nicht vorhanden'));\n    node.warn('Empfangener Payload: ' + JSON.stringify(msg.payload));\n    return null;\n}\n\n// Verarbeite die Anfrage (Beispiel: Echo mit Timestamp)\nconst request = msg.payload;\nconst response = {\n    success: true,\n    originalRequest: request,\n    processedAt: new Date().toISOString(),\n    service: 'demo-service',\n    message: 'Anfrage erfolgreich verarbeitet!'\n};\n\n// WICHTIG: Bei Reply-Mode wird msg._reply verwendet, nicht msg.topic!\n// Der Reply-Node liest msg._reply automatisch\nmsg._reply = replyTo;\nmsg._unsreply = replyTo;\nmsg.payload = response;\n\nnode.status({fill:'green', shape:'dot', text:'Reply an: ' + replyTo});\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 490,
+        "x": 520,
         "y": 180,
         "wires": [
             [
@@ -947,20 +906,22 @@
         "z": "fdf4576e5737a4e2",
         "name": "Publish Response",
         "server": "f299d3b622714522",
-        "debug": false,
+        "debug": true,
         "enableBuffer": false,
+        "mode": "reply",
         "bufferSize": "",
         "bufferSizeBytes": "",
         "bufferMode": "drop-oldest",
         "bufferAutoSaveInterval": "",
-        "dataformat": "reply",
+        "dataformat": "json",
         "datapointid": "",
+        "enableTopicOverride": false,
         "enableBatch": false,
         "batchSize": "",
         "batchInterval": "",
         "batchMode": "hybrid",
-        "enableRequestReply": false,
         "requestTimeout": "",
+        "requestFallbackToPublish": false,
         "enableAutoReply": false,
         "replyTimeout": "",
         "enableRateLimit": false,
@@ -971,11 +932,10 @@
         "headers": "",
         "enableMsgExpiration": false,
         "msgExpiration": "",
-        "x": 760,
+        "outputs": 0,
+        "x": 1050,
         "y": 180,
-        "wires": [
-            []
-        ]
+        "wires": []
     },
     {
         "id": "3c59f4ff4fa5a610",
@@ -1006,11 +966,6 @@
             {
                 "p": "topic",
                 "vt": "str"
-            },
-            {
-                "p": "replyTo",
-                "v": "demo.reply.inbox",
-                "vt": "str"
             }
         ],
         "repeat": "",
@@ -1033,56 +988,18 @@
         "type": "function",
         "z": "fdf4576e5737a4e2",
         "name": "Prepare Request",
-        "func": "// Bereite den Request vor\n// WICHTIG: Das replyTo muss IM PAYLOAD sein,\n// da nur der Payload über NATS gesendet wird!\n\nmsg.payload = {\n    action: 'greet',\n    name: 'Node-RED',\n    timestamp: new Date().toISOString(),\n    requestId: Math.random().toString(36).substring(7),\n    replyTo: 'demo.reply.inbox'  // Reply-Subject im Payload!\n};\n\nnode.status({fill:'blue', shape:'dot', text:'Request gesendet'});\nreturn msg;",
+        "func": "msg.payload = {\n    action: 'greet',\n    name: 'Node-RED',\n    timestamp: new Date().toISOString(),\n    requestId: Math.random().toString(36).substring(7)\n};\n\nnode.status({fill:'blue', shape:'dot', text:'Request vorbereitet'});\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 360,
+        "x": 410,
         "y": 100,
         "wires": [
             [
-                "dac9933e2fb896f6"
-            ]
-        ]
-    },
-    {
-        "id": "dac9933e2fb896f6",
-        "type": "nats-suite-publish",
-        "z": "fdf4576e5737a4e2",
-        "name": "Publish Request",
-        "server": "f299d3b622714522",
-        "debug": false,
-        "enableBuffer": false,
-        "bufferSize": "",
-        "bufferSizeBytes": "",
-        "bufferMode": "drop-oldest",
-        "bufferAutoSaveInterval": "",
-        "dataformat": "json",
-        "datapointid": "demo.service.request",
-        "enableBatch": false,
-        "batchSize": "",
-        "batchInterval": "",
-        "batchMode": "hybrid",
-        "enableRequestReply": true,
-        "requestTimeout": "",
-        "enableAutoReply": false,
-        "replyTimeout": "",
-        "enableRateLimit": false,
-        "rateLimit": "",
-        "rateLimitWindow": "",
-        "rateLimitBurst": "",
-        "enableHeaders": false,
-        "headers": "",
-        "enableMsgExpiration": false,
-        "msgExpiration": "",
-        "x": 600,
-        "y": 100,
-        "wires": [
-            [
-                "3c59f4ff4fa5a610"
+                "a45941326f11e5e1"
             ]
         ]
     },
@@ -1097,466 +1014,86 @@
         "wires": []
     },
     {
-        "id": "ef3ea26af0c4e34a",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
+        "id": "a45941326f11e5e1",
+        "type": "nats-suite-publish",
+        "z": "fdf4576e5737a4e2",
         "name": "",
         "server": "f299d3b622714522",
-        "mode": "discover",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "",
-        "endpoint": "process",
-        "endpointSubject": "",
-        "queueGroup": "",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 440,
-        "y": 140,
+        "debug": true,
+        "enableBuffer": false,
+        "mode": "request",
+        "bufferSize": 1000,
+        "bufferSizeType": "count",
+        "bufferSizeBytes": 10485760,
+        "bufferMode": "drop-oldest",
+        "bufferPersistence": "none",
+        "bufferAutoSaveInterval": 30,
+        "message": "",
+        "dataformat": "json",
+        "datapointid": "demo.service.request",
+        "enableTopicOverride": false,
+        "enableBatch": false,
+        "batchSize": 100,
+        "batchInterval": 1000,
+        "batchMode": "hybrid",
+        "requestTimeout": 5000,
+        "requestFallbackToPublish": false,
+        "enableAutoReply": false,
+        "replyTimeout": 5000,
+        "enableRateLimit": false,
+        "rateLimit": 100,
+        "rateLimitWindow": 1000,
+        "rateLimitBurst": 20,
+        "rateLimitAction": "drop",
+        "enableHeaders": true,
+        "headers": "{\"message\":\"test\"}",
+        "enableMsgExpiration": false,
+        "msgExpiration": 0,
+        "outputs": 1,
+        "x": 650,
+        "y": 100,
         "wires": [
             [
-                "394b3769be59f8e6"
+                "3c59f4ff4fa5a610"
             ]
         ]
     },
     {
-        "id": "1e031032cf23b080",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 180,
-        "y": 140,
-        "wires": [
-            [
-                "ef3ea26af0c4e34a"
-            ]
-        ]
-    },
-    {
-        "id": "394b3769be59f8e6",
+        "id": "ab9f3ca241d4132e",
         "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 4",
+        "z": "fdf4576e5737a4e2",
+        "name": "debug 3",
         "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
-        "complete": "false",
+        "complete": "true",
+        "targetType": "full",
         "statusVal": "",
         "statusType": "auto",
-        "x": 700,
-        "y": 140,
+        "x": 380,
+        "y": 240,
         "wires": []
     },
     {
-        "id": "d6e91a9c0f805b8f",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
+        "id": "1773ce4335dcc303",
+        "type": "nats-suite-subscribe",
+        "z": "fdf4576e5737a4e2",
         "name": "",
         "server": "f299d3b622714522",
-        "mode": "stats",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "",
-        "endpoint": "process",
-        "endpointSubject": "",
-        "queueGroup": "",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 410,
-        "y": 280,
+        "debug": true,
+        "dataformat": "auto",
+        "datapointid": "demo.service.request",
+        "topicfield": "subject",
+        "subscriptionMode": "static",
+        "x": 170,
+        "y": 180,
         "wires": [
             [
-                "469e4f46fe51f33f"
+                "580d422590d643b5",
+                "ab9f3ca241d4132e"
             ]
         ]
-    },
-    {
-        "id": "fccc939753ef7af0",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 160,
-        "y": 280,
-        "wires": [
-            [
-                "d6e91a9c0f805b8f"
-            ]
-        ]
-    },
-    {
-        "id": "469e4f46fe51f33f",
-        "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 5",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 280,
-        "wires": []
-    },
-    {
-        "id": "604fd02677b4a39b",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "server": "f299d3b622714522",
-        "mode": "service",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.2",
-        "serviceDescription": "test test test ",
-        "endpoint": "process",
-        "endpointSubject": "testservice",
-        "queueGroup": "testservice",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 440,
-        "y": 480,
-        "wires": [
-            [
-                "4dfc6d75af5c12b9"
-            ]
-        ]
-    },
-    {
-        "id": "2ea6129f31e2baa0",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 160,
-        "y": 480,
-        "wires": [
-            [
-                "604fd02677b4a39b"
-            ]
-        ]
-    },
-    {
-        "id": "4dfc6d75af5c12b9",
-        "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 6",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 480,
-        "wires": []
-    },
-    {
-        "id": "fcfc96a439829f6a",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "server": "f299d3b622714522",
-        "mode": "health",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "",
-        "endpoint": "process",
-        "endpointSubject": "",
-        "queueGroup": "",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 390,
-        "y": 600,
-        "wires": [
-            [
-                "01c7ce17ca0b92eb"
-            ]
-        ]
-    },
-    {
-        "id": "709f57dd9255be55",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 160,
-        "y": 600,
-        "wires": [
-            [
-                "fcfc96a439829f6a"
-            ]
-        ]
-    },
-    {
-        "id": "01c7ce17ca0b92eb",
-        "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 7",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 600,
-        "wires": []
-    },
-    {
-        "id": "3881e8a97e35a488",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "server": "f299d3b622714522",
-        "mode": "nats-stats",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "",
-        "endpoint": "process",
-        "endpointSubject": "",
-        "queueGroup": "",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 390,
-        "y": 720,
-        "wires": [
-            [
-                "a2e0e5b2e90e522f"
-            ]
-        ]
-    },
-    {
-        "id": "d171e6a0fde22ea2",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 140,
-        "y": 720,
-        "wires": [
-            [
-                "3881e8a97e35a488"
-            ]
-        ]
-    },
-    {
-        "id": "a2e0e5b2e90e522f",
-        "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 8",
-        "active": false,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 660,
-        "y": 720,
-        "wires": []
-    },
-    {
-        "id": "076b2a79c48ec7dd",
-        "type": "nats-suite-service",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "server": "f299d3b622714522",
-        "mode": "ping",
-        "serviceName": "my-service",
-        "serviceVersion": "1.0.0",
-        "serviceDescription": "",
-        "endpoint": "process",
-        "endpointSubject": "",
-        "queueGroup": "",
-        "metadata": "",
-        "autoStart": true,
-        "statsType": "server",
-        "checkOnStart": true,
-        "periodicCheck": false,
-        "checkInterval": 30,
-        "enableConnectivityTests": true,
-        "latencyThreshold": 100,
-        "reconnectThreshold": 5,
-        "throughputThreshold": 1000,
-        "debug": false,
-        "x": 410,
-        "y": 380,
-        "wires": [
-            [
-                "0d39cc0db99f3445"
-            ]
-        ]
-    },
-    {
-        "id": "8789d0ffdf4853c9",
-        "type": "inject",
-        "z": "56fda4fe68183684",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 160,
-        "y": 380,
-        "wires": [
-            [
-                "076b2a79c48ec7dd"
-            ]
-        ]
-    },
-    {
-        "id": "0d39cc0db99f3445",
-        "type": "debug",
-        "z": "56fda4fe68183684",
-        "name": "debug 9",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 680,
-        "y": 380,
-        "wires": []
     },
     {
         "id": "cd0bb54353fedd09",
@@ -1616,5 +1153,114 @@
         "x": 400,
         "y": 100,
         "wires": []
+    },
+    {
+        "id": "2304974aee6e0f9a",
+        "type": "nats-suite-kv-get",
+        "z": "f28cb49418cb6492",
+        "name": "",
+        "server": "f299d3b622714522",
+        "bucket": "",
+        "bucketConfig": "",
+        "description": "",
+        "history": 10,
+        "maxAge": 0,
+        "maxBytes": 0,
+        "maxValueSize": 0,
+        "compression": false,
+        "replicas": 1,
+        "storage": "file",
+        "mode": "get",
+        "key": "",
+        "keyFrom": "config",
+        "watchPattern": "",
+        "includeHistory": false,
+        "ignoreDeletes": true,
+        "parseJSON": true,
+        "debug": false,
+        "x": 560,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e35179027a37ec09",
+        "type": "nats-suite-kv-put",
+        "z": "f28cb49418cb6492",
+        "name": "",
+        "server": "f299d3b622714522",
+        "bucket": "",
+        "bucketConfig": "",
+        "description": "",
+        "history": 10,
+        "maxAge": 0,
+        "maxBytes": 0,
+        "maxValueSize": 0,
+        "compression": false,
+        "replicas": 1,
+        "storage": "file",
+        "operation": "put",
+        "bucketOperation": "put",
+        "key": "",
+        "keyFrom": "config",
+        "value": "",
+        "valueFrom": "payload",
+        "stringifyJSON": true,
+        "debug": false,
+        "x": 560,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1e90d1b99da50488",
+        "type": "nats-suite-stream-publisher",
+        "z": "9e93672bca22fbc8",
+        "name": "",
+        "server": "f299d3b622714522",
+        "streamName": "default-stream",
+        "subjectPattern": "*",
+        "defaultSubject": "",
+        "retention": "limits",
+        "maxMessages": 10000,
+        "maxAge": "24h",
+        "maxBytes": 10485760,
+        "duplicateWindow": "2m",
+        "storage": "file",
+        "replicas": 1,
+        "operation": "publish",
+        "x": 360,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "db34ce937fe4c4dc",
+        "type": "nats-suite-stream-consumer",
+        "z": "9e93672bca22fbc8",
+        "name": "",
+        "server": "f299d3b622714522",
+        "streamName": "default-stream",
+        "consumerName": "default-consumer",
+        "filterSubject": "",
+        "consumerType": "pull",
+        "ackPolicy": "explicit",
+        "deliverPolicy": "new",
+        "ackWait": "30s",
+        "maxDeliver": 5,
+        "maxAckPending": 1000,
+        "idleHeartbeat": "5s",
+        "flowControl": false,
+        "batchSize": 1,
+        "maxWait": 1000,
+        "operation": "consume",
+        "x": 370,
+        "y": 340,
+        "wires": [
+            []
+        ]
     }
 ]

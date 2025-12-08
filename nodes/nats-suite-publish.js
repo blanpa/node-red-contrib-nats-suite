@@ -414,6 +414,7 @@ module.exports = function (RED) {
     const mode = config.mode || 'publish';
     const enableRequestReply = (mode === 'request');
     const requestTimeout = config.requestTimeout || 5000;
+    const requestFallbackToPublish = config.requestFallbackToPublish !== false;
     
     if (enableRequestReply && isDebug) {
       node.log(`[NATS-SUITE PUBLISH] Request-Reply mode enabled: timeout=${requestTimeout}ms`);
@@ -1045,10 +1046,43 @@ module.exports = function (RED) {
               requestTime: requestTime
             };
             
-            if (requestErr.code === 'TIMEOUT' || requestErr.message.includes('timeout')) {
+            if (requestErr.code === 'TIMEOUT' || (requestErr.message || '').includes('timeout') || requestErr.code === '408') {
               msg.error.code = 'TIMEOUT';
               msg.error.message = `Request timeout after ${requestTimeout}ms`;
               node.status({ fill: 'yellow', shape: 'ring', text: `timeout: ${requestTimeout}ms` });
+
+              if (isDebug) {
+                node.log(`[NATS-SUITE PUBLISH] Request timeout detected. Fallback enabled: ${requestFallbackToPublish}`);
+              }
+
+              // Optional fallback: publish instead of failing hard
+              if (requestFallbackToPublish) {
+                try {
+                  if (isDebug) {
+                    node.log(`[NATS-SUITE PUBLISH] Fallback: Publishing to ${subject} instead of request`);
+                  }
+                  await natsnc.publish(subject, sc.encode(requestPayload));
+                  msg.fallback = 'publish';
+                  msg.fallbackReason = 'request_timeout';
+                  delete msg.error;
+                  node.status({ fill: 'green', shape: 'dot', text: 'fallback publish' });
+                  if (isDebug) {
+                    node.log(`[NATS-SUITE PUBLISH] Fallback publish successful to ${subject}`);
+                  }
+                  node.send(msg);
+                  setTimeout(() => {
+                    if (this.config.connectionStatus === 'connected') {
+                      node.status({ fill: 'green', shape: 'dot', text: 'connected' });
+                    }
+                  }, 3000);
+                  return;
+                } catch (publishErr) {
+                  node.warn(`[NATS-SUITE PUBLISH] Request timeout fallback failed: ${publishErr.message}`);
+                  if (isDebug) {
+                    node.log(`[NATS-SUITE PUBLISH] Fallback publish error: ${publishErr.message}`);
+                  }
+                }
+              }
             } else {
               node.status({ fill: 'red', shape: 'ring', text: 'request failed' });
             }
@@ -1188,11 +1222,13 @@ module.exports = function (RED) {
         // Get subject based on mode
         if (mode === 'reply') {
           // Reply mode: Use the reply-to subject from incoming message
-          if (!msg._reply) {
-            node.warn('Reply mode: No reply subject (msg._reply) found in incoming message. Cannot send reply.', msg);
+          // Accept both _reply and _unsreply for compatibility
+          const replySubject = msg._reply || msg._unsreply;
+          if (!replySubject) {
+            node.warn('Reply mode: No reply subject (msg._reply or msg._unsreply) found in incoming message. Cannot send reply.', msg);
             return;
           }
-          subject = msg._reply;
+          subject = replySubject;
           
           if (isDebug) {
             node.log(`[NATS-SUITE PUBLISH] Reply mode: Sending reply to ${subject}`);
