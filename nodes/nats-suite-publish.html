@@ -146,9 +146,17 @@
         if (mode === 'reply') {
           $('#subject-row').slideUp(200);
           $('#topic-override-row').slideUp(200);
+          // Also hide message expiration in reply mode
+          $('#node-input-enableMsgExpiration').closest('.nats-checkbox-row').slideUp(200);
+          $('#expiration-options').slideUp(200);
         } else {
           $('#subject-row').slideDown(200);
           $('#topic-override-row').slideDown(200);
+          // Show message expiration in non-reply modes
+          $('#node-input-enableMsgExpiration').closest('.nats-checkbox-row').slideDown(200);
+          if ($('#node-input-enableMsgExpiration').is(':checked')) {
+            $('#expiration-options').slideDown(200);
+          }
         }
         
         // Show/hide Performance & Reliability section (only in publish mode)
@@ -518,10 +526,9 @@
           </div>
         </div>
         
-        <div class="nats-divider"></div>
-        
         <!-- Message Expiration -->
         <div class="nats-checkbox-row">
+          <div class="nats-divider"></div>
           <input type="checkbox" id="node-input-enableMsgExpiration">
           <label for="node-input-enableMsgExpiration"><i class="fa fa-clock-o"></i>Message Expiration (TTL)</label>
           <span class="nats-badge nats-badge-dynamic">msg.expiration</span>
@@ -703,7 +710,7 @@
               <select id="node-input-rateLimitAction">
                 <option value="drop">Drop (Silent)</option>
                 <option value="drop-warn">Drop + Warning</option>
-                <option value="delay">Delay (Queue)</option>
+                <option value="delay">Delay (Queue)</oeption>
               </select>
             </div>
           </div>
