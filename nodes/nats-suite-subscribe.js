@@ -53,6 +53,7 @@ module.exports = function (RED) {
     let connectionTimeout = null;
     let connectionStartTime = null;
     let queueGroup = null; // Queue group for load balancing
+    let baseQueueGroup = ''; // Base queue group from config (fallback)
 
     // Message logging: Only log if debug flag is set
     const isDebug = !!config.debug;
@@ -60,11 +61,22 @@ module.exports = function (RED) {
     // Get base subject from config (used as fallback if no dynamic subject provided)
     baseSubject = config.datapointid || '';
     
+    // Get base queue group from config (used as fallback if no dynamic queue group provided)
+    baseQueueGroup = config.queueGroup || '';
+    
     // Initialize with base subject if available
     if (baseSubject) {
       currentSubject = baseSubject;
       if (isDebug) {
         node.log(`[[NATS-SUITE SUBSCRIBE] Initialized with base subject: ${baseSubject}`);
+      }
+    }
+    
+    // Initialize with base queue group if available
+    if (baseQueueGroup) {
+      queueGroup = baseQueueGroup;
+      if (isDebug) {
+        node.log(`[[NATS-SUITE SUBSCRIBE] Initialized with base queue group: ${baseQueueGroup}`);
       }
     }
     

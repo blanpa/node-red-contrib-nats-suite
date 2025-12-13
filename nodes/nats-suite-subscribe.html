@@ -9,6 +9,7 @@
       dataformat: { value: 'auto', required: true },
       datapointid: { value: '', required: false },
       subscriptionMode: { value: 'static' },
+      queueGroup: { value: '', required: false },
     },
     inputs: 0,
     outputs: 1,
@@ -252,6 +253,14 @@
             Wildcards: <code>*</code> (single level), <code>&gt;</code> (multi-level)
           </div>
         </div>
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-users"></i>Queue Group <span class="nats-badge nats-badge-optional">optional</span></label>
+          <input type="text" id="node-input-queueGroup" placeholder="e.g. workers">
+          <div class="nats-hint">
+            Load balancing: Only one subscriber in the group receives each message. Leave empty for no queue group.
+          </div>
+        </div>
       </div>
     </div>
     
@@ -290,6 +299,14 @@
   <ul>
     <li><strong>Static:</strong> Uses the configured subject. Input messages are ignored.</li>
     <li><strong>Dynamic:</strong> Subject can be changed via <code>msg.topic</code> or <code>msg.subject</code></li>
+  </ul>
+
+  <h3>Queue Groups</h3>
+  <p>Queue groups enable load balancing across multiple subscribers. When a queue group is specified, only one subscriber in the group receives each message. This is useful for distributing work among multiple instances.</p>
+  <ul>
+    <li>Configure a static queue group in the node settings</li>
+    <li>Or set it dynamically via <code>msg.queueGroup</code> in Dynamic mode</li>
+    <li>Leave empty for regular (non-queue) subscription</li>
   </ul>
 
   <h3>Outputs</h3>
