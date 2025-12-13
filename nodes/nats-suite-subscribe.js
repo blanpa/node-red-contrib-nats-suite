@@ -217,23 +217,9 @@ module.exports = function (RED) {
                 break;
             }
             
-            // Set topic field based on configuration
-            let topicValue = msg.subject; // Default
-            if (config.topicfield === 'id') {
-              topicValue = message.id;
-            } else if (config.topicfield === 'name') {
-              topicValue = message.name;
-            } else if (config.topicfield === 'datatype') {
-              topicValue = String(message.datatype);
-            }
-            
-            if (isDebug) {
-              node.log(`[[NATS-SUITE SUBSCRIBE] Topic set to: ${topicValue}`);
-            }
-            
             // For NATS-SUITE Value: Only value as payload, rest as msg properties
             send_message = {
-              topic: topicValue,
+              topic: msg.subject,
               payload: message.value,
               datatype: message.datatype,
               id: message.id,

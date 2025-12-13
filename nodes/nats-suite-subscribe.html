@@ -8,7 +8,6 @@
       debug: { value: false },
       dataformat: { value: 'auto', required: true },
       datapointid: { value: '', required: false },
-      topicfield: { value: 'subject' },
       subscriptionMode: { value: 'static' },
     },
     inputs: 0,
@@ -276,19 +275,6 @@
           </select>
           <div class="nats-hint">
             Auto: Try JSON first, fallback to string | Buffer: For binary data
-          </div>
-        </div>
-        
-        <div class="nats-form-row">
-          <label><i class="fa fa-tag"></i>Topic Field <span class="nats-badge nats-badge-dynamic">msg.topic</span></label>
-          <select id="node-input-topicfield">
-            <option value="subject">NATS Subject</option>
-            <option value="id">Datapoint ID</option>
-            <option value="name">Datapoint Name</option>
-            <option value="datatype">Data Type</option>
-          </select>
-          <div class="nats-hint">
-            Select what value to use for <code>msg.topic</code> in output messages
           </div>
         </div>
       </div>
