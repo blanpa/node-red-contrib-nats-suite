@@ -972,11 +972,21 @@ module.exports = function (RED) {
           }
           
           const natsnc = await this.config.getConnection();
-          const subject = msg.topic || config.datapointid;
+          
+          // Reply mode: Respect enableTopicOverride setting
+          const enableTopicOverride = !!config.enableTopicOverride;
+          let subject;
+          
+          // Use msg.topic only if override is enabled AND msg.topic is provided
+          if (enableTopicOverride && msg.topic) {
+            subject = msg.topic;
+          } else {
+            subject = config.datapointid;
+          }
           
           if (!subject) {
             msg.error = {
-              message: 'No subject specified. Set subject in node config or provide msg.topic',
+              message: 'No subject specified. Set subject in node config' + (enableTopicOverride ? ' or provide msg.topic' : ''),
               code: 'NO_SUBJECT'
             };
             node.error(msg.error, msg);
