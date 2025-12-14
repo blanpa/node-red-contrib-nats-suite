@@ -33,6 +33,20 @@ services:
       - ./config/certs:/etc/nats/certs:ro
     restart: unless-stopped
 
+
+  nui:
+    image: ghcr.io/nats-nui/nui:latest
+    container_name: nui-dev
+    ports:
+      - '31311:31311'
+    environment:
+      - NUI_NATS_URL=nats://nats-server:4222
+    depends_on:
+      - nats-server
+    restart: unless-stopped
+
+
+
 volumes:
   nats-data:
  
