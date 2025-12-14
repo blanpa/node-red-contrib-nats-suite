@@ -62,7 +62,7 @@ Or in the Node-RED Editor:
 | Node | Description | Category |
 |------|-------------|----------|
 | **nats-suite-server** | NATS Server connection configuration (for all other nodes) | Config |
-| **nats-suite-server-manager** | Starts/stops NATS Server directly in Node-RED (Embedded/Process/Leaf Node) | Management |
+| **nats-suite-server-manager** | Embedded NATS Server with MQTT bridge, JetStream, custom binaries, Leaf Node support | Management |
 
 ### Core NATS
 
@@ -182,13 +182,48 @@ nats-server
 ```
 
 ### Option 2: NATS Server Manager (in Node-RED)
-Use the `nats-suite-server-manager` node:
+Use the `nats-suite-server-manager` node to run an embedded NATS server directly in Node-RED:
 
-- **Embedded**: `npm install nats-memory-server` (for testing)
-- **Process**: Starts `nats-server` as a separate process  
-- **Leaf Node**: Connects to remote NATS cluster
+#### Binary Source Options
+| Source | Description |
+|--------|-------------|
+| **Auto-detect** | Uses `nats-memory-server` npm package, falls back to system PATH |
+| **Custom Binary** | Mount your own nats-server binary (e.g., `/data/bin/nats-server-v2.12.2-linux-amd64`) |
+| **System PATH** | Uses `nats-server` from system PATH only |
 
-**Commands:** `msg.payload.command = "start"|"stop"|"restart"|"status"`
+#### Features
+- **MQTT Bridge**: Enable MQTT protocol support (port configurable)
+- **JetStream**: Persistent streams and KV store
+- **Leaf Node Mode**: Connect to remote NATS clusters
+- **HTTP Monitoring**: Server stats via HTTP endpoints (`/varz`, `/connz`, `/healthz`, etc.)
+
+#### Pre-built Binaries
+This package includes pre-built NATS server binaries in the `bin/` folder:
+- `nats-server-v2.12.2-linux-amd64` (x86-64)
+- `nats-server-v2.12.2-linux-arm64` (ARM64)
+
+#### Control Commands
+```javascript
+msg.payload.command = "start"   // Start server
+msg.payload.command = "stop"    // Stop server
+msg.payload.command = "restart" // Restart server
+msg.payload.command = "status"  // Get server status
+msg.payload.command = "toggle"  // Toggle start/stop
+```
+
+#### Output Payload (on start)
+```javascript
+{
+  type: "embedded",           // or "leaf"
+  port: 4223,
+  url: "nats://localhost:4223",
+  version: "2.12.2",
+  binarySource: "custom",     // "auto", "custom", or "system"
+  binaryPath: "/data/bin/nats-server-v2.12.2-linux-amd64",
+  mqtt: { enabled: true, port: 1884, url: "mqtt://localhost:1884" },
+  jetstream: true
+}
+```
 
 ## Requirements
 
@@ -199,6 +234,23 @@ Use the `nats-suite-server-manager` node:
 ---
 
 ## Advanced Features
+
+### Server Manager Extensions
+
+#### **Custom Binary Support**
+- Mount your own `nats-server` binary for specific versions
+- Binary source selection: Auto-detect, Custom Binary, System PATH
+- Status display shows: `bin:4223 v2.12.2` (source:port version)
+
+#### **MQTT Bridge**
+- Enable MQTT protocol on embedded server
+- Configurable MQTT port (default: 1883)
+- Auto-enables JetStream (required for MQTT)
+- Auto-generates server name if not set
+
+#### **HTTP Monitoring**
+- Enable HTTP monitoring port for server statistics
+- Endpoints: `/varz`, `/connz`, `/subsz`, `/jsz`, `/healthz`
 
 ### Core NATS Extensions
 

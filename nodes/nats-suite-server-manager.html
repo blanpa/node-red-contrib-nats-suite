@@ -4,7 +4,6 @@
     color: '#2FAF9C',
     defaults: {
       name: { value: "" },
-      serverType: { value: "embedded", required: true },
       port: { value: 4222, required: true, validate: function(val) { return /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536; } },
       leafPort: { value: 7422, required: true, validate: function(val) { return /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536; } },
       enableJetStream: { value: false },
@@ -14,6 +13,12 @@
       leafRemotePass: { value: "" },
       autoStart: { value: true },
       debug: { value: false },
+      // Binary source selection
+      binarySource: { value: "auto" },
+      customBinaryPath: { value: "" },
+      // MQTT options
+      enableMqtt: { value: false },
+      mqttPort: { value: 1883, validate: function(val) { return !val || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536); } },
       // New embedded server options
       serverName: { value: "" },
       maxConnections: { value: "" },
@@ -89,9 +94,55 @@
         }
       });
       
+      // MQTT handler
+      $('#node-input-enableMqtt').on('change', function() {
+        const mqttEnabled = $(this).is(':checked');
+        $('#mqtt-options').toggle(mqttEnabled);
+        
+        // MQTT requires JetStream - auto-enable
+        if (mqttEnabled && !$('#node-input-enableJetStream').is(':checked')) {
+          $('#node-input-enableJetStream').prop('checked', true).trigger('change');
+          $('#mqtt-jetstream-hint').show();
+        } else {
+          $('#mqtt-jetstream-hint').hide();
+        }
+        
+        // MQTT requires server_name - show hint
+        if (mqttEnabled && !$('#node-input-serverName').val()) {
+          $('#mqtt-servername-hint').show();
+        } else {
+          $('#mqtt-servername-hint').hide();
+        }
+      });
+      
+      // Update MQTT hint when server name changes
+      $('#node-input-serverName').on('input', function() {
+        if ($('#node-input-enableMqtt').is(':checked') && !$(this).val()) {
+          $('#mqtt-servername-hint').show();
+        } else {
+          $('#mqtt-servername-hint').hide();
+        }
+      });
+      
+      // Binary source handler
+      $('#node-input-binarySource').on('change', function() {
+        const source = $(this).val();
+        $('#custom-binary-path-row').toggle(source === 'custom');
+        
+        // Update hint text based on selection
+        const hints = {
+          'auto': 'Auto-detect: Uses nats-memory-server (npm package) or falls back to system PATH',
+          'custom': 'Specify the full path to your mounted nats-server binary',
+          'system': 'Uses nats-server from system PATH (must be installed on host)'
+        };
+        $('#binary-source-hint').text(hints[source] || hints['auto']);
+      });
+      
       updateVisibility(); // Initial call
       $('#node-input-enableJetStream').trigger('change');
+      $('#node-input-enableMqtt').trigger('change');
       $('#node-input-httpPort').trigger('input');
+      $('#node-input-binarySource').trigger('change');
     }
   });
 </script>
@@ -286,6 +337,57 @@
           <label><i class="fa fa-plug"></i>Port</label>
           <input type="number" id="node-input-port" placeholder="4222" min="1" max="65535">
           <div class="nats-hint">Client connection port (default: 4222)</div>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-cube"></i>Binary Source</label>
+          <select id="node-input-binarySource">
+            <option value="auto">Auto-detect (nats-memory-server / system)</option>
+            <option value="custom">Custom Binary (mounted path)</option>
+            <option value="system">System PATH only</option>
+          </select>
+          <div class="nats-hint" id="binary-source-hint">Auto-detect: Uses nats-memory-server (npm package) or falls back to system PATH</div>
+        </div>
+        <div class="nats-form-row" id="custom-binary-path-row" style="display: none;">
+          <label><i class="fa fa-file-code-o"></i>Custom Binary Path</label>
+          <input type="text" id="node-input-customBinaryPath" placeholder="/data/bin/nats-server">
+          <div class="nats-hint">Full path to your mounted nats-server binary</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MQTT Configuration -->
+    <div class="nats-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-rss"></i>
+          <span>MQTT Bridge</span>
+          <span class="nats-badge nats-badge-new">NEW</span>
+        </div>
+        <i class="fa fa-chevron-right nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content" style="display: none;">
+        <div class="nats-info-box">
+          <i class="fa fa-info-circle"></i>
+          Enable MQTT to allow MQTT clients to connect to the NATS server. MQTT messages are bridged to NATS subjects.
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableMqtt">
+          <label for="node-input-enableMqtt"><i class="fa fa-rss"></i>Enable MQTT</label>
+        </div>
+        <div id="mqtt-options" style="display: none;">
+          <div class="nats-form-row">
+            <label><i class="fa fa-plug"></i>MQTT Port</label>
+            <input type="number" id="node-input-mqttPort" placeholder="1883" min="1" max="65535">
+            <div class="nats-hint">MQTT client connection port (default: 1883)</div>
+          </div>
+          <div class="nats-info-box" id="mqtt-jetstream-hint" style="display: none; background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); border-color: #ffc107; color: #856404;">
+            <i class="fa fa-exclamation-triangle"></i>
+            MQTT requires JetStream - JetStream has been automatically enabled.
+          </div>
+          <div class="nats-info-box" id="mqtt-servername-hint" style="display: none; background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); border-color: #ffc107; color: #856404;">
+            <i class="fa fa-exclamation-triangle"></i>
+            MQTT requires a Server Name - one will be auto-generated if not set.
+          </div>
         </div>
       </div>
     </div>
@@ -571,11 +673,21 @@
 </script>
 
 <script type="text/html" data-help-name="nats-suite-server-manager">
-  <p>Starts and manages an embedded NATS server from Node-RED.</p>
-  <p><i>Note: The embedded server uses NATS Server <b>v2.9.16</b> (provided by nats-memory-server).</i></p>
+  <p>Starts and manages an embedded NATS server directly from Node-RED.</p>
+  <p><i>Note: Uses NATS Server provided by nats-memory-server (npm) or a custom binary you mount (e.g., v2.12.2).</i></p>
 
   <h3>Configuration Options</h3>
   <dl class="message-properties">
+    <dt>Binary Source</dt>
+    <dd>Choose where to get the nats-server binary:
+      <ul>
+        <li><b>Auto-detect</b>: Uses nats-memory-server npm package, falls back to system PATH</li>
+        <li><b>Custom Binary</b>: Use a mounted binary at a custom path</li>
+        <li><b>System PATH</b>: Use nats-server from system PATH only</li>
+      </ul>
+    </dd>
+    <dt>Custom Binary Path</dt>
+    <dd>Path to a custom nats-server binary (e.g., <code>/data/bin/nats-server</code>). Only visible when "Custom Binary" is selected.</dd>
     <dt>Enable Embedded as Leaf Node</dt>
     <dd>If checked, the embedded server will act as a Leaf Node, connecting to a remote NATS cluster.</dd>
     <dt>Port</dt>
@@ -587,7 +699,7 @@
     <dt>Remote Username / Password</dt>
     <dd>Optional credentials for connecting to the remote NATS cluster. Only relevant when acting as a Leaf Node.</dd>
     <dt>Server Name</dt>
-    <dd>Unique identifier for the server instance</dd>
+    <dd>Unique identifier for the server instance (required for MQTT)</dd>
     <dt>Max Connections</dt>
     <dd>Maximum number of client connections (default: 65536)</dd>
     <dt>Max Payload</dt>
@@ -595,6 +707,15 @@
     <dt>HTTP Port</dt>
     <dd>Enable HTTP monitoring on specified port</dd>
   </dl>
+
+  <h3>MQTT Bridge</h3>
+  <dl class="message-properties">
+    <dt>Enable MQTT</dt>
+    <dd>Enable MQTT protocol support. Allows MQTT clients to connect to the NATS server.</dd>
+    <dt>MQTT Port</dt>
+    <dd>Port for MQTT client connections (default: 1883)</dd>
+  </dl>
+  <p><i>Note: MQTT requires JetStream (auto-enabled) and a Server Name (auto-generated if not set).</i></p>
 
   <h3>JetStream Options</h3>
   <dl class="message-properties">
@@ -624,10 +745,16 @@ msg.payload.command = "toggle"  // Toggle start/stop</pre>
     <dd>The port the server is running on</dd>
     <dt>payload.url <span class="property-type">string</span></dt>
     <dd>Connection URL (e.g., "nats://localhost:4222")</dd>
+    <dt>payload.mqtt <span class="property-type">object</span></dt>
+    <dd>MQTT info: <code>{ enabled: true, port: 1883, url: "mqtt://localhost:1883" }</code></dd>
     <dt>payload.pid <span class="property-type">number</span></dt>
     <dd>Process ID</dd>
     <dt>payload.version <span class="property-type">string</span></dt>
-    <dd>NATS Server Version (e.g., "2.9.16")</dd>
+    <dd>NATS Server Version (e.g., "2.10.24")</dd>
+    <dt>payload.binarySource <span class="property-type">string</span></dt>
+    <dd>Binary source used: "auto", "custom", or "system"</dd>
+    <dt>payload.binaryPath <span class="property-type">string</span></dt>
+    <dd>Full path to the binary being used</dd>
   </dl>
 
   <h3>HTTP Monitoring Endpoints</h3>

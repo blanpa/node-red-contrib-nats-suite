@@ -22,6 +22,14 @@ module.exports = function (RED) {
     this.autoStart = config.autoStart !== false;
     this.debug = config.debug || false;
     
+    // Binary source: 'auto' (nats-memory-server), 'custom' (custom path), 'system' (system PATH)
+    this.binarySource = config.binarySource || 'auto';
+    this.customBinaryPath = config.customBinaryPath || '';
+    
+    // MQTT options
+    this.enableMqtt = config.enableMqtt || false;
+    this.mqttPort = config.mqttPort || 1883;
+    
     // New embedded server options
     this.serverName = config.serverName || '';
     this.maxConnections = config.maxConnections || '';
@@ -67,6 +75,49 @@ module.exports = function (RED) {
       node.status(statusMap[status] || statusMap.stopped);
     };
 
+    // Helper function to generate NATS config file content
+    const generateNatsConfig = (config) => {
+      let content = '# Auto-generated NATS Server Configuration\n';
+      content += `# Generated at: ${new Date().toISOString()}\n\n`;
+      
+      const writeValue = (key, value, indent = 0) => {
+        const spaces = '  '.repeat(indent);
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          content += `${spaces}${key} {\n`;
+          for (const [k, v] of Object.entries(value)) {
+            writeValue(k, v, indent + 1);
+          }
+          content += `${spaces}}\n`;
+        } else if (Array.isArray(value)) {
+          content += `${spaces}${key}: [\n`;
+          for (const item of value) {
+            if (typeof item === 'object') {
+              content += `${spaces}  {\n`;
+              for (const [k, v] of Object.entries(item)) {
+                writeValue(k, v, indent + 2);
+              }
+              content += `${spaces}  }\n`;
+            } else {
+              content += `${spaces}  ${JSON.stringify(item)}\n`;
+            }
+          }
+          content += `${spaces}]\n`;
+        } else if (typeof value === 'string') {
+          content += `${spaces}${key}: "${value}"\n`;
+        } else if (typeof value === 'boolean') {
+          content += `${spaces}${key}: ${value}\n`;
+        } else if (typeof value === 'number') {
+          content += `${spaces}${key}: ${value}\n`;
+        }
+      };
+      
+      for (const [key, value] of Object.entries(config)) {
+        writeValue(key, value);
+      }
+      
+      return content;
+    };
+
     // Helper function to get NATS server version
     const getNatsServerVersion = async (natsServerBinPath) => {
       return new Promise((resolve) => {
@@ -91,161 +142,283 @@ module.exports = function (RED) {
       try {
         const requestedPort = parseInt(node.port) || 4222;
         const enableJetStream = node.enableJetStream !== false; // Default true
-        const enableLeafNode = node.enableLeafNodeMode !== false; // Default false
+        const enableLeafNode = node.enableLeafNodeMode === true; // Only true if explicitly enabled
+
+        // Validate Leaf Node configuration
+        if (enableLeafNode && !node.leafRemoteUrl) {
+          node.error('Leaf Node mode requires a Remote NATS Server URL');
+          setStatus('error', 'missing remote URL');
+          throw new Error('Leaf Node mode requires a Remote NATS Server URL');
+        }
 
         let actualPort = requestedPort;
         let startupLogMessage = `Starting embedded NATS server on port ${requestedPort}...`;
         let statusText = 'starting embedded...';
 
-        // Find nats-server binary in various locations
-        const possibleBinPaths = [
-          path.join(__dirname, '../node_modules/.cache/nats-memory-server/nats-server'),
-          path.join(__dirname, '../node_modules/nats-memory-server/.cache/nats-server'),
-          '/data/node_modules/node-red-contrib-nats-suite/node_modules/.cache/nats-memory-server/nats-server',
-          '/usr/local/bin/nats-server',
-          '/usr/bin/nats-server',
-          'nats-server' // System PATH
-        ];
-
+        // Find nats-server binary based on binarySource setting
         let natsServerBin = null;
-        for (const binPath of possibleBinPaths) {
-          try {
-            if (binPath === 'nats-server' || fs.existsSync(binPath)) {
-              natsServerBin = binPath;
-              log(`Found nats-server binary at: ${binPath}`);
-              break;
+        let binarySourceUsed = node.binarySource || 'auto';
+        
+        log(`Binary source configured: ${binarySourceUsed}`);
+        
+        switch (binarySourceUsed) {
+          case 'custom':
+            // Use custom binary path only
+            if (!node.customBinaryPath) {
+              node.error('Custom binary source selected but no path specified');
+              setStatus('error', 'no binary path');
+              throw new Error('Custom binary source selected but no path specified');
             }
-          } catch (err) {
-            // Continue to next path
-          }
-        }
-
-        if (!natsServerBin) {
-          const installHint = 'For embedded server: npm install nats-memory-server (downloads binary)';
-          node.error(`nats-server binary not found. ${installHint}`);
-          node.warn('💡 Alternative: ensure nats-server is in system PATH for process mode.');
-          setStatus('error', 'nats-server not found');
-          throw new Error('nats-server binary not found');
+            if (!fs.existsSync(node.customBinaryPath)) {
+              node.error(`Custom binary not found: ${node.customBinaryPath}`);
+              setStatus('error', 'binary not found');
+              throw new Error(`Custom binary not found: ${node.customBinaryPath}`);
+            }
+            natsServerBin = node.customBinaryPath;
+            log(`Using custom binary: ${natsServerBin}`);
+            break;
+            
+          case 'system':
+            // Use system PATH only
+            natsServerBin = 'nats-server';
+            log('Using system PATH nats-server');
+            break;
+            
+          case 'auto':
+          default:
+            // Auto-detect: try nats-memory-server first, then system PATH
+            const possibleBinPaths = [
+              path.join(__dirname, '../node_modules/.cache/nats-memory-server/nats-server'),
+              path.join(__dirname, '../node_modules/nats-memory-server/.cache/nats-server'),
+              '/data/node_modules/node-red-contrib-nats-suite/node_modules/.cache/nats-memory-server/nats-server',
+              '/usr/local/bin/nats-server',
+              '/usr/bin/nats-server',
+              'nats-server' // System PATH as fallback
+            ];
+            
+            for (const binPath of possibleBinPaths) {
+              try {
+                if (binPath === 'nats-server' || fs.existsSync(binPath)) {
+                  natsServerBin = binPath;
+                  log(`Auto-detected nats-server binary at: ${binPath}`);
+                  break;
+                }
+              } catch (err) {
+                // Continue to next path
+              }
+            }
+            
+            if (!natsServerBin) {
+              const installHint = 'Install nats-memory-server (npm install nats-memory-server) or select "Custom Binary" and mount your own.';
+              node.error(`nats-server binary not found. ${installHint}`);
+              setStatus('error', 'nats-server not found');
+              throw new Error('nats-server binary not found');
+            }
+            break;
         }
 
         // Get NATS server version once at the start
         natsServerVersion = await getNatsServerVersion(natsServerBin);
         log(`NATS server binary version: v${natsServerVersion}`);
 
+        // Check if MQTT is enabled (requires JetStream and server_name)
+        const enableMqtt = node.enableMqtt === true;
+        if (enableMqtt) {
+          // MQTT requires JetStream - auto-enable if not set
+          if (!enableJetStream) {
+            node.warn('MQTT requires JetStream - enabling JetStream automatically');
+          }
+          // MQTT requires server_name
+          if (!node.serverName) {
+            node.serverName = `nats-embedded-${Date.now()}`;
+            log(`MQTT requires server_name - auto-generated: ${node.serverName}`);
+          }
+        }
+
         return new Promise((resolve, reject) => {
           const args = [];
+          
+          // Determine if we need a config file (for MQTT or Leaf Node)
+          const needsConfigFile = enableLeafNode || enableMqtt;
 
-          if (enableLeafNode) {
-            actualPort = parseInt(node.leafPort) || 7422;
-            startupLogMessage = `Starting embedded NATS Leaf Node on port ${actualPort}...`;
-            statusText = 'starting embedded leaf...';
-
-            const leafConfig = {
-              port: actualPort,
-              leafnodes: {
+          if (needsConfigFile) {
+            // Build config object
+            const serverConfig = {};
+            
+            if (enableLeafNode) {
+              actualPort = parseInt(node.leafPort) || 7422;
+              startupLogMessage = `Starting embedded NATS Leaf Node on port ${actualPort}...`;
+              statusText = 'starting embedded leaf...';
+              
+              serverConfig.port = actualPort;
+              serverConfig.leafnodes = {
                 remotes: [{
                   url: node.leafRemoteUrl || 'nats://localhost:4222',
-                  ...(node.leafRemoteUser && { user: node.leafRemoteUser }),
+                  ...(node.leafRemoteUser && { credentials: null, user: node.leafRemoteUser }),
                   ...(node.leafRemotePass && { password: node.leafRemotePass })
                 }]
+              };
+            } else {
+              serverConfig.port = requestedPort;
+            }
+            
+            // Server name (required for MQTT)
+            if (node.serverName) {
+              serverConfig.server_name = node.serverName;
+            }
+            
+            // Host address
+            if (node.hostAddr) {
+              serverConfig.host = node.hostAddr;
+            }
+            
+            // MQTT configuration
+            if (enableMqtt) {
+              const mqttPort = parseInt(node.mqttPort) || 1883;
+              serverConfig.mqtt = {
+                port: mqttPort
+              };
+              startupLogMessage = `Starting embedded NATS server on port ${actualPort} with MQTT on port ${mqttPort}...`;
+              statusText = `starting (MQTT:${mqttPort})...`;
+              log(`MQTT enabled on port ${mqttPort}`);
+            }
+            
+            // JetStream configuration (required for MQTT)
+            if (enableJetStream || enableMqtt) {
+              serverConfig.jetstream = {};
+              if (node.storeDir) {
+                serverConfig.jetstream.store_dir = node.storeDir;
               }
-            };
+              if (node.maxMemoryStore) {
+                const sizeMatch = node.maxMemoryStore.match(/^(\d+)(GB|MB|KB|B)?$/i);
+                if (sizeMatch) {
+                  let bytes = parseInt(sizeMatch[1]);
+                  const unit = (sizeMatch[2] || 'B').toUpperCase();
+                  if (unit === 'GB') bytes *= 1024 * 1024 * 1024;
+                  else if (unit === 'MB') bytes *= 1024 * 1024;
+                  else if (unit === 'KB') bytes *= 1024;
+                  serverConfig.jetstream.max_memory_store = bytes;
+                }
+              }
+            }
+            
+            // HTTP Monitoring
+            if (node.httpPort) {
+              serverConfig.http_port = parseInt(node.httpPort);
+            }
+            
+            // Logging
+            if (node.enableDebugLog || node.logLevel === 'debug') {
+              serverConfig.debug = true;
+            }
+            if (node.enableTrace || node.logLevel === 'trace') {
+              serverConfig.trace = true;
+            }
+            
+            // Limits
+            if (node.maxConnections) {
+              serverConfig.max_connections = parseInt(node.maxConnections);
+            }
+            if (node.maxPayload) {
+              serverConfig.max_payload = parseInt(node.maxPayload);
+            }
 
-            // Write config to temp file
-            configFile = path.join(os.tmpdir(), `nats-leaf-${Date.now()}.conf`);
-            fs.writeFileSync(configFile, JSON.stringify(leafConfig, null, 2));
+            // Write config to temp file (using NATS conf format, not JSON)
+            configFile = path.join(os.tmpdir(), `nats-embedded-${Date.now()}.conf`);
+            const configContent = generateNatsConfig(serverConfig);
+            fs.writeFileSync(configFile, configContent);
             args.push('-c', configFile);
+            log(`Using config file: ${configFile}`);
 
           } else {
+            // Simple mode - use CLI arguments (no config file needed)
             args.push('-p', requestedPort.toString());
-          }
-          
-          // Host/Network options (only for non-leaf embedded mode or if explicitly set for leaf)
-          if (!enableLeafNode || node.hostAddr) {
+            
+            // Host/Network options
             if (node.hostAddr) {
               args.push('-a', node.hostAddr);
             }
-          }
-          if (node.serverName) {
-            args.push('-n', node.serverName);
-          }
-          if (node.clientAdvertise) {
-            args.push('--client_advertise', node.clientAdvertise);
-          }
-          if (node.noAdvertise) {
-            args.push('--no_advertise');
-          }
-          
-          // Limits
-          if (node.maxConnections) {
-            args.push('--max_connections', node.maxConnections.toString());
-          }
-          if (node.maxPayload) {
-            args.push('--max_payload', node.maxPayload.toString());
-          }
-          if (node.maxSubscriptions) {
-            args.push('--max_subscriptions', node.maxSubscriptions.toString());
-          }
-          if (node.maxControlLine) {
-            args.push('--max_control_line', node.maxControlLine.toString());
-          }
-          if (node.writeDeadline) {
-            args.push('--write_deadline', node.writeDeadline);
-          }
-          if (node.connectRetries) {
-            args.push('--connect_retries', node.connectRetries.toString());
-          }
-          
-          // HTTP Monitoring
-          if (node.httpPort) {
-            args.push('-m', node.httpPort.toString());
-          }
-          if (node.httpsPort) {
-            args.push('-ms', node.httpsPort.toString());
-          }
-          
-          // Logging
-          if (node.noLog) {
-            args.push('-l', '/dev/null'); // Suppress all logging
-          } else {
-            if (node.logFile) {
-              args.push('-l', node.logFile);
+            if (node.serverName) {
+              args.push('-n', node.serverName);
             }
-            if (node.enableDebugLog || node.logLevel === 'debug') {
-              args.push('-D');
+            if (node.clientAdvertise) {
+              args.push('--client_advertise', node.clientAdvertise);
             }
-            if (node.enableTrace || node.logLevel === 'trace') {
-              args.push('-V'); // Verbose/trace
+            if (node.noAdvertise) {
+              args.push('--no_advertise');
             }
-          }
-          
-          // PID file
-          if (node.pidFile) {
-            args.push('-P', node.pidFile);
-          }
-          
-          // JetStream
-          if (enableJetStream) {
-            args.push('-js');
-            if (node.memStoreOnly) {
-              args.push('--js_mem_store_only');
-            } else if (node.storeDir) {
-              args.push('-sd', node.storeDir);
+            
+            // Limits
+            if (node.maxConnections) {
+              args.push('--max_connections', node.maxConnections.toString());
             }
-            if (node.maxMemoryStore) {
-              // Parse size like "1GB", "512MB" to bytes
-              const sizeMatch = node.maxMemoryStore.match(/^(\d+)(GB|MB|KB|B)?$/i);
-              if (sizeMatch) {
-                let bytes = parseInt(sizeMatch[1]);
-                const unit = (sizeMatch[2] || 'B').toUpperCase();
-                if (unit === 'GB') bytes *= 1024 * 1024 * 1024;
-                else if (unit === 'MB') bytes *= 1024 * 1024;
-                else if (unit === 'KB') bytes *= 1024;
-                args.push('--js_max_memory_store', bytes.toString());
+            if (node.maxPayload) {
+              args.push('--max_payload', node.maxPayload.toString());
+            }
+            if (node.maxSubscriptions) {
+              args.push('--max_subscriptions', node.maxSubscriptions.toString());
+            }
+            if (node.maxControlLine) {
+              args.push('--max_control_line', node.maxControlLine.toString());
+            }
+            if (node.writeDeadline) {
+              args.push('--write_deadline', node.writeDeadline);
+            }
+            if (node.connectRetries) {
+              args.push('--connect_retries', node.connectRetries.toString());
+            }
+            
+            // HTTP Monitoring
+            if (node.httpPort) {
+              args.push('-m', node.httpPort.toString());
+            }
+            if (node.httpsPort) {
+              args.push('-ms', node.httpsPort.toString());
+            }
+            
+            // Logging
+            if (node.noLog) {
+              args.push('-l', '/dev/null'); // Suppress all logging
+            } else {
+              if (node.logFile) {
+                args.push('-l', node.logFile);
+              }
+              if (node.enableDebugLog || node.logLevel === 'debug') {
+                args.push('-D');
+              }
+              if (node.enableTrace || node.logLevel === 'trace') {
+                args.push('-V'); // Verbose/trace
               }
             }
-            if (node.syncInterval) {
-              args.push('--sync_interval', node.syncInterval);
+            
+            // PID file
+            if (node.pidFile) {
+              args.push('-P', node.pidFile);
+            }
+            
+            // JetStream
+            if (enableJetStream) {
+              args.push('-js');
+              if (node.memStoreOnly) {
+                args.push('--js_mem_store_only');
+              } else if (node.storeDir) {
+                args.push('-sd', node.storeDir);
+              }
+              if (node.maxMemoryStore) {
+                // Parse size like "1GB", "512MB" to bytes
+                const sizeMatch = node.maxMemoryStore.match(/^(\d+)(GB|MB|KB|B)?$/i);
+                if (sizeMatch) {
+                  let bytes = parseInt(sizeMatch[1]);
+                  const unit = (sizeMatch[2] || 'B').toUpperCase();
+                  if (unit === 'GB') bytes *= 1024 * 1024 * 1024;
+                  else if (unit === 'MB') bytes *= 1024 * 1024;
+                  else if (unit === 'KB') bytes *= 1024;
+                  args.push('--js_max_memory_store', bytes.toString());
+                }
+              }
+              if (node.syncInterval) {
+                args.push('--sync_interval', node.syncInterval);
+              }
             }
           }
 
@@ -268,17 +441,26 @@ module.exports = function (RED) {
             if (!started && (startupOutput.includes('Server is ready') || startupOutput.includes('Listening for client connections'))) {
               started = true;
               serverPort = actualPort; // Use actualPort (embedded or leaf port)
-              const versionText = natsServerVersion !== 'unknown' ? ` (v${natsServerVersion})` : '';
-              log(`Embedded NATS server is running on port ${serverPort}${versionText}`);
-              setStatus('running', `embedded:${serverPort}${versionText}`);
+              const versionText = natsServerVersion !== 'unknown' ? `v${natsServerVersion}` : '';
+              const sourceLabel = binarySourceUsed === 'custom' ? 'bin' : (binarySourceUsed === 'system' ? 'sys' : 'npm');
+              const statusText = `${sourceLabel}:${serverPort} ${versionText}`.trim();
+              log(`Embedded NATS server is running on port ${serverPort} (${versionText})`);
+              setStatus('running', statusText);
               
               const startedPayload = {
                 type: enableLeafNode ? 'leaf' : 'embedded',
                 port: serverPort,
                 url: `nats://localhost:${serverPort}`,
                 pid: natsServerProcess.pid,
-                version: natsServerVersion, // Add NATS server version here
-                jetstream: enableJetStream,
+                version: natsServerVersion,
+                jetstream: enableJetStream || enableMqtt, // MQTT requires JetStream
+                mqtt: enableMqtt ? {
+                  enabled: true,
+                  port: parseInt(node.mqttPort) || 1883,
+                  url: `mqtt://localhost:${parseInt(node.mqttPort) || 1883}`
+                } : { enabled: false },
+                binarySource: binarySourceUsed,
+                binaryPath: natsServerBin,
                 config: {
                   serverName: node.serverName || null,
                   maxConnections: node.maxConnections || null,
@@ -432,13 +614,26 @@ module.exports = function (RED) {
 
     // Input handler
     node.on('input', async (msg) => {
-      const command = msg.payload?.command || msg.topic || 'toggle';
+      const command = msg.payload?.command || msg.topic;
+
+      if (!command) {
+        node.warn('No command specified. Use msg.payload.command or msg.topic with: start, stop, restart, status, toggle');
+        return;
+      }
 
       switch (command) {
         case 'start':
+          if (natsServerProcess) {
+            node.warn('Server is already running');
+            return;
+          }
           await startServer();
           break;
         case 'stop':
+          if (!natsServerProcess) {
+            node.warn('Server is not running');
+            return;
+          }
           await stopServer();
           break;
         case 'restart':
@@ -458,12 +653,14 @@ module.exports = function (RED) {
           });
           break;
         case 'toggle':
-        default:
           if (natsServerProcess) {
             await stopServer();
           } else {
             await startServer();
           }
+          break;
+        default:
+          node.warn(`Unknown command: "${command}". Valid commands: start, stop, restart, status, toggle`);
           break;
       }
     });

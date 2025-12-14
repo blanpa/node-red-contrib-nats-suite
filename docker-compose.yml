@@ -4,12 +4,15 @@ services:
     container_name: nodered-dev
     user: "1000:1000"  # Node-RED runs as UID 1000
     ports:
-      - '1880:1880'
+      - '1885:1880'
       - '4223:4223' # Expose embedded NATS server port
+      - '1884:1884' # Embedded NATS MQTT port
+      - '8223:8223' # Embedded NATS HTTP monitoring
     volumes:
       - ./node-red:/data
       - ./:/data/node_modules/node-red-contrib-nats-suite
       - ./config/certs:/data/certs:ro
+      - ./bin:/data/bin:ro  # Custom NATS binaries (nats-server-linux-amd64, nats-server-linux-arm64)
     environment:
       - TZ=Europe/Berlin
     depends_on:
