@@ -155,6 +155,37 @@
         "debug": true
     },
     {
+        "id": "d4e4d8f756760404",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "localhost",
+        "port": "1884",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
         "id": "04aeed2b87e4e013",
         "type": "inject",
         "z": "d970d99ab7b62ec8",
@@ -1657,8 +1688,21 @@
         "debug": true,
         "binarySource": "custom",
         "customBinaryPath": "/data/bin/nats-server-v2.12.2-linux-amd64",
+        "configSource": "file",
+        "configFilePath": "",
         "enableMqtt": true,
         "mqttPort": "1884",
+        "enableWebsocket": true,
+        "websocketPort": "",
+        "enableTls": false,
+        "tlsCert": "",
+        "tlsKey": "",
+        "tlsCaCert": "",
+        "tlsVerify": false,
+        "enableAuth": false,
+        "authUser": "",
+        "authPassword": "",
+        "authToken": "",
         "serverName": "nats-embedded-dev",
         "maxConnections": "",
         "maxPayload": "",
@@ -1668,19 +1712,20 @@
         "httpPort": "8223",
         "httpsPort": "",
         "enableTrace": false,
-        "enableDebugLog": false,
+        "enableDebugLog": true,
         "noLog": false,
         "logFile": "",
         "pidFile": "",
         "maxMemoryStore": "",
+        "maxFileStore": "",
         "syncInterval": "",
         "hostAddr": "",
         "clientAdvertise": "",
         "noAdvertise": false,
         "connectRetries": "",
         "enableLeafNodeMode": false,
-        "x": 260,
-        "y": 100,
+        "x": 420,
+        "y": 80,
         "wires": [
             [
                 "6815de3640179f8b"
@@ -1699,9 +1744,585 @@
         "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 500,
-        "y": 100,
+        "x": 680,
+        "y": 80,
         "wires": []
+    },
+    {
+        "id": "67a5ec9848bdf5ec",
+        "type": "nats-suite-publish",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "debug": false,
+        "enableBuffer": false,
+        "mode": "publish",
+        "bufferSize": 1000,
+        "bufferSizeType": "count",
+        "bufferSizeBytes": 10485760,
+        "bufferMode": "drop-oldest",
+        "bufferPersistence": "none",
+        "bufferAutoSaveInterval": 30,
+        "message": "",
+        "dataformat": "json",
+        "datapointid": "test.test",
+        "enableTopicOverride": false,
+        "enableBatch": false,
+        "batchSize": 100,
+        "batchInterval": 1000,
+        "batchMode": "hybrid",
+        "requestTimeout": 5000,
+        "requestFallbackToPublish": true,
+        "enableAutoReply": false,
+        "replyTimeout": 5000,
+        "enableRateLimit": false,
+        "rateLimit": 100,
+        "rateLimitWindow": 1000,
+        "rateLimitBurst": 20,
+        "rateLimitAction": "drop",
+        "enableHeaders": false,
+        "headers": "",
+        "enableMsgExpiration": false,
+        "msgExpiration": 0,
+        "outputs": 0,
+        "x": 390,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "3d36080e884b6ea0",
+        "type": "nats-suite-subscribe",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "debug": false,
+        "dataformat": "auto",
+        "datapointid": "test.test",
+        "subscriptionMode": "static",
+        "queueGroup": "",
+        "x": 390,
+        "y": 360,
+        "wires": [
+            [
+                "394f60ce5adb9fe5"
+            ]
+        ]
+    },
+    {
+        "id": "43b2928740e2f51a",
+        "type": "nats-suite-stream-publisher",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "streamName": "default-stream",
+        "subjectPattern": "*",
+        "defaultSubject": "test",
+        "retention": "limits",
+        "maxMessages": -1,
+        "maxAge": "24h",
+        "maxBytes": -1,
+        "duplicateWindow": "2m",
+        "storage": "file",
+        "replicas": 1,
+        "operation": "publish",
+        "maxConsumers": -1,
+        "maxMsgsPerSubject": -1,
+        "maxMsgSize": -1,
+        "discard": "old",
+        "compression": "none",
+        "allowDirect": false,
+        "mirrorDirect": false,
+        "sealed": false,
+        "denyDelete": false,
+        "denyPurge": false,
+        "allowRollupHdrs": false,
+        "allowMsgTtl": false,
+        "x": 380,
+        "y": 440,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5c4adf208ce2e7cf",
+        "type": "nats-suite-stream-consumer",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "streamName": "default-stream",
+        "consumerName": "default-consumer",
+        "filterSubject": "test",
+        "consumerType": "pull",
+        "ackPolicy": "explicit",
+        "deliverPolicy": "new",
+        "ackWait": "30s",
+        "maxDeliver": 5,
+        "maxAckPending": 1000,
+        "idleHeartbeat": "5s",
+        "flowControl": false,
+        "batchSize": 1,
+        "maxWait": 1000,
+        "operation": "consume",
+        "x": 390,
+        "y": 520,
+        "wires": [
+            [
+                "dbc09264ed46d1b5"
+            ]
+        ]
+    },
+    {
+        "id": "22190aaa126cb385",
+        "type": "nats-suite-kv-get",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "bucket": "",
+        "bucketConfig": "",
+        "description": "",
+        "history": 10,
+        "maxAge": 0,
+        "maxBytes": 0,
+        "maxValueSize": 0,
+        "compression": false,
+        "replicas": 1,
+        "storage": "file",
+        "mode": "get",
+        "key": "",
+        "keyFrom": "config",
+        "watchPattern": "",
+        "includeHistory": false,
+        "ignoreDeletes": true,
+        "parseJSON": true,
+        "debug": false,
+        "x": 420,
+        "y": 740,
+        "wires": [
+            [
+                "0165a226214e9b9c"
+            ]
+        ]
+    },
+    {
+        "id": "729b5485982ab10a",
+        "type": "nats-suite-kv-put",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "server": "63f3bd466aaef063",
+        "bucket": "",
+        "bucketConfig": "",
+        "description": "",
+        "history": 10,
+        "maxAge": 0,
+        "maxBytes": 0,
+        "maxValueSize": 0,
+        "compression": false,
+        "replicas": 1,
+        "storage": "file",
+        "operation": "put",
+        "bucketOperation": "put",
+        "key": "",
+        "keyFrom": "config",
+        "value": "",
+        "valueFrom": "payload",
+        "stringifyJSON": true,
+        "debug": false,
+        "x": 420,
+        "y": 660,
+        "wires": [
+            [
+                "0bc2e1f6ab493d61"
+            ]
+        ]
+    },
+    {
+        "id": "a35a1140aca3220a",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 180,
+        "y": 300,
+        "wires": [
+            [
+                "67a5ec9848bdf5ec"
+            ]
+        ]
+    },
+    {
+        "id": "394f60ce5adb9fe5",
+        "type": "debug",
+        "z": "324298df8d0fb52b",
+        "name": "debug 7",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 600,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "dbc09264ed46d1b5",
+        "type": "debug",
+        "z": "324298df8d0fb52b",
+        "name": "debug 8",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 680,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "8a310091aa474c25",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 440,
+        "wires": [
+            [
+                "43b2928740e2f51a"
+            ]
+        ]
+    },
+    {
+        "id": "ddd4378f204e039d",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 660,
+        "wires": [
+            [
+                "729b5485982ab10a"
+            ]
+        ]
+    },
+    {
+        "id": "1388a5129810d952",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 740,
+        "wires": [
+            [
+                "22190aaa126cb385"
+            ]
+        ]
+    },
+    {
+        "id": "0bc2e1f6ab493d61",
+        "type": "debug",
+        "z": "324298df8d0fb52b",
+        "name": "debug 9",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "0165a226214e9b9c",
+        "type": "debug",
+        "z": "324298df8d0fb52b",
+        "name": "debug 10",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "a52c6add242d364f",
+        "type": "mqtt in",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "topic": "test",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "d4e4d8f756760404",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 430,
+        "y": 960,
+        "wires": [
+            [
+                "d5283973dfbb96a2"
+            ]
+        ]
+    },
+    {
+        "id": "825f3ea2229c0915",
+        "type": "mqtt out",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "topic": "test",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "d4e4d8f756760404",
+        "x": 430,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "c6802c4b9f1678d0",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 220,
+        "y": 860,
+        "wires": [
+            [
+                "825f3ea2229c0915"
+            ]
+        ]
+    },
+    {
+        "id": "d5283973dfbb96a2",
+        "type": "debug",
+        "z": "324298df8d0fb52b",
+        "name": "debug 11",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "175b6ba025c3fd2a",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "start",
+        "props": [
+            {
+                "p": "command",
+                "v": "start",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 90,
+        "y": 80,
+        "wires": [
+            [
+                "cd0bb54353fedd09"
+            ]
+        ]
+    },
+    {
+        "id": "5dad74e7b4060f92",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "stop",
+        "props": [
+            {
+                "p": "command",
+                "v": "stop",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 90,
+        "y": 120,
+        "wires": [
+            [
+                "cd0bb54353fedd09"
+            ]
+        ]
+    },
+    {
+        "id": "e10b5f539da3f7aa",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "restart",
+        "props": [
+            {
+                "p": "command",
+                "v": "restart",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 90,
+        "y": 160,
+        "wires": [
+            [
+                "cd0bb54353fedd09"
+            ]
+        ]
+    },
+    {
+        "id": "261e10cf0f843619",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "status",
+        "props": [
+            {
+                "p": "command",
+                "v": "status",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 90,
+        "y": 200,
+        "wires": [
+            [
+                "cd0bb54353fedd09"
+            ]
+        ]
+    },
+    {
+        "id": "57a79e24c9a2823d",
+        "type": "inject",
+        "z": "324298df8d0fb52b",
+        "name": "toggle",
+        "props": [
+            {
+                "p": "command",
+                "v": "toggle",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 90,
+        "y": 240,
+        "wires": [
+            [
+                "cd0bb54353fedd09"
+            ]
+        ]
     },
     {
         "id": "2304974aee6e0f9a",

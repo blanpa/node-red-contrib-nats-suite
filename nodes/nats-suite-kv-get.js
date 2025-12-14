@@ -270,7 +270,10 @@ module.exports = function (RED) {
     // Input handler
     node.on('input', async function (msg) {
       try {
-        if (config.mode === 'get') {
+        // Determine operation mode - msg.operation takes precedence
+        const mode = msg.operation || config.mode;
+        
+        if (mode === 'get') {
           // Determine key
           let key;
           if (config.keyFrom === 'config') {
@@ -318,7 +321,7 @@ module.exports = function (RED) {
             node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
           }, 1000);
 
-        } else if (config.mode === 'keys') {
+        } else if (mode === 'keys' || mode === 'list') {
           if (isDebug) {
             node.log(`[KV GET] LIST operation - Bucket: ${node.bucket}`);
           }
@@ -337,11 +340,14 @@ module.exports = function (RED) {
             node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
           }, 1000);
 
-        } else if (config.mode === 'watch') {
+        } else if (mode === 'watch') {
           // Watch mode doesn't use input, but we can trigger a re-watch
           if (!isWatching) {
             await startWatch();
           }
+        } else {
+          node.error(`Unknown operation: ${mode}`, msg);
+          return;
         }
 
       } catch (err) {

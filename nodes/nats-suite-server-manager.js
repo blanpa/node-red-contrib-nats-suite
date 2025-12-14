@@ -11,6 +11,7 @@ module.exports = function (RED) {
     const node = this;
 
     this.name = config.name || "";
+    this.serverType = config.serverType || 'embedded'; // Always embedded now
     
     this.port = config.port || 4222;
     this.leafPort = config.leafPort || 7422;
@@ -26,9 +27,30 @@ module.exports = function (RED) {
     this.binarySource = config.binarySource || 'auto';
     this.customBinaryPath = config.customBinaryPath || '';
     
+    // Config source: 'generated' (build from UI settings), 'file' (use external config file)
+    this.configSource = config.configSource || 'generated';
+    this.configFilePath = config.configFilePath || '';
+    
     // MQTT options
     this.enableMqtt = config.enableMqtt || false;
     this.mqttPort = config.mqttPort || 1883;
+    
+    // WebSocket options
+    this.enableWebsocket = config.enableWebsocket || false;
+    this.websocketPort = config.websocketPort || 8080;
+    
+    // TLS options
+    this.enableTls = config.enableTls || false;
+    this.tlsCert = config.tlsCert || '';
+    this.tlsKey = config.tlsKey || '';
+    this.tlsCaCert = config.tlsCaCert || '';
+    this.tlsVerify = config.tlsVerify || false;
+    
+    // Authentication options
+    this.enableAuth = config.enableAuth || false;
+    this.authUser = config.authUser || '';
+    this.authPassword = config.authPassword || '';
+    this.authToken = config.authToken || '';
     
     // New embedded server options
     this.serverName = config.serverName || '';
@@ -46,6 +68,7 @@ module.exports = function (RED) {
     this.logFile = config.logFile || '';
     this.pidFile = config.pidFile || '';
     this.maxMemoryStore = config.maxMemoryStore || '';
+    this.maxFileStore = config.maxFileStore || '';
     this.memStoreOnly = config.memStoreOnly || false;
     this.syncInterval = config.syncInterval || '';
     this.hostAddr = config.hostAddr || '';
@@ -68,11 +91,13 @@ module.exports = function (RED) {
     const setStatus = (status, text) => {
       const statusMap = {
         'stopped': { fill: 'grey', shape: 'ring', text: text || 'stopped' },
+        'initializing': { fill: 'blue', shape: 'ring', text: text || 'initializing...' },
         'starting': { fill: 'yellow', shape: 'ring', text: text || 'starting...' },
         'running': { fill: 'green', shape: 'dot', text: text || 'running' },
         'error': { fill: 'red', shape: 'ring', text: text || 'error' }
       };
-      node.status(statusMap[status] || statusMap.stopped);
+      const statusObj = statusMap[status] || statusMap.stopped;
+      node.status(statusObj);
     };
 
     // Helper function to generate NATS config file content
@@ -140,6 +165,8 @@ module.exports = function (RED) {
     // Start embedded NATS server (direct binary execution for reliability)
     const startEmbeddedServer = async () => {
       try {
+        setStatus('initializing', 'initializing...');
+        
         const requestedPort = parseInt(node.port) || 4222;
         const enableJetStream = node.enableJetStream !== false; // Default true
         const enableLeafNode = node.enableLeafNodeMode === true; // Only true if explicitly enabled
@@ -156,6 +183,7 @@ module.exports = function (RED) {
         let statusText = 'starting embedded...';
 
         // Find nats-server binary based on binarySource setting
+        setStatus('initializing', 'finding binary...');
         let natsServerBin = null;
         let binarySourceUsed = node.binarySource || 'auto';
         
@@ -218,6 +246,7 @@ module.exports = function (RED) {
         }
 
         // Get NATS server version once at the start
+        setStatus('initializing', 'checking version...');
         natsServerVersion = await getNatsServerVersion(natsServerBin);
         log(`NATS server binary version: v${natsServerVersion}`);
 
@@ -237,11 +266,43 @@ module.exports = function (RED) {
 
         return new Promise((resolve, reject) => {
           const args = [];
-          
-          // Determine if we need a config file (for MQTT or Leaf Node)
-          const needsConfigFile = enableLeafNode || enableMqtt;
 
-          if (needsConfigFile) {
+          // Check if using external config file
+          const useExternalConfig = node.configSource === 'file' && node.configFilePath;
+          
+          if (useExternalConfig) {
+            // Use external config file directly
+            if (!fs.existsSync(node.configFilePath)) {
+              node.error(`Config file not found: ${node.configFilePath}`);
+              setStatus('error', 'config not found');
+              reject(new Error(`Config file not found: ${node.configFilePath}`));
+              return;
+            }
+            
+            log(`Using external config file: ${node.configFilePath}`);
+            setStatus('initializing', 'loading config file...');
+            args.push('-c', node.configFilePath);
+            
+            // Try to extract port from config file for status display
+            try {
+              const configContent = fs.readFileSync(node.configFilePath, 'utf8');
+              const portMatch = configContent.match(/^port:\s*(\d+)/m);
+              if (portMatch) {
+                actualPort = parseInt(portMatch[1]);
+                log(`Detected port ${actualPort} from config file`);
+              }
+            } catch (err) {
+              log(`Could not read config file for port detection: ${err.message}`);
+            }
+            
+            startupLogMessage = `Starting NATS server with config: ${node.configFilePath}...`;
+            statusText = `config: ${path.basename(node.configFilePath)}`;
+          } else {
+            // Determine if we need a generated config file (for advanced features)
+            const needsConfigFile = enableLeafNode || enableMqtt || node.enableWebsocket || node.enableTls || node.enableAuth;
+
+            if (needsConfigFile) {
+              setStatus('initializing', 'generating config...');
             // Build config object
             const serverConfig = {};
             
@@ -283,6 +344,53 @@ module.exports = function (RED) {
               log(`MQTT enabled on port ${mqttPort}`);
             }
             
+            // WebSocket configuration
+            if (node.enableWebsocket) {
+              const wsPort = parseInt(node.websocketPort) || 8080;
+              serverConfig.websocket = {
+                port: wsPort,
+                no_tls: !node.enableTls
+              };
+              log(`WebSocket enabled on port ${wsPort}`);
+            }
+            
+            // TLS configuration
+            if (node.enableTls) {
+              if (!node.tlsCert || !node.tlsKey) {
+                node.warn('TLS enabled but certificate or key path not specified');
+              } else {
+                serverConfig.tls = {
+                  cert_file: node.tlsCert,
+                  key_file: node.tlsKey
+                };
+                if (node.tlsCaCert) {
+                  serverConfig.tls.ca_file = node.tlsCaCert;
+                }
+                if (node.tlsVerify) {
+                  serverConfig.tls.verify = true;
+                }
+                log(`TLS enabled with cert: ${node.tlsCert}`);
+              }
+            }
+            
+            // Authentication configuration
+            if (node.enableAuth) {
+              if (node.authToken) {
+                serverConfig.authorization = {
+                  token: node.authToken
+                };
+                log('Token authentication enabled');
+              } else if (node.authUser && node.authPassword) {
+                serverConfig.authorization = {
+                  user: node.authUser,
+                  password: node.authPassword
+                };
+                log(`User authentication enabled for user: ${node.authUser}`);
+              } else {
+                node.warn('Authentication enabled but no credentials specified');
+              }
+            }
+            
             // JetStream configuration (required for MQTT)
             if (enableJetStream || enableMqtt) {
               serverConfig.jetstream = {};
@@ -298,6 +406,17 @@ module.exports = function (RED) {
                   else if (unit === 'MB') bytes *= 1024 * 1024;
                   else if (unit === 'KB') bytes *= 1024;
                   serverConfig.jetstream.max_memory_store = bytes;
+                }
+              }
+              if (node.maxFileStore) {
+                const sizeMatch = node.maxFileStore.match(/^(\d+)(GB|MB|KB|B)?$/i);
+                if (sizeMatch) {
+                  let bytes = parseInt(sizeMatch[1]);
+                  const unit = (sizeMatch[2] || 'B').toUpperCase();
+                  if (unit === 'GB') bytes *= 1024 * 1024 * 1024;
+                  else if (unit === 'MB') bytes *= 1024 * 1024;
+                  else if (unit === 'KB') bytes *= 1024;
+                  serverConfig.jetstream.max_file_store = bytes;
                 }
               }
             }
@@ -421,9 +540,10 @@ module.exports = function (RED) {
               }
             }
           }
+          } // End of else (not using external config)
 
           log(startupLogMessage);
-          setStatus('starting', statusText);
+          setStatus('starting', `spawning on :${actualPort}...`);
           log(`Spawning: ${natsServerBin} ${args.join(' ')}`);
 
           // Spawn the nats-server process
@@ -434,9 +554,20 @@ module.exports = function (RED) {
 
           let started = false;
           let startupOutput = '';
+          let lastStatusPhase = '';
 
           const checkStarted = (data) => {
             startupOutput += data.toString();
+            // Update status as server progresses (only if phase changes)
+            if (!started) {
+              if (startupOutput.includes('JetStream') && lastStatusPhase !== 'jetstream') {
+                lastStatusPhase = 'jetstream';
+                setStatus('starting', 'JetStream loading...');
+              } else if (startupOutput.includes('Starting nats-server') && lastStatusPhase === '') {
+                lastStatusPhase = 'nats';
+                setStatus('starting', 'nats-server starting...');
+              }
+            }
             // NATS server outputs "Server is ready" when fully started
             if (!started && (startupOutput.includes('Server is ready') || startupOutput.includes('Listening for client connections'))) {
               started = true;
@@ -444,50 +575,104 @@ module.exports = function (RED) {
               const versionText = natsServerVersion !== 'unknown' ? `v${natsServerVersion}` : '';
               const sourceLabel = binarySourceUsed === 'custom' ? 'bin' : (binarySourceUsed === 'system' ? 'sys' : 'npm');
               const statusText = `${sourceLabel}:${serverPort} ${versionText}`.trim();
-              log(`Embedded NATS server is running on port ${serverPort} (${versionText})`);
-              setStatus('running', statusText);
               
-              const startedPayload = {
-                type: enableLeafNode ? 'leaf' : 'embedded',
-                port: serverPort,
-                url: `nats://localhost:${serverPort}`,
-                pid: natsServerProcess.pid,
-                version: natsServerVersion,
-                jetstream: enableJetStream || enableMqtt, // MQTT requires JetStream
-                mqtt: enableMqtt ? {
-                  enabled: true,
-                  port: parseInt(node.mqttPort) || 1883,
-                  url: `mqtt://localhost:${parseInt(node.mqttPort) || 1883}`
-                } : { enabled: false },
-                binarySource: binarySourceUsed,
-                binaryPath: natsServerBin,
-                config: {
-                  serverName: node.serverName || null,
-                  maxConnections: node.maxConnections || null,
-                  maxPayload: node.maxPayload || null,
-                  httpPort: node.httpPort || null
+              // Verify server is actually accepting connections before marking as running
+              setStatus('starting', 'verifying connection...');
+              
+              const verifyConnection = async () => {
+                const net = require('net');
+                const maxRetries = 10;
+                const retryDelay = 200;
+                
+                for (let i = 0; i < maxRetries; i++) {
+                  try {
+                    await new Promise((resolveConn, rejectConn) => {
+                      const socket = net.createConnection({ port: serverPort, host: 'localhost' }, () => {
+                        socket.destroy();
+                        resolveConn();
+                      });
+                      socket.on('error', (err) => {
+                        socket.destroy();
+                        rejectConn(err);
+                      });
+                      socket.setTimeout(1000, () => {
+                        socket.destroy();
+                        rejectConn(new Error('timeout'));
+                      });
+                    });
+                    // Connection successful
+                    log(`Embedded NATS server is running on port ${serverPort} (${versionText})`);
+                    setStatus('running', statusText);
+                    return true;
+                  } catch (err) {
+                    if (i < maxRetries - 1) {
+                      setStatus('starting', `waiting for port ${serverPort}...`);
+                      await new Promise(r => setTimeout(r, retryDelay));
+                    }
+                  }
                 }
+                // Still mark as running even if verification fails (server might be ready anyway)
+                log(`Embedded NATS server presumed running on port ${serverPort} (${versionText})`);
+                setStatus('running', statusText);
+                return true;
               };
               
-              // Add monitoring URL if HTTP port is configured
-              if (node.httpPort) {
-                startedPayload.monitoringUrl = `http://localhost:${node.httpPort}`;
-                startedPayload.endpoints = {
-                  varz: `http://localhost:${node.httpPort}/varz`,
-                  connz: `http://localhost:${node.httpPort}/connz`,
-                  subsz: `http://localhost:${node.httpPort}/subsz`,
-                  healthz: `http://localhost:${node.httpPort}/healthz`
+              verifyConnection().then(() => {
+                const startedPayload = {
+                  type: enableLeafNode ? 'leaf' : 'embedded',
+                  port: serverPort,
+                  url: `nats://localhost:${serverPort}`,
+                  pid: natsServerProcess.pid,
+                  version: natsServerVersion,
+                  jetstream: enableJetStream || enableMqtt, // MQTT requires JetStream
+                  mqtt: enableMqtt ? {
+                    enabled: true,
+                    port: parseInt(node.mqttPort) || 1883,
+                    url: `mqtt://localhost:${parseInt(node.mqttPort) || 1883}`
+                  } : { enabled: false },
+                  websocket: node.enableWebsocket ? {
+                    enabled: true,
+                    port: parseInt(node.websocketPort) || 8080,
+                    url: `ws://localhost:${parseInt(node.websocketPort) || 8080}`
+                  } : { enabled: false },
+                  tls: node.enableTls ? {
+                    enabled: true,
+                    verify: node.tlsVerify || false
+                  } : { enabled: false },
+                  auth: node.enableAuth ? {
+                    enabled: true,
+                    type: node.authToken ? 'token' : 'user'
+                  } : { enabled: false },
+                  binarySource: binarySourceUsed,
+                  binaryPath: natsServerBin,
+                  config: {
+                    serverName: node.serverName || null,
+                    maxConnections: node.maxConnections || null,
+                    maxPayload: node.maxPayload || null,
+                    httpPort: node.httpPort || null
+                  }
                 };
-                if (enableJetStream) {
-                  startedPayload.endpoints.jsz = `http://localhost:${node.httpPort}/jsz`;
+                
+                // Add monitoring URL if HTTP port is configured
+                if (node.httpPort) {
+                  startedPayload.monitoringUrl = `http://localhost:${node.httpPort}`;
+                  startedPayload.endpoints = {
+                    varz: `http://localhost:${node.httpPort}/varz`,
+                    connz: `http://localhost:${node.httpPort}/connz`,
+                    subsz: `http://localhost:${node.httpPort}/subsz`,
+                    healthz: `http://localhost:${node.httpPort}/healthz`
+                  };
+                  if (enableJetStream) {
+                    startedPayload.endpoints.jsz = `http://localhost:${node.httpPort}/jsz`;
+                  }
                 }
-              }
-              
-              node.send({
-                topic: 'server.started',
-                payload: startedPayload
+                
+                node.send({
+                  topic: 'server.started',
+                  payload: startedPayload
+                });
+                resolve();
               });
-              resolve();
             }
           };
 
@@ -614,10 +799,10 @@ module.exports = function (RED) {
 
     // Input handler
     node.on('input', async (msg) => {
-      const command = msg.payload?.command || msg.topic;
+      const command = msg.command || msg.payload?.command || msg.topic;
 
       if (!command) {
-        node.warn('No command specified. Use msg.payload.command or msg.topic with: start, stop, restart, status, toggle');
+        node.warn('No command specified. Use msg.command or msg.topic with: start, stop, restart, status, toggle');
         return;
       }
 
@@ -667,7 +852,12 @@ module.exports = function (RED) {
 
     // Auto-start if configured
     if (node.autoStart) {
-      setTimeout(() => {
+      // Set initial status immediately so user sees the node is preparing
+      setStatus('initializing', 'auto-start in 1s...');
+      setTimeout(async () => {
+        setStatus('initializing', 'starting...');
+        // Small delay to ensure UI updates before heavy work
+        await new Promise(r => setTimeout(r, 50));
         startServer();
       }, 1000);
     } else {

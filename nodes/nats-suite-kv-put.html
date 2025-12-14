@@ -344,12 +344,22 @@
 
   <h3>Operations</h3>
   <ul>
-    <li><strong>Put:</strong> Create or update a key</li>
-    <li><strong>Create:</strong> Create only if key doesn't exist</li>
-    <li><strong>Update:</strong> Update only if key exists</li>
-    <li><strong>Delete:</strong> Soft delete (preserves history)</li>
-    <li><strong>Purge:</strong> Complete removal with history</li>
+    <li><strong>put:</strong> Create or update a key</li>
+    <li><strong>create:</strong> Create only if key doesn't exist</li>
+    <li><strong>update:</strong> Update only if key exists</li>
+    <li><strong>delete:</strong> Soft delete (preserves history)</li>
+    <li><strong>purge:</strong> Complete removal with history</li>
+    <li><strong>bucket-create:</strong> Create a new bucket</li>
+    <li><strong>bucket-info:</strong> Get bucket information</li>
+    <li><strong>bucket-delete:</strong> Delete a bucket</li>
+    <li><strong>bucket-list:</strong> List all buckets</li>
   </ul>
+
+  <h3>Dynamic Operation</h3>
+  <p>The operation can be set dynamically via <code>msg.operation</code>. 
+  Valid values: <code>put</code>, <code>create</code>, <code>update</code>, <code>delete</code>, <code>purge</code>, 
+  <code>bucket-create</code>, <code>bucket-info</code>, <code>bucket-delete</code>, <code>bucket-list</code>.</p>
+  <p>If <code>msg.operation</code> is set, it overrides the configured operation.</p>
 
   <h3>Outputs</h3>
   <dl class="message-properties">

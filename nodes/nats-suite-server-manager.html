@@ -16,9 +16,26 @@
       // Binary source selection
       binarySource: { value: "auto" },
       customBinaryPath: { value: "" },
+      // Config source selection
+      configSource: { value: "generated" },
+      configFilePath: { value: "" },
       // MQTT options
       enableMqtt: { value: false },
       mqttPort: { value: 1883, validate: function(val) { return !val || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536); } },
+      // WebSocket options
+      enableWebsocket: { value: false },
+      websocketPort: { value: 8080, validate: function(val) { return !val || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536); } },
+      // TLS options
+      enableTls: { value: false },
+      tlsCert: { value: "" },
+      tlsKey: { value: "" },
+      tlsCaCert: { value: "" },
+      tlsVerify: { value: false },
+      // Authentication options
+      enableAuth: { value: false },
+      authUser: { value: "" },
+      authPassword: { value: "" },
+      authToken: { value: "" },
       // New embedded server options
       serverName: { value: "" },
       maxConnections: { value: "" },
@@ -35,6 +52,7 @@
       logFile: { value: "" },
       pidFile: { value: "" },
       maxMemoryStore: { value: "" },
+      maxFileStore: { value: "" },
       syncInterval: { value: "" },
       hostAddr: { value: "" },
       clientAdvertise: { value: "" },
@@ -128,7 +146,7 @@
       $('#node-input-binarySource').on('change', function() {
         const source = $(this).val();
         $('#custom-binary-path-row').toggle(source === 'custom');
-        
+
         // Update hint text based on selection
         const hints = {
           'auto': 'Auto-detect: Uses nats-memory-server (npm package) or falls back to system PATH',
@@ -138,11 +156,57 @@
         $('#binary-source-hint').text(hints[source] || hints['auto']);
       });
       
+      // Config source handler
+      $('#node-input-configSource').on('change', function() {
+        const source = $(this).val();
+        $('#config-file-path-row').toggle(source === 'file');
+        // Hide/show generated config sections when using external file
+        $('.generated-config-section').toggle(source !== 'file');
+        
+        const hints = {
+          'generated': 'Configuration is built from the settings below',
+          'file': 'Use an external NATS config file (all settings below are ignored)'
+        };
+        $('#config-source-hint').text(hints[source] || hints['generated']);
+      });
+      
+      // WebSocket handler
+      $('#node-input-enableWebsocket').on('change', function() {
+        $('#websocket-options').toggle($(this).is(':checked'));
+      });
+      
+      // TLS handler
+      $('#node-input-enableTls').on('change', function() {
+        $('#tls-options').toggle($(this).is(':checked'));
+      });
+      
+      // Auth handler
+      $('#node-input-enableAuth').on('change', function() {
+        const authEnabled = $(this).is(':checked');
+        $('#auth-options').toggle(authEnabled);
+      });
+      
+      // Auth type toggle (token vs user/pass)
+      $('#node-input-authToken').on('input', function() {
+        const hasToken = $(this).val().length > 0;
+        $('#auth-userpass-row').toggle(!hasToken);
+        if (hasToken) {
+          $('#auth-type-hint').text('Using token authentication');
+        } else {
+          $('#auth-type-hint').text('Using username/password authentication');
+        }
+      });
+      
       updateVisibility(); // Initial call
       $('#node-input-enableJetStream').trigger('change');
       $('#node-input-enableMqtt').trigger('change');
+      $('#node-input-enableWebsocket').trigger('change');
+      $('#node-input-enableTls').trigger('change');
+      $('#node-input-enableAuth').trigger('change');
+      $('#node-input-authToken').trigger('input');
       $('#node-input-httpPort').trigger('input');
       $('#node-input-binarySource').trigger('change');
+      $('#node-input-configSource').trigger('change');
     }
   });
 </script>
@@ -275,7 +339,7 @@
       text-transform: uppercase;
       margin-left: 8px;
     }
-    .nats-badge-new {
+    .nats-badge-info {
       background: #d4edda;
       color: #155724;
     }
@@ -352,16 +416,31 @@
           <input type="text" id="node-input-customBinaryPath" placeholder="/data/bin/nats-server">
           <div class="nats-hint">Full path to your mounted nats-server binary</div>
         </div>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;">
+        
+        <div class="nats-form-row">
+          <label><i class="fa fa-file-text"></i>Config Source</label>
+          <select id="node-input-configSource">
+            <option value="generated">Generated (from settings below)</option>
+            <option value="file">External Config File</option>
+          </select>
+          <div class="nats-hint" id="config-source-hint">Configuration is built from the settings below</div>
+        </div>
+        <div class="nats-form-row" id="config-file-path-row" style="display: none;">
+          <label><i class="fa fa-file-code-o"></i>Config File Path</label>
+          <input type="text" id="node-input-configFilePath" placeholder="/data/nats-server.conf">
+          <div class="nats-hint">Path to your NATS server config file (.conf)</div>
+        </div>
       </div>
     </div>
 
     <!-- MQTT Configuration -->
-    <div class="nats-section">
+    <div class="nats-section generated-config-section">
       <div class="nats-section-header">
         <div class="nats-section-title">
           <i class="fa fa-rss"></i>
           <span>MQTT Bridge</span>
-          <span class="nats-badge nats-badge-new">NEW</span>
         </div>
         <i class="fa fa-chevron-right nats-section-toggle"></i>
       </div>
@@ -392,8 +471,118 @@
       </div>
     </div>
     
+    <!-- WebSocket Configuration -->
+    <div class="nats-section generated-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-globe"></i>
+          <span>WebSocket</span>
+        </div>
+        <i class="fa fa-chevron-right nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content" style="display: none;">
+        <div class="nats-info-box">
+          <i class="fa fa-info-circle"></i>
+          Enable WebSocket to allow browser-based clients to connect to the NATS server.
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableWebsocket">
+          <label for="node-input-enableWebsocket"><i class="fa fa-globe"></i>Enable WebSocket</label>
+        </div>
+        <div id="websocket-options" style="display: none;">
+          <div class="nats-form-row">
+            <label><i class="fa fa-plug"></i>WebSocket Port</label>
+            <input type="number" id="node-input-websocketPort" placeholder="8080" min="1" max="65535">
+            <div class="nats-hint">WebSocket client connection port (default: 8080)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TLS Configuration -->
+    <div class="nats-section generated-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-lock"></i>
+          <span>TLS / SSL</span>
+        </div>
+        <i class="fa fa-chevron-right nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content" style="display: none;">
+        <div class="nats-info-box">
+          <i class="fa fa-info-circle"></i>
+          Enable TLS for encrypted connections. Requires certificate and key files.
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableTls">
+          <label for="node-input-enableTls"><i class="fa fa-lock"></i>Enable TLS</label>
+        </div>
+        <div id="tls-options" style="display: none;">
+          <div class="nats-form-row">
+            <label><i class="fa fa-certificate"></i>Certificate File</label>
+            <input type="text" id="node-input-tlsCert" placeholder="/path/to/server-cert.pem">
+            <div class="nats-hint">Path to server certificate file (PEM format)</div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-key"></i>Key File</label>
+            <input type="text" id="node-input-tlsKey" placeholder="/path/to/server-key.pem">
+            <div class="nats-hint">Path to server private key file (PEM format)</div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-shield"></i>CA Certificate (optional)</label>
+            <input type="text" id="node-input-tlsCaCert" placeholder="/path/to/ca.pem">
+            <div class="nats-hint">Path to CA certificate for client verification</div>
+          </div>
+          <div class="nats-checkbox-row">
+            <input type="checkbox" id="node-input-tlsVerify">
+            <label for="node-input-tlsVerify"><i class="fa fa-check-circle"></i>Verify Client Certificates</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Authentication Configuration -->
+    <div class="nats-section generated-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-user-secret"></i>
+          <span>Authentication</span>
+        </div>
+        <i class="fa fa-chevron-right nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content" style="display: none;">
+        <div class="nats-info-box">
+          <i class="fa fa-info-circle"></i>
+          Enable authentication to require credentials for client connections.
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableAuth">
+          <label for="node-input-enableAuth"><i class="fa fa-user-secret"></i>Enable Authentication</label>
+        </div>
+        <div id="auth-options" style="display: none;">
+          <div class="nats-form-row">
+            <label><i class="fa fa-ticket"></i>Token (optional)</label>
+            <input type="password" id="node-input-authToken" placeholder="Enter token for token-based auth">
+            <div class="nats-hint" id="auth-type-hint">Leave empty to use username/password authentication</div>
+          </div>
+          <div id="auth-userpass-row">
+            <div class="nats-grid">
+              <div class="nats-form-row">
+                <label><i class="fa fa-user"></i>Username</label>
+                <input type="text" id="node-input-authUser" placeholder="Username">
+              </div>
+              <div class="nats-form-row">
+                <label><i class="fa fa-lock"></i>Password</label>
+                <input type="password" id="node-input-authPassword" placeholder="Password">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Embedded Server Configuration -->
-    <div id="embedded-config">
+    <div id="embedded-config" class="generated-config-section">
       <div class="nats-section">
         <div class="nats-section-header">
           <div class="nats-section-title">
@@ -585,16 +774,11 @@
             <div class="nats-hint">Path to log file (leave empty for console)</div>
           </div>
           <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-enableTrace">
-            <label for="node-input-enableTrace"><i class="fa fa-search"></i>Enable Trace (protocol tracing)</label>
-          </div>
-          <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-enableDebugLog">
-            <label for="node-input-enableDebugLog"><i class="fa fa-bug"></i>Enable Debug Logging</label>
-          </div>
-          <div class="nats-checkbox-row">
             <input type="checkbox" id="node-input-noLog">
             <label for="node-input-noLog"><i class="fa fa-ban"></i>Disable All Logging</label>
+          </div>
+          <div class="nats-hint">
+            <i class="fa fa-info-circle"></i> Debug/Trace options are in the "Startup & Debug" section above
           </div>
         </div>
       </div>
@@ -636,10 +820,15 @@
               <div class="nats-hint">e.g., 1GB, 512MB</div>
             </div>
             <div class="nats-form-row">
-              <label><i class="fa fa-clock-o"></i>Sync Interval</label>
-              <input type="text" id="node-input-syncInterval" placeholder="2m">
-              <div class="nats-hint">How often to sync to disk</div>
+              <label><i class="fa fa-database"></i>Max File Store</label>
+              <input type="text" id="node-input-maxFileStore" placeholder="Unlimited">
+              <div class="nats-hint">e.g., 10GB, 1TB</div>
             </div>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-clock-o"></i>Sync Interval</label>
+            <input type="text" id="node-input-syncInterval" placeholder="2m">
+            <div class="nats-hint">How often to sync to disk</div>
           </div>
         </div>
       </div>
@@ -663,8 +852,16 @@
           <input type="checkbox" id="node-input-debug">
           <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Node-RED Debug Logging</label>
         </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableDebugLog">
+          <label for="node-input-enableDebugLog"><i class="fa fa-terminal"></i>Enable NATS Server Debug (-D)</label>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableTrace">
+          <label for="node-input-enableTrace"><i class="fa fa-search"></i>Enable NATS Server Trace (-V)</label>
+        </div>
         <div class="nats-hint" style="margin-top: 8px;">
-          <i class="fa fa-lightbulb-o"></i> Tip: Send <code>msg.payload.command = "start|stop|restart|status"</code> to control the server
+          <i class="fa fa-lightbulb-o"></i> Tip: Send <code>msg.command = "start|stop|restart|status"</code> to control the server
         </div>
       </div>
     </div>
@@ -688,6 +885,15 @@
     </dd>
     <dt>Custom Binary Path</dt>
     <dd>Path to a custom nats-server binary (e.g., <code>/data/bin/nats-server</code>). Only visible when "Custom Binary" is selected.</dd>
+    <dt>Config Source</dt>
+    <dd>Choose how to configure the server:
+      <ul>
+        <li><b>Generated</b>: Build configuration from the UI settings below</li>
+        <li><b>External Config File</b>: Use a mounted .conf file (all UI settings are ignored)</li>
+      </ul>
+    </dd>
+    <dt>Config File Path</dt>
+    <dd>Path to an external NATS config file (e.g., <code>/data/nats-server.conf</code>). Only visible when "External Config File" is selected.</dd>
     <dt>Enable Embedded as Leaf Node</dt>
     <dd>If checked, the embedded server will act as a Leaf Node, connecting to a remote NATS cluster.</dd>
     <dt>Port</dt>
@@ -717,23 +923,58 @@
   </dl>
   <p><i>Note: MQTT requires JetStream (auto-enabled) and a Server Name (auto-generated if not set).</i></p>
 
+  <h3>WebSocket</h3>
+  <dl class="message-properties">
+    <dt>Enable WebSocket</dt>
+    <dd>Enable WebSocket protocol for browser-based clients.</dd>
+    <dt>WebSocket Port</dt>
+    <dd>Port for WebSocket connections (default: 8080)</dd>
+  </dl>
+
+  <h3>TLS / SSL</h3>
+  <dl class="message-properties">
+    <dt>Enable TLS</dt>
+    <dd>Enable TLS encryption for all connections.</dd>
+    <dt>Certificate File</dt>
+    <dd>Path to server certificate (PEM format)</dd>
+    <dt>Key File</dt>
+    <dd>Path to server private key (PEM format)</dd>
+    <dt>CA Certificate</dt>
+    <dd>Optional CA certificate for client verification</dd>
+    <dt>Verify Client Certificates</dt>
+    <dd>Require and verify client certificates</dd>
+  </dl>
+
+  <h3>Authentication</h3>
+  <dl class="message-properties">
+    <dt>Enable Authentication</dt>
+    <dd>Require credentials for client connections.</dd>
+    <dt>Token</dt>
+    <dd>Token-based authentication (takes priority over user/password)</dd>
+    <dt>Username / Password</dt>
+    <dd>Basic username/password authentication</dd>
+  </dl>
+
   <h3>JetStream Options</h3>
   <dl class="message-properties">
     <dt>Store Directory</dt>
     <dd>Path for persistent JetStream data</dd>
     <dt>Max Memory Store</dt>
     <dd>Memory limit for in-memory streams (e.g., 1GB)</dd>
+    <dt>Max File Store</dt>
+    <dd>Disk storage limit for streams (e.g., 10GB)</dd>
     <dt>Sync Interval</dt>
     <dd>How often to sync data to disk (e.g., 2m)</dd>
   </dl>
 
   <h3>Control Commands</h3>
   <p>Send messages to control the server:</p>
-  <pre>msg.payload.command = "start"   // Start server
-msg.payload.command = "stop"    // Stop server
-msg.payload.command = "restart" // Restart server
-msg.payload.command = "status"  // Get server status
-msg.payload.command = "toggle"  // Toggle start/stop</pre>
+  <pre>msg.command = "start"   // Start server
+msg.command = "stop"    // Stop server
+msg.command = "restart" // Restart server
+msg.command = "status"  // Get server status
+msg.command = "toggle"  // Toggle start/stop</pre>
+  <p><i>Alternative: You can also use <code>msg.topic</code> or <code>msg.payload.command</code></i></p>
 
   <h3>Outputs</h3>
   <dl class="message-properties">
@@ -747,10 +988,16 @@ msg.payload.command = "toggle"  // Toggle start/stop</pre>
     <dd>Connection URL (e.g., "nats://localhost:4222")</dd>
     <dt>payload.mqtt <span class="property-type">object</span></dt>
     <dd>MQTT info: <code>{ enabled: true, port: 1883, url: "mqtt://localhost:1883" }</code></dd>
+    <dt>payload.websocket <span class="property-type">object</span></dt>
+    <dd>WebSocket info: <code>{ enabled: true, port: 8080, url: "ws://localhost:8080" }</code></dd>
+    <dt>payload.tls <span class="property-type">object</span></dt>
+    <dd>TLS info: <code>{ enabled: true, verify: false }</code></dd>
+    <dt>payload.auth <span class="property-type">object</span></dt>
+    <dd>Auth info: <code>{ enabled: true, type: "token" }</code> or <code>{ enabled: true, type: "user" }</code></dd>
     <dt>payload.pid <span class="property-type">number</span></dt>
     <dd>Process ID</dd>
     <dt>payload.version <span class="property-type">string</span></dt>
-    <dd>NATS Server Version (e.g., "2.10.24")</dd>
+    <dd>NATS Server Version (e.g., "2.12.2")</dd>
     <dt>payload.binarySource <span class="property-type">string</span></dt>
     <dd>Binary source used: "auto", "custom", or "system"</dd>
     <dt>payload.binaryPath <span class="property-type">string</span></dt>

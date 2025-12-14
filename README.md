@@ -193,6 +193,9 @@ Use the `nats-suite-server-manager` node to run an embedded NATS server directly
 
 #### Features
 - **MQTT Bridge**: Enable MQTT protocol support (port configurable)
+- **WebSocket**: Browser-based client connections
+- **TLS/SSL**: Encrypted connections with certificate support
+- **Authentication**: Token or username/password authentication
 - **JetStream**: Persistent streams and KV store
 - **Leaf Node Mode**: Connect to remote NATS clusters
 - **HTTP Monitoring**: Server stats via HTTP endpoints (`/varz`, `/connz`, `/healthz`, etc.)
@@ -247,6 +250,22 @@ msg.payload.command = "toggle"  // Toggle start/stop
 - Configurable MQTT port (default: 1883)
 - Auto-enables JetStream (required for MQTT)
 - Auto-generates server name if not set
+
+#### **WebSocket Support**
+- Enable WebSocket for browser-based clients
+- Configurable WebSocket port (default: 8080)
+- Works with nats.ws JavaScript client
+
+#### **TLS/SSL Encryption**
+- Enable TLS for encrypted connections
+- Certificate and key file paths
+- Optional CA certificate for client verification
+- Client certificate verification option
+
+#### **Authentication**
+- Token-based authentication
+- Username/password authentication
+- Simple single-user setup
 
 #### **HTTP Monitoring**
 - Enable HTTP monitoring port for server statistics

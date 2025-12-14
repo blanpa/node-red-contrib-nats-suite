@@ -307,10 +307,15 @@
 
   <h3>Modes</h3>
   <ul>
-    <li><strong>Get:</strong> Retrieve a single value</li>
-    <li><strong>Watch:</strong> Subscribe to key changes</li>
-    <li><strong>Keys:</strong> List all keys in bucket</li>
+    <li><strong>get:</strong> Retrieve a single value</li>
+    <li><strong>watch:</strong> Subscribe to key changes</li>
+    <li><strong>keys/list:</strong> List all keys in bucket</li>
   </ul>
+
+  <h3>Dynamic Operation</h3>
+  <p>The operation mode can be set dynamically via <code>msg.operation</code>. 
+  Valid values: <code>get</code>, <code>watch</code>, <code>keys</code>, <code>list</code>.</p>
+  <p>If <code>msg.operation</code> is set, it overrides the configured mode.</p>
 
   <h3>Outputs</h3>
   <dl class="message-properties">

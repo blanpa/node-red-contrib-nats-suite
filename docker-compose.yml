@@ -8,10 +8,12 @@ services:
       - '4223:4223' # Expose embedded NATS server port
       - '1884:1884' # Embedded NATS MQTT port
       - '8223:8223' # Embedded NATS HTTP monitoring
+      - '8080:8080' # Embedded NATS WebSocket port
     volumes:
       - ./node-red:/data
       - ./:/data/node_modules/node-red-contrib-nats-suite
       - ./config/certs:/data/certs:ro
+      - ./config/nats-embedded.conf:/data/nats-embedded.conf:ro  # Custom NATS config for embedded server
       - ./bin:/data/bin:ro  # Custom NATS binaries (nats-server-linux-amd64, nats-server-linux-arm64)
     environment:
       - TZ=Europe/Berlin

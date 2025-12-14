@@ -217,11 +217,12 @@ module.exports = function (RED) {
 
         // Debug logging for operation
         if (isDebug) {
-          node.log(`[KV PUT] Operation: ${config.operation.toUpperCase()}, Key: ${key}, Bucket: ${node.bucket}`);
+          node.log(`[KV PUT] Operation: ${operation.toUpperCase()}, Key: ${key}, Bucket: ${node.bucket}`);
         }
 
-        // Perform operation
-        switch (config.operation) {
+        // Perform operation - use msg.operation if provided, otherwise config.operation
+        const op = operation;
+        switch (op) {
           case 'put': {
             // Determine value
             let value;
@@ -395,7 +396,7 @@ module.exports = function (RED) {
           }
 
           default:
-            node.error(`Unknown operation: ${config.operation}`, msg);
+            node.error(`Unknown operation: ${op}`, msg);
             return;
         }
 
