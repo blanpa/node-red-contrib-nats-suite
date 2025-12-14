@@ -61,11 +61,22 @@
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
-        } else if (op === 'create' || op === 'update') {
+          // Show all fields for publish
+          $('.create-only').show();
+        } else if (op === 'create') {
           $('#publish-config').slideUp(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
+          // Show all fields for create
+          $('.create-only').show();
+        } else if (op === 'update') {
+          $('#publish-config').slideUp(200);
+          $('#stream-settings-section').slideDown(200);
+          $('#stream-limits-section').slideDown(200);
+          $('#stream-advanced-section').slideDown(200);
+          // Hide non-editable fields for update
+          $('.create-only').hide();
         } else {
           $('#publish-config').slideUp(200);
           $('#stream-settings-section').slideUp(200);
@@ -228,11 +239,12 @@
         <div class="nats-form-row">
           <label><i class="fa fa-database"></i>Stream Name</label>
           <input type="text" id="node-input-streamName" placeholder="sensor-data">
+          <div class="nats-hint">Cannot be changed after creation</div>
         </div>
         <div class="nats-form-row">
           <label><i class="fa fa-filter"></i>Subject Pattern</label>
-          <input type="text" id="node-input-subjectPattern" placeholder="sensor.*">
-          <div class="nats-hint">Pattern for subjects captured by this stream</div>
+          <input type="text" id="node-input-subjectPattern" placeholder="sensor.*, data.>, orders.*">
+          <div class="nats-hint">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>
         </div>
         <div class="nats-form-row" id="publish-config">
           <label><i class="fa fa-paper-plane"></i>Default Subject <span class="nats-badge">msg.subject</span></label>
@@ -253,20 +265,22 @@
       </div>
       <div class="nats-section-content">
         <div class="nats-grid">
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label><i class="fa fa-archive"></i>Retention Policy</label>
             <select id="node-input-retention">
               <option value="limits">Limits</option>
               <option value="interest">Interest</option>
               <option value="workqueue">WorkQueue</option>
             </select>
+            <div class="nats-hint">Cannot be changed after creation</div>
           </div>
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label><i class="fa fa-hdd-o"></i>Storage</label>
             <select id="node-input-storage">
               <option value="file">File</option>
               <option value="memory">Memory</option>
             </select>
+            <div class="nats-hint">Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-trash"></i>Discard Policy</label>
@@ -317,10 +331,10 @@
             <input type="text" id="node-input-duplicateWindow" placeholder="2m">
             <div class="nats-hint">Deduplication time window</div>
           </div>
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label><i class="fa fa-users"></i>Max Consumers</label>
             <input type="number" id="node-input-maxConsumers" placeholder="-1 (unlimited)">
-            <div class="nats-hint">-1 for unlimited</div>
+            <div class="nats-hint">-1 for unlimited. Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-filter"></i>Max Msgs/Subject</label>
@@ -372,19 +386,19 @@
             </label>
             <div class="nats-hint">Seal stream (read-only)</div>
           </div>
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-denyDelete" style="width: auto; margin-right: 8px;">
               <i class="fa fa-ban"></i>Deny Delete
             </label>
-            <div class="nats-hint">Prevent message deletion</div>
+            <div class="nats-hint">Prevent message deletion. Cannot be changed after creation</div>
           </div>
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-denyPurge" style="width: auto; margin-right: 8px;">
               <i class="fa fa-ban"></i>Deny Purge
             </label>
-            <div class="nats-hint">Prevent stream purging</div>
+            <div class="nats-hint">Prevent stream purging. Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label>
@@ -393,12 +407,12 @@
             </label>
             <div class="nats-hint">Enable header rollups</div>
           </div>
-          <div class="nats-form-row">
+          <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-allowMsgTtl" style="width: auto; margin-right: 8px;">
               <i class="fa fa-hourglass-half"></i>Allow Message TTL
             </label>
-            <div class="nats-hint">Allow per-message TTL</div>
+            <div class="nats-hint">Allow per-message TTL. Can only be enabled at creation</div>
           </div>
         </div>
       </div>

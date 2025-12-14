@@ -44,6 +44,19 @@ module.exports = function (RED) {
       }
     };
 
+    // Helper: Parse subject patterns (comma-separated or array)
+    const parseSubjects = subjects => {
+      if (!subjects) return ['*'];
+      if (Array.isArray(subjects)) return subjects;
+      if (typeof subjects === 'string') {
+        return subjects
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+      }
+      return ['*'];
+    };
+
     // Helper: Parse duration string to nanoseconds (e.g., "24h" -> nanoseconds)
     const parseDuration = duration => {
       if (!duration) return 0;
@@ -87,7 +100,7 @@ module.exports = function (RED) {
 
             const streamConfig = {
               name: config.streamName,
-              subjects: [config.subjectPattern || '*'],
+              subjects: parseSubjects(config.subjectPattern),
               retention: config.retention || 'limits',
               storage: config.storage === 'memory' ? 'memory' : 'file',
               max_msgs: parseInt(config.maxMessages, 10) || 10000,
@@ -137,8 +150,11 @@ module.exports = function (RED) {
     // Register with connection pool
     this.serverConfig.registerConnectionUser(node.id);
 
-    // Initialize stream
-    ensureStream();
+    // Initialize stream only for publish operation
+    const operation = config.operation || 'publish';
+    if (operation === 'publish') {
+      ensureStream();
+    }
 
     // Status listener for connection changes
     const statusListener = statusInfo => {
@@ -147,8 +163,11 @@ module.exports = function (RED) {
       switch (status) {
         case 'connected':
           node.status({ fill: 'green', shape: 'dot', text: 'connected' });
-          // Re-ensure stream on reconnect
-          ensureStream();
+          // Re-ensure stream on reconnect only for publish operation
+          const operation = config.operation || 'publish';
+          if (operation === 'publish') {
+            ensureStream();
+          }
           break;
         case 'disconnected':
           node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
@@ -198,10 +217,10 @@ module.exports = function (RED) {
               streamConfig = {
                 name: targetStreamName,
                 subjects: msg.subjects
-                  ? Array.isArray(msg.subjects)
-                    ? msg.subjects
-                    : msg.subjects.split(',').map(s => s.trim())
-                  : [config.subjectPattern || targetStreamName + '.>'],
+                  ? parseSubjects(msg.subjects)
+                  : parseSubjects(
+                      config.subjectPattern || targetStreamName + '.>'
+                    ),
                 retention: msg.retention || config.retention || 'limits',
                 storage:
                   msg.storage ||
@@ -344,73 +363,109 @@ module.exports = function (RED) {
               streamConfig = {
                 ...currentStream.config,
                 subjects: msg.subjects
-                  ? Array.isArray(msg.subjects)
-                    ? msg.subjects
-                    : msg.subjects.split(',').map(s => s.trim())
-                  : currentStream.config.subjects,
-                retention: msg.retention || currentStream.config.retention,
+                  ? parseSubjects(msg.subjects)
+                  : config.subjectPattern
+                    ? parseSubjects(config.subjectPattern)
+                    : currentStream.config.subjects,
+                retention:
+                  msg.retention ||
+                  config.retention ||
+                  currentStream.config.retention,
                 max_msgs:
                   msg.maxMessages !== undefined
                     ? parseInt(msg.maxMessages, 10)
-                    : currentStream.config.max_msgs,
+                    : config.maxMessages !== undefined
+                      ? parseInt(config.maxMessages, 10)
+                      : currentStream.config.max_msgs,
                 max_bytes:
                   msg.maxBytes !== undefined
                     ? parseInt(msg.maxBytes, 10)
-                    : currentStream.config.max_bytes,
+                    : config.maxBytes !== undefined
+                      ? parseInt(config.maxBytes, 10)
+                      : currentStream.config.max_bytes,
                 max_age: msg.maxAge
                   ? parseDuration(msg.maxAge)
-                  : currentStream.config.max_age,
+                  : config.maxAge
+                    ? parseDuration(config.maxAge)
+                    : currentStream.config.max_age,
                 duplicate_window: msg.duplicateWindow
                   ? parseDuration(msg.duplicateWindow)
-                  : currentStream.config.duplicate_window,
+                  : config.duplicateWindow
+                    ? parseDuration(config.duplicateWindow)
+                    : currentStream.config.duplicate_window,
                 num_replicas:
                   msg.replicas !== undefined
                     ? parseInt(msg.replicas, 10)
-                    : currentStream.config.num_replicas,
-                discard: msg.discard || currentStream.config.discard,
+                    : config.replicas !== undefined
+                      ? parseInt(config.replicas, 10)
+                      : currentStream.config.num_replicas,
+                discard:
+                  msg.discard || config.discard || currentStream.config.discard,
                 // Extended NATS config options
                 max_consumers:
                   msg.maxConsumers !== undefined
                     ? parseInt(msg.maxConsumers, 10)
-                    : currentStream.config.max_consumers,
+                    : config.maxConsumers !== undefined
+                      ? parseInt(config.maxConsumers, 10)
+                      : currentStream.config.max_consumers,
                 max_msgs_per_subject:
                   msg.maxMsgsPerSubject !== undefined
                     ? parseInt(msg.maxMsgsPerSubject, 10)
-                    : currentStream.config.max_msgs_per_subject,
+                    : config.maxMsgsPerSubject !== undefined
+                      ? parseInt(config.maxMsgsPerSubject, 10)
+                      : currentStream.config.max_msgs_per_subject,
                 max_msg_size:
                   msg.maxMsgSize !== undefined
                     ? parseInt(msg.maxMsgSize, 10)
-                    : currentStream.config.max_msg_size,
+                    : config.maxMsgSize !== undefined
+                      ? parseInt(config.maxMsgSize, 10)
+                      : currentStream.config.max_msg_size,
                 compression:
-                  msg.compression || currentStream.config.compression,
+                  msg.compression ||
+                  config.compression ||
+                  currentStream.config.compression,
                 allow_direct:
                   msg.allowDirect !== undefined
                     ? msg.allowDirect
-                    : currentStream.config.allow_direct,
+                    : config.allowDirect !== undefined
+                      ? config.allowDirect
+                      : currentStream.config.allow_direct,
                 mirror_direct:
                   msg.mirrorDirect !== undefined
                     ? msg.mirrorDirect
-                    : currentStream.config.mirror_direct,
+                    : config.mirrorDirect !== undefined
+                      ? config.mirrorDirect
+                      : currentStream.config.mirror_direct,
                 sealed:
                   msg.sealed !== undefined
                     ? msg.sealed
-                    : currentStream.config.sealed,
+                    : config.sealed !== undefined
+                      ? config.sealed
+                      : currentStream.config.sealed,
                 deny_delete:
                   msg.denyDelete !== undefined
                     ? msg.denyDelete
-                    : currentStream.config.deny_delete,
+                    : config.denyDelete !== undefined
+                      ? config.denyDelete
+                      : currentStream.config.deny_delete,
                 deny_purge:
                   msg.denyPurge !== undefined
                     ? msg.denyPurge
-                    : currentStream.config.deny_purge,
+                    : config.denyPurge !== undefined
+                      ? config.denyPurge
+                      : currentStream.config.deny_purge,
                 allow_rollup_hdrs:
                   msg.allowRollupHdrs !== undefined
                     ? msg.allowRollupHdrs
-                    : currentStream.config.allow_rollup_hdrs,
+                    : config.allowRollupHdrs !== undefined
+                      ? config.allowRollupHdrs
+                      : currentStream.config.allow_rollup_hdrs,
                 allow_msg_ttl:
                   msg.allowMsgTtl !== undefined
                     ? msg.allowMsgTtl
-                    : currentStream.config.allow_msg_ttl,
+                    : config.allowMsgTtl !== undefined
+                      ? config.allowMsgTtl
+                      : currentStream.config.allow_msg_ttl,
               };
               node.log(
                 `[STREAM PUB] Updating stream from properties: ${streamConfig.name}`
@@ -434,6 +489,19 @@ module.exports = function (RED) {
             node.log(
               `[STREAM PUB] Stream updated successfully: ${updatedStream.config.name}`
             );
+
+            // Show update status for 2 seconds
+            node.status({
+              fill: 'green',
+              shape: 'dot',
+              text: `stream ${updatedStream.config.name} updated`,
+            });
+
+            // Revert to connection status after 2 seconds
+            setTimeout(() => {
+              updateConnectionStatus();
+            }, 2000);
+
             break;
           }
 
@@ -443,7 +511,7 @@ module.exports = function (RED) {
             const updatedConfig = {
               ...currentStream.config,
               subjects: msg.subjects
-                ? msg.subjects.split(',').map(s => s.trim())
+                ? parseSubjects(msg.subjects)
                 : currentStream.config.subjects,
             };
 
