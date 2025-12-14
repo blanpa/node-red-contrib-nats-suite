@@ -58,6 +58,8 @@
         const op = $(this).val();
         if (op === 'publish') {
           $('#publish-config').slideDown(200);
+          $('#subject-pattern-config').slideDown(200);
+          $('#stream-name-config').slideDown(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -65,6 +67,8 @@
           $('.create-only').show();
         } else if (op === 'create') {
           $('#publish-config').slideUp(200);
+          $('#subject-pattern-config').slideDown(200);
+          $('#stream-name-config').slideDown(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -72,13 +76,20 @@
           $('.create-only').show();
         } else if (op === 'update') {
           $('#publish-config').slideUp(200);
+          $('#subject-pattern-config').slideDown(200);
+          $('#stream-name-config').slideDown(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
           // Hide non-editable fields for update
           $('.create-only').hide();
+        } else if (op === 'list') {
+          $('#stream-configuration-section').slideUp(200);
+          $('#stream-settings-section').slideUp(200);
+          $('#stream-limits-section').slideUp(200);
+          $('#stream-advanced-section').slideUp(200);
         } else {
-          $('#publish-config').slideUp(200);
+          $('#stream-configuration-section').slideDown(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
@@ -227,7 +238,7 @@
     </div>
 
     <!-- Stream Configuration -->
-    <div class="nats-section">
+    <div class="nats-section" id="stream-configuration-section">
       <div class="nats-section-header">
         <div class="nats-section-title">
           <i class="fa fa-database"></i>
@@ -236,12 +247,12 @@
         <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
       <div class="nats-section-content">
-        <div class="nats-form-row">
+        <div class="nats-form-row" id="stream-name-config">
           <label><i class="fa fa-database"></i>Stream Name</label>
           <input type="text" id="node-input-streamName" placeholder="sensor-data">
           <div class="nats-hint">Cannot be changed after creation</div>
         </div>
-        <div class="nats-form-row">
+        <div class="nats-form-row" id="subject-pattern-config">
           <label><i class="fa fa-filter"></i>Subject Pattern</label>
           <input type="text" id="node-input-subjectPattern" placeholder="sensor.*, data.>, orders.*">
           <div class="nats-hint">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>

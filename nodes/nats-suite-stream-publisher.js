@@ -553,6 +553,19 @@ module.exports = function (RED) {
               stream: streamName,
               success: true,
             };
+
+            // Show delete status for 2 seconds
+            node.status({
+              fill: 'green',
+              shape: 'dot',
+              text: `stream ${streamName} deleted`,
+            });
+
+            // Revert to connection status after 2 seconds
+            setTimeout(() => {
+              updateConnectionStatus();
+            }, 2000);
+
             break;
           }
 
@@ -569,7 +582,7 @@ module.exports = function (RED) {
 
           case 'list': {
             const streams = [];
-            for await (const stream of js.streams.list()) {
+            for await (const stream of jsm.streams.list()) {
               streams.push({
                 name: stream.config.name,
                 subjects: stream.config.subjects,
