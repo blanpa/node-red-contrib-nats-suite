@@ -9,7 +9,7 @@ A comprehensive Node-RED module for NATS (NATS Messaging System) with support fo
 
 ## Status & Versioning
 
-- **Current version**: `0.0.1` (initial preview release)
+- **Current version**: `0.0.2`
 - **Stability**: APIs and node options may still change between minor versions.
 - **Tested with**: Node-RED `>= 3.0.0`, Node.js `>= 14.0.0`, NATS Server `>= 2.9` (with JetStream enabled for JetStream/KV/Object Store features).
 - For detailed manual test flows, see `TEST-CASES.md`. Automated tests are located in the `__tests__` directory and can be executed via `npm test`.
