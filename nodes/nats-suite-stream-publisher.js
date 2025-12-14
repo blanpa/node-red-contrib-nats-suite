@@ -121,6 +121,15 @@ module.exports = function (RED) {
         }
       } catch (err) {
         node.error(`Failed to ensure stream: ${err.message}`);
+
+        // Show error status for 2 seconds
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+
+        // Revert to connection status after 2 seconds
+        setTimeout(() => {
+          updateConnectionStatus();
+        }, 2000);
+
         return false;
       }
     };
@@ -515,6 +524,15 @@ module.exports = function (RED) {
       } catch (err) {
         node.error(`Stream operation failed: ${err.message}`, msg);
         msg.error = err.message;
+
+        // Show error status for 2 seconds
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+
+        // Revert to connection status after 2 seconds
+        setTimeout(() => {
+          updateConnectionStatus();
+        }, 2000);
+
         node.send(msg);
       }
     };
