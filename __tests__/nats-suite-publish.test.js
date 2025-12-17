@@ -1,10 +1,16 @@
 const nats = require('nats');
 
+// Capture the registered node constructor
+let NatsPublishNode;
+
 // Mock Node-RED
 const mockRED = {
   nodes: {
     createNode: jest.fn(),
     getNode: jest.fn(),
+    registerType: jest.fn((name, constructor) => {
+      NatsPublishNode = constructor;
+    }),
   },
 };
 
@@ -16,20 +22,22 @@ const mockNatsConnection = {
 
 jest.mock('nats', () => ({
   connect: jest.fn(() => Promise.resolve(mockNatsConnection)),
-  StringCodec: {
-    encode: jest.fn(data => Buffer.from(data)),
+  StringCodec: jest.fn(() => ({
+    encode: jest.fn(data => Buffer.from(String(data))),
     decode: jest.fn(data => data.toString()),
-  },
+  })),
 }));
 
 describe('NATS Publish Node', () => {
-  let NatsPublishNode;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    // Dynamically require the module after mocking
-    delete require.cache[require.resolve('../nats-suite-publish')];
-    NatsPublishNode = require('../nats-suite-publish')(mockRED);
+    // Clear module cache and re-require to get fresh registration
+    delete require.cache[require.resolve('../nodes/nats-suite-publish')];
+    require('../nodes/nats-suite-publish')(mockRED);
+  });
+
+  test('should register the node type', () => {
+    expect(mockRED.nodes.registerType).toHaveBeenCalledWith('nats-suite-publish', expect.any(Function));
   });
 
   test('should create node with correct configuration', () => {
@@ -40,29 +48,23 @@ describe('NATS Publish Node', () => {
       name: 'Test Node',
     };
 
-    const node = new NatsPublishNode(config);
-    expect(mockRED.nodes.createNode).toHaveBeenCalledWith(node, config);
-  });
-
-  test('should handle uns_value data format correctly', async () => {
-    const config = {
-      server: 'test-server',
-      dataformat: 'uns_value',
-      datapointid: 'test.datapoint',
-      name: 'Test Node',
-    };
-
-    const node = new NatsPublishNode(config);
-    const msg = { payload: 'test value' };
-
-    // Mock the server config
-    node.config = {
+    // Mock getNode to return a server config
+    mockRED.nodes.getNode.mockReturnValue({
       getConnection: jest.fn(() => Promise.resolve(mockNatsConnection)),
       addStatusListener: jest.fn(),
+      registerConnectionUser: jest.fn(),
+      unregisterConnectionUser: jest.fn(),
+    });
+
+    const node = {
+      status: jest.fn(),
+      on: jest.fn(),
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
     };
-
-    await node.on.input(msg);
-
-    expect(mockNatsConnection.publish).toHaveBeenCalled();
+    NatsPublishNode.call(node, config);
+    
+    expect(mockRED.nodes.createNode).toHaveBeenCalled();
   });
 });

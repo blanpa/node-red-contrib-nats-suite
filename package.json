@@ -33,13 +33,14 @@
     "nats": "^2.29.3",
     "nats-memory-server": "^2.0.21"
   },
-  "optionalDependencies": {
-  },
   "engines": {
     "node": ">=14.0.0"
   },
   "repository": {
     "type": "git",
     "url": ""
+  },
+  "devDependencies": {
+    "jest": "^30.2.0"
   }
 }
