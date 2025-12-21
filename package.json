@@ -28,6 +28,14 @@
     "coverage": "jest --coverage"
   },
   "author": "blanpa",
+  "contributors": [
+    {
+      "name": "blanpa"
+    },
+    {
+      "name": "dbleul"
+    }
+  ],
   "license": "MIT",
   "dependencies": {
     "nats": "^2.29.3",
