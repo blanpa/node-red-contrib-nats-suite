@@ -1,9 +1,12 @@
 # node-red-contrib-nats-suite
 
 [![npm version](https://img.shields.io/npm/v/node-red-contrib-nats-suite.svg)](https://www.npmjs.com/package/node-red-contrib-nats-suite)
+[![npm downloads](https://img.shields.io/npm/dm/node-red-contrib-nats-suite.svg)](https://www.npmjs.com/package/node-red-contrib-nats-suite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node-RED](https://img.shields.io/badge/Node--RED-v3.0.0+-red.svg)](https://nodered.org/)
+[![Node.js Version](https://img.shields.io/node/v/node-red-contrib-nats-suite.svg)](https://nodejs.org/)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-orange.svg)]()
-[![Discord](https://img.shields.io/discord/1234567890?logo=discord&label=Discord)](https://discord.gg/77RsM7dV)
+[![Discord](https://img.shields.io/discord/1234567890?logo=discord&label=Discord)](https://discord.gg/mrebeSaZzx)
 
 A comprehensive Node-RED module for NATS (NATS Messaging System) with support for all major NATS features. This is a **generic NATS implementation** that works with any NATS server - not bound to a specific platform.
 
