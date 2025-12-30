@@ -16,6 +16,7 @@
       storage: { value: 'file' },
       replicas: { value: 1 },
       operation: { value: 'publish' },
+      createOnInit: { value: true },
       // Extended NATS config options
       maxConsumers: { value: -1 },
       maxMsgsPerSubject: { value: -1 },
@@ -53,22 +54,45 @@
         $header.toggleClass('collapsed');
       });
 
+      // Helper function to update visibility based on createOnInit checkbox
+      const updateCreateOnInitVisibility = function () {
+        const op = $('#node-input-operation').val();
+        if (op === 'publish') {
+          if ($('#node-input-createOnInit').is(':checked')) {
+            $('#subject-pattern-config').slideDown(200);
+            $('#stream-settings-section').slideDown(200);
+            $('#stream-limits-section').slideDown(200);
+            $('#stream-advanced-section').slideDown(200);
+          } else {
+            $('#subject-pattern-config').slideUp(200);
+            $('#stream-settings-section').slideUp(200);
+            $('#stream-limits-section').slideUp(200);
+            $('#stream-advanced-section').slideUp(200);
+          }
+        }
+      };
+
+      // CreateOnInit checkbox handler
+      $('#node-input-createOnInit').on('change', function () {
+        updateCreateOnInitVisibility();
+      });
+
       // Operation handler
       $('#node-input-operation').on('change', function () {
         const op = $(this).val();
         if (op === 'publish') {
           $('#publish-config').slideDown(200);
-          $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
-          $('#stream-settings-section').slideDown(200);
-          $('#stream-limits-section').slideDown(200);
-          $('#stream-advanced-section').slideDown(200);
+          $('#create-on-init-row').slideDown(200);
           // Show all fields for publish
           $('.create-only').show();
+          // Let createOnInit checkbox control these sections
+          updateCreateOnInitVisibility();
         } else if (op === 'create') {
           $('#publish-config').slideUp(200);
           $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
+          $('#create-on-init-row').slideUp(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -78,6 +102,7 @@
           $('#publish-config').slideUp(200);
           $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
+          $('#create-on-init-row').slideUp(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -85,17 +110,32 @@
           $('.create-only').hide();
         } else if (op === 'list') {
           $('#stream-configuration-section').slideUp(200);
+          $('#create-on-init-row').slideUp(200);
+          $('#stream-settings-section').slideUp(200);
+          $('#stream-limits-section').slideUp(200);
+          $('#stream-advanced-section').slideUp(200);
+        } else if (op === 'info' || op === 'delete' || op === 'purge') {
+          $('#stream-configuration-section').slideDown(200);
+          $('#publish-config').slideUp(200);
+          $('#subject-pattern-config').slideUp(200);
+          $('#stream-name-config').slideDown(200);
+          $('#create-on-init-row').slideUp(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
         } else {
           $('#stream-configuration-section').slideDown(200);
+          $('#publish-config').slideUp(200);
+          $('#subject-pattern-config').slideDown(200);
+          $('#stream-name-config').slideDown(200);
+          $('#create-on-init-row').slideUp(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
         }
       });
       $('#node-input-operation').trigger('change');
+      $('#node-input-createOnInit').trigger('change');
     },
   });
 </script>
@@ -252,15 +292,22 @@
           <input type="text" id="node-input-streamName" placeholder="sensor-data">
           <div class="nats-hint">Cannot be changed after creation</div>
         </div>
-        <div class="nats-form-row" id="subject-pattern-config">
-          <label><i class="fa fa-filter"></i>Subject Pattern</label>
-          <input type="text" id="node-input-subjectPattern" placeholder="sensor.*, data.>, orders.*">
-          <div class="nats-hint">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>
-        </div>
         <div class="nats-form-row" id="publish-config">
           <label><i class="fa fa-paper-plane"></i>Default Subject <span class="nats-badge">msg.subject</span></label>
           <input type="text" id="node-input-defaultSubject" placeholder="sensor.temperature">
           <div class="nats-hint">Used when msg.subject is not provided</div>
+        </div>
+        <div class="nats-form-row" id="create-on-init-row">
+          <label>
+            <input type="checkbox" id="node-input-createOnInit" style="width: auto; margin-right: 8px;">
+            <i class="fa fa-plus-circle"></i>Create Stream on initialization
+          </label>
+          <div class="nats-hint">Automatically create stream when node initializes</div>
+        </div>
+        <div class="nats-form-row" id="subject-pattern-config">
+          <label><i class="fa fa-filter"></i>Subject Pattern</label>
+          <input type="text" id="node-input-subjectPattern" placeholder="sensor.*, data.>, orders.*">
+          <div class="nats-hint">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>
         </div>
       </div>
     </div>
@@ -433,123 +480,124 @@
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-stream-publisher">
-    <p>Publishes messages to NATS JetStream with persistence and acknowledgment, and manages JetStream streams.</p>
+      <p>Publishes messages to NATS JetStream with persistence and acknowledgment, and manages JetStream streams.</p>
 
-    <h3>Operations</h3>
-    <p>This node supports multiple operations for stream management and message publishing:</p>
+      <h3>Operations</h3>
+      <p>This node supports multiple operations for stream management and message publishing:</p>
 
-    <h4>Publish Messages (default)</h4>
-    <p>Publishes messages to a JetStream stream with persistence and acknowledgment. The stream is automatically created if it doesn't exist.</p>
+      <h4>Publish Messages (default)</h4>
+      <p>Publishes messages to a JetStream stream with persistence and acknowledgment.</p>
+      <p><strong>Create Stream on initialization</strong>: When enabled, the stream is automatically created when the node initializes or reconnects, using the configured stream settings. When disabled, the node assumes the stream already exists and will only publish messages to it - no stream configuration options are shown.</p>
 
-    <h4>Create Stream</h4>
-    <p>Creates a new JetStream stream with the configured settings. The node will display <strong>"stream {name} created"</strong> for 2 seconds upon successful creation, then return to showing the connection state.</p>
+      <h4>Create Stream</h4>
+      <p>Creates a new JetStream stream with the configured settings. The node will display <strong>"stream {name} created"</strong> for 2 seconds upon successful creation, then return to showing the connection state.</p>
 
-    <h4>Update Stream</h4>
-    <p>Updates an existing stream's configuration. Can be triggered via node configuration or by sending a message with <code>msg.operation = "update"</code>.</p>
+      <h4>Update Stream</h4>
+      <p>Updates an existing stream's configuration. Can be triggered via node configuration or by sending a message with <code>msg.operation = "update"</code>.</p>
 
-    <h4>Update Subjects Only</h4>
-    <p>Updates only the subject patterns for an existing stream without changing other settings.</p>
+      <h4>Update Subjects Only</h4>
+      <p>Updates only the subject patterns for an existing stream without changing other settings.</p>
 
-    <h4>Stream Info</h4>
-    <p>Retrieves detailed information about a stream including configuration, state, and statistics.</p>
+      <h4>Stream Info</h4>
+      <p>Retrieves detailed information about a stream including configuration, state, and statistics.</p>
 
-    <h4>Delete Stream</h4>
-    <p>Permanently deletes a stream and all its messages.</p>
+      <h4>Delete Stream</h4>
+      <p>Permanently deletes a stream and all its messages.</p>
 
-    <h4>Purge Stream</h4>
-    <p>Removes all messages from a stream while keeping the stream itself.</p>
+      <h4>Purge Stream</h4>
+      <p>Removes all messages from a stream while keeping the stream itself.</p>
 
-    <h4>List Streams</h4>
-    <p>Lists all available streams in the JetStream server.</p>
+      <h4>List Streams</h4>
+      <p>Lists all available streams in the JetStream server.</p>
 
-    <h3>Inputs (Publish)</h3>
-    <dl class="message-properties">
-      <dt>payload <span class="property-type">any</span></dt>
-      <dd>Data to publish to the stream</dd>
-      <dt class="optional">subject <span class="property-type">string</span></dt>
-      <dd>Target subject (overrides default subject configuration)</dd>
-      <dt class="optional">headers <span class="property-type">object</span></dt>
-      <dd>Message headers to attach</dd>
-      <dt class="optional">_msgID <span class="property-type">string</span></dt>
-      <dd>Optional message ID for deduplication within the duplicate window</dd>
-    </dl>
+      <h3>Inputs (Publish)</h3>
+      <dl class="message-properties">
+        <dt>payload <span class="property-type">any</span></dt>
+        <dd>Data to publish to the stream</dd>
+        <dt class="optional">subject <span class="property-type">string</span></dt>
+        <dd>Target subject (overrides default subject configuration)</dd>
+        <dt class="optional">headers <span class="property-type">object</span></dt>
+        <dd>Message headers to attach</dd>
+        <dt class="optional">_msgID <span class="property-type">string</span></dt>
+        <dd>Optional message ID for deduplication within the duplicate window</dd>
+      </dl>
 
-    <h3>Inputs (Stream Operations)</h3>
-    <dl class="message-properties">
-      <dt class="optional">operation <span class="property-type">string</span></dt>
-      <dd>Operation to perform: "create", "update", "update-subjects", "info", "delete", "purge", "list"</dd>
-      <dt class="optional">stream <span class="property-type">string</span></dt>
-      <dd>Stream name (overrides node configuration)</dd>
-      <dt class="optional">payload <span class="property-type">object</span></dt>
-      <dd>For create/update operations: full stream configuration in NATS native format. See <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS Stream Configuration</a></dd>
-      <dt class="optional">subjects <span class="property-type">string[] | string</span></dt>
-      <dd>Subject patterns for the stream (array or comma-separated string)</dd>
-      <dt class="optional">retention <span class="property-type">string</span></dt>
-      <dd>Retention policy: "limits", "interest", or "workqueue"</dd>
-      <dt class="optional">maxMessages <span class="property-type">number</span></dt>
-      <dd>Maximum number of messages (-1 for unlimited)</dd>
-      <dt class="optional">maxBytes <span class="property-type">number</span></dt>
-      <dd>Maximum total bytes (-1 for unlimited)</dd>
-      <dt class="optional">maxAge <span class="property-type">string</span></dt>
-      <dd>Maximum message age (e.g., "24h", "7d")</dd>
-    </dl>
+      <h3>Inputs (Stream Operations)</h3>
+      <dl class="message-properties">
+        <dt class="optional">operation <span class="property-type">string</span></dt>
+        <dd>Operation to perform: "create", "update", "update-subjects", "info", "delete", "purge", "list"</dd>
+        <dt class="optional">stream <span class="property-type">string</span></dt>
+        <dd>Stream name (overrides node configuration)</dd>
+        <dt class="optional">payload <span class="property-type">object</span></dt>
+        <dd>For create/update operations: full stream configuration in NATS native format. See <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS Stream Configuration</a></dd>
+        <dt class="optional">subjects <span class="property-type">string[] | string</span></dt>
+        <dd>Subject patterns for the stream (array or comma-separated string)</dd>
+        <dt class="optional">retention <span class="property-type">string</span></dt>
+        <dd>Retention policy: "limits", "interest", or "workqueue"</dd>
+        <dt class="optional">maxMessages <span class="property-type">number</span></dt>
+        <dd>Maximum number of messages (-1 for unlimited)</dd>
+        <dt class="optional">maxBytes <span class="property-type">number</span></dt>
+        <dd>Maximum total bytes (-1 for unlimited)</dd>
+        <dt class="optional">maxAge <span class="property-type">string</span></dt>
+        <dd>Maximum message age (e.g., "24h", "7d")</dd>
+      </dl>
 
-    <h3>Outputs (Publish)</h3>
-    <dl class="message-properties">
-      <dt>sequence <span class="property-type">number</span></dt>
-      <dd>Message sequence number in the stream</dd>
-      <dt>stream <span class="property-type">string</span></dt>
-      <dd>Stream name where message was published</dd>
-      <dt>published <span class="property-type">boolean</span></dt>
-      <dd>True if published successfully, false on error</dd>
-      <dt>subject <span class="property-type">string</span></dt>
-      <dd>Subject where message was published</dd>
-      <dt class="optional">_duplicate <span class="property-type">boolean</span></dt>
-      <dd>True if message was detected as a duplicate</dd>
-    </dl>
+      <h3>Outputs (Publish)</h3>
+      <dl class="message-properties">
+        <dt>sequence <span class="property-type">number</span></dt>
+        <dd>Message sequence number in the stream</dd>
+        <dt>stream <span class="property-type">string</span></dt>
+        <dd>Stream name where message was published</dd>
+        <dt>published <span class="property-type">boolean</span></dt>
+        <dd>True if published successfully, false on error</dd>
+        <dt>subject <span class="property-type">string</span></dt>
+        <dd>Subject where message was published</dd>
+        <dt class="optional">_duplicate <span class="property-type">boolean</span></dt>
+        <dd>True if message was detected as a duplicate</dd>
+      </dl>
 
-    <h3>Outputs (Stream Operations)</h3>
-    <dl class="message-properties">
-      <dt>payload <span class="property-type">object</span></dt>
-      <dd>Operation result containing success status, stream name, and relevant data</dd>
-      <dt>operation <span class="property-type">string</span></dt>
-      <dd>The operation that was performed</dd>
-      <dt class="optional">config <span class="property-type">object</span></dt>
-      <dd>Stream configuration (for info, create, update operations)</dd>
-      <dt class="optional">state <span class="property-type">object</span></dt>
-      <dd>Stream state including message count, bytes, etc. (for info operation)</dd>
-    </dl>
+      <h3>Outputs (Stream Operations)</h3>
+      <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Operation result containing success status, stream name, and relevant data</dd>
+        <dt>operation <span class="property-type">string</span></dt>
+        <dd>The operation that was performed</dd>
+        <dt class="optional">config <span class="property-type">object</span></dt>
+        <dd>Stream configuration (for info, create, update operations)</dd>
+        <dt class="optional">state <span class="property-type">object</span></dt>
+        <dd>Stream state including message count, bytes, etc. (for info operation)</dd>
+      </dl>
 
-    <h3>Stream Configuration</h3>
-    <p>Streams can be configured with various settings:</p>
-    <ul>
-      <li><strong>Stream Name</strong>: Unique identifier for the stream</li>
-      <li><strong>Subject Pattern</strong>: Wildcards pattern for subjects captured (e.g., "sensor.*")</li>
-      <li><strong>Retention Policy</strong>: How messages are retained (limits/interest/workqueue)</li>
-      <li><strong>Storage</strong>: File-based (persistent) or memory-based (fast but volatile)</li>
-      <li><strong>Limits</strong>: Max messages, bytes, age, and per-subject limits</li>
-      <li><strong>Deduplication</strong>: Time window for detecting duplicate messages</li>
-      <li><strong>Replicas</strong>: Number of stream replicas for high availability</li>
-    </ul>
+      <h3>Stream Configuration</h3>
+      <p>Streams can be configured with various settings (only visible when "Create Stream on initialization" is enabled in Publish mode):</p>
+      <ul>
+        <li><strong>Stream Name</strong>: Unique identifier for the stream</li>
+        <li><strong>Subject Pattern</strong>: Wildcards pattern for subjects captured (e.g., "sensor.*")</li>
+        <li><strong>Retention Policy</strong>: How messages are retained (limits/interest/workqueue)</li>
+        <li><strong>Storage</strong>: File-based (persistent) or memory-based (fast but volatile)</li>
+        <li><strong>Limits</strong>: Max messages, bytes, age, and per-subject limits</li>
+        <li><strong>Deduplication</strong>: Time window for detecting duplicate messages</li>
+        <li><strong>Replicas</strong>: Number of stream replicas for high availability</li>
+      </ul>
 
-    <h3>Node Status</h3>
-    <p>The node displays its current state:</p>
-    <ul>
-      <li><strong>connected</strong> (green): Connected to NATS server</li>
-      <li><strong>connecting</strong> (yellow): Attempting to connect</li>
-      <li><strong>disconnected</strong> (red): Not connected</li>
-      <li><strong>stream {name} created</strong> (green, 2 seconds): Stream successfully created</li>
-    </ul>
+      <h3>Node Status</h3>
+      <p>The node displays its current state:</p>
+      <ul>
+        <li><strong>connected</strong> (green): Connected to NATS server</li>
+        <li><strong>connecting</strong> (yellow): Attempting to connect</li>
+        <li><strong>disconnected</strong> (red): Not connected</li>
+        <li><strong>stream {name} created</strong> (green, 2 seconds): Stream successfully created</li>
+      </ul>
 
-    <h3>Examples</h3>
+      <h3>Examples</h3>
 
-    <h4>Publish Message</h4>
-    <pre>msg.subject = "sensor.temperature";
-  msg.payload = { value: 22.5, unit: "C" };
-  return msg;</pre>
+      <h4>Publish Message</h4>
+      <pre>msg.subject = "sensor.temperature";
+    msg.payload = { value: 22.5, unit: "C" };
+    return msg;</pre>
 
-    <h4>Create Stream Programmatically</h4>
-    <pre>msg.operation = "create";
+      <h4>Create Stream Programmatically (Simple)</h4>
+      <pre>msg.operation = "create";
   msg.stream = "my-stream";
   msg.subjects = ["data.>"];
   msg.retention = "limits";
@@ -557,15 +605,27 @@
   msg.maxAge = "24h";
   return msg;</pre>
 
-    <h4>Get Stream Info</h4>
-    <pre>msg.operation = "info";
-  msg.stream = "my-stream";
+      <h4>Create Stream Programmatically (Native NATS Format)</h4>
+      <pre>msg.operation = "create";
+  msg.payload = {
+      name: "my-stream",
+      subjects: ["data.>"],
+      retention: "limits",
+      max_msgs: 1000,
+      max_age: 86400000000000,  // 24h in nanoseconds
+      storage: "file"
+  };
   return msg;</pre>
 
-    <h3>Details</h3>
-    <p>This node provides comprehensive JetStream stream management alongside message publishing. When publishing, messages receive acknowledgments and sequence numbers. The stream is automatically created on startup if it doesn't exist, with configuration from the node settings.</p>
+      <h4>Get Stream Info</h4>
+      <pre>msg.operation = "info";
+    msg.stream = "my-stream";
+    return msg;</pre>
 
-    <p>For advanced use cases, stream operations can be performed programmatically by setting <code>msg.operation</code> to the desired action. Stream configurations can be provided either as individual message properties or as a complete NATS-native configuration object in <code>msg.payload</code>.</p>
+      <h3>Details</h3>
+      <p>This node provides comprehensive JetStream stream management alongside message publishing. When publishing, messages receive acknowledgments and sequence numbers. The stream is automatically created on startup if it doesn't exist, with configuration from the node settings.</p>
 
-    <p>For more information about NATS JetStream stream configuration, see the <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS JetStream Streams Documentation</a>.</p>
+      <p>For advanced use cases, stream operations can be performed programmatically by setting <code>msg.operation</code> to the desired action. Stream configurations can be provided either as individual message properties or as a complete NATS-native configuration object in <code>msg.payload</code>.</p>
+
+      <p>For more information about NATS JetStream stream configuration, see the <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS JetStream Streams Documentation</a>.</p>
 </script>

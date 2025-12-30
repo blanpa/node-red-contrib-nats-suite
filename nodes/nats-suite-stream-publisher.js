@@ -150,9 +150,9 @@ module.exports = function (RED) {
     // Register with connection pool
     this.serverConfig.registerConnectionUser(node.id);
 
-    // Initialize stream only for publish operation
+    // Initialize stream only for publish operation when createOnInit is enabled
     const operation = config.operation || 'publish';
-    if (operation === 'publish') {
+    if (operation === 'publish' && config.createOnInit !== false) {
       ensureStream();
     }
 
@@ -163,9 +163,9 @@ module.exports = function (RED) {
       switch (status) {
         case 'connected':
           node.status({ fill: 'green', shape: 'dot', text: 'connected' });
-          // Re-ensure stream on reconnect only for publish operation
+          // Re-ensure stream on reconnect only for publish operation when createOnInit is enabled
           const operation = config.operation || 'publish';
-          if (operation === 'publish') {
+          if (operation === 'publish' && config.createOnInit !== false) {
             ensureStream();
           }
           break;
