@@ -145,8 +145,6 @@ dev-cycle: format lint-fix test
 docs-format:
 	@echo "Formatting documentation..."
 	prettier --write README.md CHANGELOG.md docs/*.md
-# TODO(!urgent): TODO urgent example1
-#  My Todo urgent example issue text1
 
 # Release preparation
 release-prepare: clean install test lint audit package
