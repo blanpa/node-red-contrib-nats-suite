@@ -77,6 +77,11 @@ clean:
 	rm -rf dist
 
 # Development environment (legacy)
+# TODO: TODO example
+# My Todo example issue text
+# TODO(!urgent): TODO urgent example
+# My Todo urgent example issue text
+# Double line
 dev:
 	@echo "Starting legacy development environment..."
 	mkdir -p .node-red
