@@ -19,6 +19,8 @@
       batchSize: { value: 1 },
       maxWait: { value: 1000 },
       operation: { value: 'consume' },
+      dataformat: { value: 'auto', required: true },
+      debug: { value: false },
     },
     inputs: 1,
     outputs: 1,
@@ -32,9 +34,9 @@
       return this.name || `stream ${op}`;
     },
     paletteLabel: 'nats stream consumer',
-    oneditprepare: function() {
+    oneditprepare: function () {
       // Collapsible sections
-      $('.nats-section-header').on('click', function() {
+      $('.nats-section-header').on('click', function () {
         const $header = $(this);
         const $content = $header.next('.nats-section-content');
         const $icon = $header.find('.nats-section-toggle');
@@ -42,9 +44,9 @@
         $icon.toggleClass('fa-chevron-down fa-chevron-right');
         $header.toggleClass('collapsed');
       });
-      
+
       // Operation handler
-      $('#node-input-operation').on('change', function() {
+      $('#node-input-operation').on('change', function () {
         const op = $(this).val();
         if (op === 'consume') {
           $('#consume-config').slideDown(200);
@@ -54,19 +56,19 @@
           $('#consumer-settings-section').slideUp(200);
         }
       });
-      
+
       // Consumer type handler
-      $('#node-input-consumerType').on('change', function() {
+      $('#node-input-consumerType').on('change', function () {
         if ($(this).val() === 'push') {
           $('#idle-heartbeat-row').slideDown(200);
         } else {
           $('#idle-heartbeat-row').slideUp(200);
         }
       });
-      
+
       $('#node-input-operation').trigger('change');
       $('#node-input-consumerType').trigger('change');
-    }
+    },
   });
 </script>
 
@@ -185,7 +187,7 @@
   </style>
 
   <div class="nats-stream-config">
-    
+
     <!-- Basic Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -220,7 +222,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Consumer Configuration -->
     <div class="nats-section" id="consume-config">
       <div class="nats-section-header">
@@ -269,7 +271,36 @@
         </div>
       </div>
     </div>
-    
+
+    <!-- Output Configuration -->
+    <div class="nats-section" id="output-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sign-out"></i>
+          <span>Output Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-file-code-o"></i>Parse As</label>
+          <select id="node-input-dataformat">
+            <option value="auto">Auto-Detect (JSON or String)</option>
+            <option value="json">JSON (force parsing)</option>
+            <option value="string">String (no parsing)</option>
+            <option value="buffer">Buffer (binary)</option>
+          </select>
+          <div class="nats-hint">
+            Auto: Try JSON first, fallback to string | Buffer: For binary data
+          </div>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
+        </div>
+      </div>
+    </div>
+
     <!-- Consumer Settings -->
     <div class="nats-section" id="consumer-settings-section">
       <div class="nats-section-header">
@@ -316,30 +347,30 @@
         </div>
       </div>
     </div>
-    
+
   </div>
 </script>
 
 <script type="text/x-red" data-help-name="nats-suite-stream-consumer">
-  <p>Consumes messages from NATS JetStream with acknowledgment control.</p>
+    <p>Consumes messages from NATS JetStream with acknowledgment control.</p>
 
-  <h3>Outputs</h3>
-  <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>Message payload</dd>
-    <dt>sequence <span class="property-type">number</span></dt>
-    <dd>Message sequence number</dd>
-    <dt>ack <span class="property-type">function</span></dt>
-    <dd>Acknowledge message</dd>
-    <dt>nak <span class="property-type">function</span></dt>
-    <dd>Negative acknowledge (retry)</dd>
-    <dt>term <span class="property-type">function</span></dt>
-    <dd>Terminate (no retry)</dd>
-  </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+      <dt>payload <span class="property-type">any</span></dt>
+      <dd>Message payload</dd>
+      <dt>sequence <span class="property-type">number</span></dt>
+      <dd>Message sequence number</dd>
+      <dt>ack <span class="property-type">function</span></dt>
+      <dd>Acknowledge message</dd>
+      <dt>nak <span class="property-type">function</span></dt>
+      <dd>Negative acknowledge (retry)</dd>
+      <dt>term <span class="property-type">function</span></dt>
+      <dd>Terminate (no retry)</dd>
+    </dl>
 
-  <h3>Acknowledgment</h3>
-  <pre>// In a function node:
-msg.ack();   // Success
-msg.nak();   // Retry later
-msg.term();  // Don't retry</pre>
+    <h3>Acknowledgment</h3>
+    <pre>// In a function node:
+  msg.ack();   // Success
+  msg.nak();   // Retry later
+  msg.term();  // Don't retry</pre>
 </script>
