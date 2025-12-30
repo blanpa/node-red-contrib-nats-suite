@@ -63,6 +63,10 @@ build:
 	npm run build
 
 # Build TypeScript in watch mode
+# TODO: TODO example
+#  My Todo example issue text
+# TODO(!urgent): TODO urgent example
+#  My Todo urgent example issue text
 build-watch:
 	@echo "Building TypeScript in watch mode..."
 	npm run build:watch
@@ -77,15 +81,6 @@ clean:
 	rm -rf dist
 
 # Development environment (legacy)
-# TODO: TODO example
-# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/6
-# My Todo example issue text
-# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/5
-# TODO(!urgent): TODO urgent example
-# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/4
-# My Todo urgent example issue text
-# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/3
-# Double line
 dev:
 	@echo "Starting legacy development environment..."
 	mkdir -p .node-red
