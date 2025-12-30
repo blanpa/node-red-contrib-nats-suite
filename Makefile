@@ -64,9 +64,13 @@ build:
 
 # Build TypeScript in watch mode
 # TODO: TODO example
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/10
 #  My Todo example issue text
+#  Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/9
 # TODO(!urgent): TODO urgent example
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/8
 #  My Todo urgent example issue text
+#  Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/7
 build-watch:
 	@echo "Building TypeScript in watch mode..."
 	npm run build:watch
