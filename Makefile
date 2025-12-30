@@ -78,9 +78,13 @@ clean:
 
 # Development environment (legacy)
 # TODO: TODO example
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/6
 # My Todo example issue text
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/5
 # TODO(!urgent): TODO urgent example
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/4
 # My Todo urgent example issue text
+# Issue URL: https://github.com/blanpa/node-red-contrib-nats-suite/issues/3
 # Double line
 dev:
 	@echo "Starting legacy development environment..."
