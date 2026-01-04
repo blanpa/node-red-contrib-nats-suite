@@ -46,16 +46,30 @@
         $header.toggleClass('collapsed');
       });
 
-      // Operation handler
-      $('#node-input-operation').on('change', function () {
-        const op = $(this).val();
+      // Function to update visibility based on operation and createOnInit
+      function updateConsumerConfigVisibility() {
+        const op = $('#node-input-operation').val();
+        const createOnInit = $('#node-input-createOnInit').is(':checked');
+
         if (op === 'consume') {
           $('#consume-config').slideDown(200);
-          $('#consumer-settings-section').slideDown(200);
+          // Show/hide consumer creation config and ack & delivery section based on createOnInit
+          if (createOnInit) {
+            $('#consumer-creation-config').slideDown(200);
+            $('#consumer-settings-section').slideDown(200);
+          } else {
+            $('#consumer-creation-config').slideUp(200);
+            $('#consumer-settings-section').slideUp(200);
+          }
         } else {
           $('#consume-config').slideUp(200);
           $('#consumer-settings-section').slideUp(200);
         }
+      }
+
+      // Operation handler
+      $('#node-input-operation').on('change', function () {
+        updateConsumerConfigVisibility();
       });
 
       // Consumer type handler
@@ -69,18 +83,11 @@
 
       // Create on init handler - show/hide consumer-specific configuration
       $('#node-input-createOnInit').on('change', function () {
-        if ($(this).is(':checked')) {
-          $('#consumer-creation-config').slideDown(200);
-          $('#consumer-settings-section').slideDown(200);
-        } else {
-          $('#consumer-creation-config').slideUp(200);
-          $('#consumer-settings-section').slideUp(200);
-        }
+        updateConsumerConfigVisibility();
       });
 
       $('#node-input-operation').trigger('change');
       $('#node-input-consumerType').trigger('change');
-      $('#node-input-createOnInit').trigger('change');
     },
   });
 </script>
