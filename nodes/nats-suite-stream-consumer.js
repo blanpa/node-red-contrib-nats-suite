@@ -38,6 +38,7 @@ module.exports = function (RED) {
     let consumer = null;
     let isConsuming = false;
     let isPaused = false; // Pause state
+    let idleTimeout = null; // Timer for idle status
     const sc = StringCodec();
 
     // Output configuration
@@ -357,6 +358,24 @@ module.exports = function (RED) {
           shape: 'dot',
           text: `${config.consumerName} (${pending} pending)`,
         });
+
+        // Clear any existing idle timeout
+        if (idleTimeout) {
+          clearTimeout(idleTimeout);
+          idleTimeout = null;
+        }
+
+        // Set timeout to change to idle status after 2 seconds
+        idleTimeout = setTimeout(() => {
+          if (!isConsuming && !isPaused) {
+            node.status({
+              fill: 'green',
+              shape: 'ring',
+              text: `${config.consumerName} (idle)`,
+            });
+          }
+          idleTimeout = null;
+        }, 2000);
       } catch (err) {
         node.error(`Error processing message: ${err.message}`, msg);
       }
@@ -372,6 +391,13 @@ module.exports = function (RED) {
         const maxWait = parseInt(config.maxWait, 10) || 1000;
         const batch =
           parseInt(batchSize, 10) || parseInt(config.batchSize, 10) || 1;
+
+        // Set waiting status (blue) before fetching
+        node.status({
+          fill: 'blue',
+          shape: 'ring',
+          text: `${config.consumerName} (waiting)`,
+        });
 
         node.log(
           `[STREAM CONSUMER] Fetching ${batch} messages (max wait: ${maxWait}ms)`
@@ -397,6 +423,7 @@ module.exports = function (RED) {
         if (count > 0) {
           node.log(`[STREAM CONSUMER] Processed ${count} messages`);
         } else if (!isPaused) {
+          // No messages found after timeout, change to idle status (green)
           node.status({
             fill: 'green',
             shape: 'ring',
@@ -801,6 +828,12 @@ module.exports = function (RED) {
     node.on('close', async function () {
       this.serverConfig.removeStatusListener(statusListener);
       this.serverConfig.unregisterConnectionUser(node.id);
+
+      // Clear idle timeout
+      if (idleTimeout) {
+        clearTimeout(idleTimeout);
+        idleTimeout = null;
+      }
 
       // Don't delete the consumer - it's durable and should persist
       consumer = null;

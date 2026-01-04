@@ -76,8 +76,16 @@
       $('#node-input-consumerType').on('change', function () {
         if ($(this).val() === 'push') {
           $('#idle-heartbeat-row').slideDown(200);
+          // Enable flow control checkbox for push consumers
+          $('#node-input-flowControl').prop('disabled', false);
+          $('#flow-control-row label').css('color', '');
         } else {
           $('#idle-heartbeat-row').slideUp(200);
+          // Disable and uncheck flow control for pull consumers
+          $('#node-input-flowControl')
+            .prop('checked', false)
+            .prop('disabled', true);
+          $('#flow-control-row label').css('color', '#aaa');
         }
       });
 
@@ -338,7 +346,7 @@
             <input type="number" id="node-input-maxWait" placeholder="1000" min="100">
           </div>
         </div>
-        <div class="nats-checkbox-row">
+        <div class="nats-checkbox-row" id="flow-control-row">
           <input type="checkbox" id="node-input-flowControl">
           <label for="node-input-flowControl"><i class="fa fa-tint"></i>Enable Flow Control</label>
         </div>
