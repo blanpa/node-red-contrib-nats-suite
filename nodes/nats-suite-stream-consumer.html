@@ -7,6 +7,7 @@
       server: { value: '', type: 'nats-suite-server' },
       streamName: { value: 'default-stream', required: true },
       consumerName: { value: 'default-consumer', required: true },
+      createOnInit: { value: true },
       filterSubject: { value: '' },
       consumerType: { value: 'pull' },
       ackPolicy: { value: 'explicit' },
@@ -66,8 +67,20 @@
         }
       });
 
+      // Create on init handler - show/hide consumer-specific configuration
+      $('#node-input-createOnInit').on('change', function () {
+        if ($(this).is(':checked')) {
+          $('#consumer-creation-config').slideDown(200);
+          $('#consumer-settings-section').slideDown(200);
+        } else {
+          $('#consumer-creation-config').slideUp(200);
+          $('#consumer-settings-section').slideUp(200);
+        }
+      });
+
       $('#node-input-operation').trigger('change');
       $('#node-input-consumerType').trigger('change');
+      $('#node-input-createOnInit').trigger('change');
     },
   });
 </script>
@@ -241,62 +254,39 @@
           <label><i class="fa fa-user"></i>Consumer Name</label>
           <input type="text" id="node-input-consumerName" placeholder="processor-1">
         </div>
-        <div class="nats-form-row">
-          <label><i class="fa fa-filter"></i>Filter Subject</label>
-          <input type="text" id="node-input-filterSubject" placeholder="sensor.temperature (optional)">
+        <div class="nats-checkbox-row" id="create-on-init-row">
+          <input type="checkbox" id="node-input-createOnInit">
+          <label for="node-input-createOnInit"><i class="fa fa-plus-circle"></i>Create Consumer on initialization</label>
         </div>
-        <div class="nats-grid">
+        <div id="consumer-creation-config">
           <div class="nats-form-row">
-            <label><i class="fa fa-exchange"></i>Consumer Type</label>
-            <select id="node-input-consumerType">
-              <option value="pull">Pull-based</option>
-              <option value="push">Push-based</option>
-            </select>
+            <label><i class="fa fa-filter"></i>Filter Subject</label>
+            <input type="text" id="node-input-filterSubject" placeholder="sensor.temperature (optional)">
           </div>
-          <div class="nats-form-row">
-            <label><i class="fa fa-truck"></i>Deliver Policy</label>
-            <select id="node-input-deliverPolicy">
-              <option value="new">New Only</option>
-              <option value="all">All</option>
-              <option value="last">Last</option>
-              <option value="by_start_sequence">By Sequence</option>
-              <option value="by_start_time">By Time</option>
-            </select>
+          <div class="nats-grid">
+            <div class="nats-form-row">
+              <label><i class="fa fa-exchange"></i>Consumer Type</label>
+              <select id="node-input-consumerType">
+                <option value="pull">Pull-based</option>
+                <option value="push">Push-based</option>
+              </select>
+            </div>
+            <div class="nats-form-row">
+              <label><i class="fa fa-truck"></i>Deliver Policy</label>
+              <select id="node-input-deliverPolicy">
+                <option value="new">New Only</option>
+                <option value="all">All</option>
+                <option value="last">Last</option>
+                <option value="by_start_sequence">By Sequence</option>
+                <option value="by_start_time">By Time</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="nats-form-row" id="idle-heartbeat-row" style="display: none;">
-          <label><i class="fa fa-heartbeat"></i>Idle Heartbeat</label>
-          <input type="text" id="node-input-idleHeartbeat" placeholder="5s">
-          <div class="nats-hint">Required for push-based consumers</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Output Configuration -->
-    <div class="nats-section" id="output-config-section">
-      <div class="nats-section-header">
-        <div class="nats-section-title">
-          <i class="fa fa-sign-out"></i>
-          <span>Output Configuration</span>
-        </div>
-        <i class="fa fa-chevron-down nats-section-toggle"></i>
-      </div>
-      <div class="nats-section-content">
-        <div class="nats-form-row">
-          <label><i class="fa fa-file-code-o"></i>Parse As</label>
-          <select id="node-input-dataformat">
-            <option value="auto">Auto-Detect (JSON or String)</option>
-            <option value="json">JSON (force parsing)</option>
-            <option value="string">String (no parsing)</option>
-            <option value="buffer">Buffer (binary)</option>
-          </select>
-          <div class="nats-hint">
-            Auto: Try JSON first, fallback to string | Buffer: For binary data
+          <div class="nats-form-row" id="idle-heartbeat-row" style="display: none;">
+            <label><i class="fa fa-heartbeat"></i>Idle Heartbeat</label>
+            <input type="text" id="node-input-idleHeartbeat" placeholder="5s">
+            <div class="nats-hint">Required for push-based consumers</div>
           </div>
-        </div>
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-debug">
-          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
         </div>
       </div>
     </div>
@@ -344,6 +334,35 @@
         <div class="nats-checkbox-row">
           <input type="checkbox" id="node-input-flowControl">
           <label for="node-input-flowControl"><i class="fa fa-tint"></i>Enable Flow Control</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Configuration -->
+    <div class="nats-section" id="output-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sign-out"></i>
+          <span>Output Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-file-code-o"></i>Parse As</label>
+          <select id="node-input-dataformat">
+            <option value="auto">Auto-Detect (JSON or String)</option>
+            <option value="json">JSON (force parsing)</option>
+            <option value="string">String (no parsing)</option>
+            <option value="buffer">Buffer (binary)</option>
+          </select>
+          <div class="nats-hint">
+            Auto: Try JSON first, fallback to string | Buffer: For binary data
+          </div>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-debug">
+          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
         </div>
       </div>
     </div>

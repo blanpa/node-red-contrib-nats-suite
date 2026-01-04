@@ -91,39 +91,10 @@ module.exports = function (RED) {
           return false;
         }
 
-        // Configure consumer
-        const consumerConfig = {
-          durable_name: config.consumerName,
-          ack_policy: config.ackPolicy || 'explicit',
-          ack_wait: parseDuration(config.ackWait || '30s'),
-          max_deliver: parseInt(config.maxDeliver, 10) || 5,
-          max_ack_pending: parseInt(config.maxAckPending, 10) || 1000,
-          deliver_policy: config.deliverPolicy || 'new',
-          flow_control: !!config.flowControl,
-        };
+        // Check if createOnInit is enabled (default to true for backwards compatibility)
+        const createOnInit = config.createOnInit !== false;
 
-        // Only add idle_heartbeat for push-based consumers
-        // Note: idle_heartbeat is only valid for push-based consumers
-        // For pull-based consumers (default), this should not be set
-        if (config.consumerType === 'push' && config.idleHeartbeat) {
-          consumerConfig.idle_heartbeat = parseDuration(config.idleHeartbeat);
-        }
-
-        // Add filter subject if specified
-        if (config.filterSubject) {
-          consumerConfig.filter_subject = config.filterSubject;
-        }
-
-        // Add deliver policy specific options
-        if (config.deliverPolicy === 'by_start_sequence') {
-          consumerConfig.opt_start_seq =
-            parseInt(config.startSequence, 10) || 1;
-        } else if (config.deliverPolicy === 'by_start_time') {
-          consumerConfig.opt_start_time =
-            config.startTime || new Date().toISOString();
-        }
-
-        // Try to get existing consumer or create new one
+        // Try to get existing consumer first
         try {
           consumer = await jsClient.consumers.get(
             config.streamName,
@@ -131,19 +102,66 @@ module.exports = function (RED) {
           );
           node.log(`[STREAM CONSUMER] Consumer exists: ${config.consumerName}`);
         } catch (err) {
-          // Consumer doesn't exist, create it
+          // Consumer doesn't exist
           if (err.message && err.message.includes('consumer not found')) {
-            node.log(
-              `[STREAM CONSUMER] Creating consumer: ${config.consumerName}`
-            );
-            await jsm.consumers.add(config.streamName, consumerConfig);
-            consumer = await jsClient.consumers.get(
-              config.streamName,
-              config.consumerName
-            );
-            node.log(
-              `[STREAM CONSUMER] Consumer created: ${config.consumerName}`
-            );
+            if (createOnInit) {
+              // Configure consumer
+              const consumerConfig = {
+                durable_name: config.consumerName,
+                ack_policy: config.ackPolicy || 'explicit',
+                ack_wait: parseDuration(config.ackWait || '30s'),
+                max_deliver: parseInt(config.maxDeliver, 10) || 5,
+                max_ack_pending: parseInt(config.maxAckPending, 10) || 1000,
+                deliver_policy: config.deliverPolicy || 'new',
+                flow_control: !!config.flowControl,
+              };
+
+              // Only add idle_heartbeat for push-based consumers
+              // Note: idle_heartbeat is only valid for push-based consumers
+              // For pull-based consumers (default), this should not be set
+              if (config.consumerType === 'push' && config.idleHeartbeat) {
+                consumerConfig.idle_heartbeat = parseDuration(
+                  config.idleHeartbeat
+                );
+              }
+
+              // Add filter subject if specified
+              if (config.filterSubject) {
+                consumerConfig.filter_subject = config.filterSubject;
+              }
+
+              // Add deliver policy specific options
+              if (config.deliverPolicy === 'by_start_sequence') {
+                consumerConfig.opt_start_seq =
+                  parseInt(config.startSequence, 10) || 1;
+              } else if (config.deliverPolicy === 'by_start_time') {
+                consumerConfig.opt_start_time =
+                  config.startTime || new Date().toISOString();
+              }
+
+              node.log(
+                `[STREAM CONSUMER] Creating consumer: ${config.consumerName}`
+              );
+              await jsm.consumers.add(config.streamName, consumerConfig);
+              consumer = await jsClient.consumers.get(
+                config.streamName,
+                config.consumerName
+              );
+              node.log(
+                `[STREAM CONSUMER] Consumer created: ${config.consumerName}`
+              );
+            } else {
+              // createOnInit is disabled, consumer must exist
+              node.error(
+                `Consumer not found: ${config.consumerName}. Enable "Create Consumer on initialization" or create the consumer manually.`
+              );
+              node.status({
+                fill: 'red',
+                shape: 'ring',
+                text: 'consumer not found',
+              });
+              return false;
+            }
           } else {
             throw err;
           }
