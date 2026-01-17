@@ -12,7 +12,7 @@ A comprehensive Node-RED module for NATS (NATS Messaging System) with support fo
 
 ## Status & Versioning
 
-- **Current version**: `0.0.2`
+- **Current version**: `0.0.4`
 - **Stability**: APIs and node options may still change between minor versions.
 - **Tested with**: Node-RED `>= 3.0.0`, Node.js `>= 14.0.0`, NATS Server `>= 2.9` (with JetStream enabled for JetStream/KV/Object Store features).
 - For detailed manual test flows, see `TEST-CASES.md`. Automated tests are located in the `__tests__` directory and can be executed via `npm test`.
@@ -316,6 +316,162 @@ msg.payload.command = "toggle"  // Toggle start/stop
 - New operation `keys` in KV Get node
 - Lists all keys of a bucket
 - Output: Array with all keys + count
+
+---
+
+## NATS Feature Coverage
+
+This section provides a comprehensive overview of NATS features and their implementation status in node-red-contrib-nats-suite.
+
+### Feature Matrix
+
+#### Core NATS Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Publish/Subscribe | ✅ Complete | `nats-suite-publish`, `nats-suite-subscribe` | Full pub/sub messaging |
+| Request/Reply | ✅ Complete | `nats-suite-publish` (mode: request/reply) | Synchronous communication |
+| Queue Groups | ✅ Complete | `nats-suite-subscribe` | Load balancing across subscribers |
+| Headers | ✅ Complete | `nats-suite-publish` | Static + dynamic headers |
+| Wildcards (*, >) | ✅ Complete | `nats-suite-subscribe` | Subject pattern matching |
+| TLS/SSL | ✅ Complete | `nats-suite-server` | Encrypted connections |
+| Token Auth | ✅ Complete | `nats-suite-server` | Token-based authentication |
+| User/Password Auth | ✅ Complete | `nats-suite-server` | Basic authentication |
+| JWT Auth | ✅ Complete | `nats-suite-server` | JWT-based authentication |
+| NKey Auth | ✅ Complete | `nats-suite-server` | NKey-based authentication |
+| Auto Reconnect | ✅ Complete | `nats-suite-server` | Automatic reconnection handling |
+| Clustering | ✅ Complete | `nats-suite-server` | Multi-server connections |
+| Leaf Nodes | ✅ Complete | `nats-suite-server-manager` | Edge server connections |
+| Message TTL | ✅ Complete | `nats-suite-publish` | Message expiration |
+| Subject Mapping | ❌ Not Implemented | - | Server-side subject transforms |
+| Weighted Mapping | ❌ Not Implemented | - | Canary testing / A-B routing |
+
+#### JetStream Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Stream Create | ✅ Complete | `nats-suite-stream-publisher` | Auto-creation supported |
+| Stream Update | ✅ Complete | `nats-suite-stream-publisher` | Update stream configuration |
+| Stream Delete | ✅ Complete | `nats-suite-stream-publisher` | Delete streams |
+| Stream Purge | ✅ Complete | `nats-suite-stream-publisher` | Purge all messages |
+| Stream Info | ✅ Complete | `nats-suite-stream-publisher` | Get stream details |
+| Stream List | ✅ Complete | `nats-suite-stream-publisher` | List all streams |
+| Update Subjects | ✅ Complete | `nats-suite-stream-publisher` | Update subjects only |
+| Publish to Stream | ✅ Complete | `nats-suite-stream-publisher` | Persistent message publishing |
+| Pull Consumer | ✅ Complete | `nats-suite-stream-consumer` | On-demand message fetching |
+| Push Consumer | ✅ Complete | `nats-suite-stream-consumer` | Automatic message delivery |
+| Consumer Create | ✅ Complete | `nats-suite-stream-consumer` | Create new consumers |
+| Consumer Delete | ✅ Complete | `nats-suite-stream-consumer` | Delete consumers |
+| Consumer Info | ✅ Complete | `nats-suite-stream-consumer` | Get consumer details |
+| Consumer List | ✅ Complete | `nats-suite-stream-consumer` | List all consumers |
+| Consumer Pause/Resume | ✅ Complete | `nats-suite-stream-consumer` | Pause/resume message fetching |
+| Consumer Monitor | ✅ Complete | `nats-suite-stream-consumer` | Detailed stats & metrics |
+| Retention: Limits | ✅ Complete | `nats-suite-stream-publisher` | Size/count/age limits |
+| Retention: Interest | ✅ Complete | `nats-suite-stream-publisher` | Consumer interest-based |
+| Retention: WorkQueue | ✅ Complete | `nats-suite-stream-publisher` | Work queue semantics |
+| Message Replay | ✅ Complete | `nats-suite-stream-consumer` | Replay from sequence/time |
+| Deduplication | ✅ Complete | `nats-suite-stream-publisher` | Via message ID |
+| Stream Mirrors | ❌ Not Implemented | - | Read-only stream replication |
+| Stream Sources | ❌ Not Implemented | - | Multi-stream aggregation |
+| Stream Republish | ❌ Not Implemented | - | Auto-republish to subjects |
+| Subject Transforms | ❌ Not Implemented | - | Stream-level subject mapping |
+| Consumer Filter Subject | 🔄 Partial | `nats-suite-stream-consumer` | Basic filtering available |
+
+#### KV Store Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Bucket Create | ✅ Complete | `nats-suite-kv-put` | Auto-creation supported |
+| Bucket Delete | ✅ Complete | `nats-suite-kv-put` | Delete buckets |
+| Bucket Info | ✅ Complete | `nats-suite-kv-put` | Get bucket details |
+| Bucket List | ✅ Complete | `nats-suite-kv-put` | List all buckets |
+| Get Value | ✅ Complete | `nats-suite-kv-get` | Read key values |
+| Put Value | ✅ Complete | `nats-suite-kv-put` | Write key values |
+| Create (if not exists) | ✅ Complete | `nats-suite-kv-put` | Conditional create |
+| Update (if exists) | ✅ Complete | `nats-suite-kv-put` | Conditional update |
+| Delete Key | ✅ Complete | `nats-suite-kv-put` | Soft delete (tombstone) |
+| Purge Key | ✅ Complete | `nats-suite-kv-put` | Hard delete (all revisions) |
+| List Keys | ✅ Complete | `nats-suite-kv-get` | List all keys in bucket |
+| Watch | ✅ Complete | `nats-suite-kv-get` | Monitor key changes |
+| TTL | ✅ Complete | `nats-suite-kv-put` | Time-to-live for entries |
+| Compression | ✅ Complete | `nats-suite-kv-put` | Value compression |
+| Key History | ❌ Not Implemented | - | Access revision history |
+| CAS (Compare-And-Swap) | ❌ Not Implemented | - | Atomic conditional updates |
+
+#### Object Store Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Bucket Create | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Bucket Delete | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Bucket Info | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Bucket List | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Put Object | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Get Object | 🔧 In Development | `nats-suite-object-get` | In `nodes-dev/` folder |
+| Delete Object | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| List Objects | 🔧 In Development | `nats-suite-object-get` | In `nodes-dev/` folder |
+| Object Metadata | 🔧 In Development | `nats-suite-object-put` | In `nodes-dev/` folder |
+| Watch | ❌ Not Implemented | - | Monitor object changes |
+| Object Links | ❌ Not Implemented | - | Create object references |
+| Bucket Links | ❌ Not Implemented | - | Cross-bucket linking |
+| Seal Bucket | ❌ Not Implemented | - | Make bucket read-only |
+
+#### Services API Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Create Service | 🔧 In Development | `nats-suite-service` | In `nodes-dev/` folder |
+| Add Endpoint | 🔧 In Development | `nats-suite-service` | In `nodes-dev/` folder |
+| Start/Stop Service | 🔧 In Development | `nats-suite-service` | In `nodes-dev/` folder |
+| Service Discovery | 🔧 In Development | `nats-suite-service` | Ping/Info operations |
+| Service Stats | 🔧 In Development | `nats-suite-service` | Metrics collection |
+| Health Monitoring | 🔧 In Development | `nats-suite-service` | Connection health checks |
+| NATS Stats | 🔧 In Development | `nats-suite-service` | Server/JetStream stats |
+| Service Groups | ❌ Not Implemented | - | Endpoint grouping |
+
+#### Server Management Features
+
+| Feature | Status | Node | Notes |
+|---------|--------|------|-------|
+| Embedded Server | ✅ Complete | `nats-suite-server-manager` | Run NATS in Node-RED |
+| Custom Binary | ✅ Complete | `nats-suite-server-manager` | Use specific server version |
+| MQTT Bridge | ✅ Complete | `nats-suite-server-manager` | MQTT protocol support |
+| WebSocket | ✅ Complete | `nats-suite-server-manager` | Browser client support |
+| JetStream Enable | ✅ Complete | `nats-suite-server-manager` | Enable persistence |
+| HTTP Monitoring | ✅ Complete | `nats-suite-server-manager` | /varz, /connz, /healthz |
+| Leaf Node Mode | ✅ Complete | `nats-suite-server-manager` | Connect to remote clusters |
+| Start/Stop/Restart | ✅ Complete | `nats-suite-server-manager` | Server control commands |
+
+### Coverage Summary
+
+| Category | Implemented | In Development | Not Implemented | Coverage |
+|----------|-------------|----------------|-----------------|----------|
+| **Core NATS** | 15 | 0 | 2 | 88% |
+| **JetStream** | 20 | 0 | 5 | 80% |
+| **KV Store** | 14 | 0 | 2 | 87% |
+| **Object Store** | 0 | 9 | 4 | 0% (prod) / 69% (dev) |
+| **Services API** | 0 | 7 | 1 | 0% (prod) / 87% (dev) |
+| **Server Management** | 8 | 0 | 0 | 100% |
+
+### Legend
+
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | Complete - Available in production nodes |
+| 🔧 | In Development - Available in `nodes-dev/` folder |
+| 🔄 | Partial - Basic functionality available |
+| ❌ | Not Implemented - Not yet available |
+
+### Roadmap
+
+Features planned for future releases:
+
+1. **Object Store & Services API** - Move from `nodes-dev/` to production
+2. **KV History** - Access key revision history
+3. **KV Compare-And-Swap** - Atomic conditional updates
+4. **Stream Mirrors** - Read-only stream replication
+5. **Stream Sources** - Aggregate from multiple streams
+6. **Object Store Watch** - Monitor object changes
 
 ---
 

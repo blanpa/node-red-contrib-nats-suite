@@ -1,5 +1,44 @@
 ## Changelog
 
+### 0.0.4 – Documentation & Feature Coverage
+
+#### New Features
+
+**NATS Feature Coverage Documentation**
+- Added comprehensive NATS Feature Coverage section to README
+- Detailed feature matrix for all NATS areas:
+  - Core NATS (17 features documented)
+  - JetStream (25 features documented)
+  - KV Store (16 features documented)
+  - Object Store (13 features documented)
+  - Services API (8 features documented)
+  - Server Management (8 features documented)
+- Coverage summary with implementation percentages
+- Clear status indicators (✅ Complete, 🔧 In Development, 🔄 Partial, ❌ Not Implemented)
+- Roadmap for planned features
+
+#### Documentation Improvements
+- All documentation files are now in English
+- Added legend explaining status symbols
+- Added feature-to-node mapping for easy reference
+- Improved structure and readability of README
+
+---
+
+### 0.0.3 – Stability & Bug Fixes
+
+#### Improvements
+- Improved connection handling stability
+- Better error messages for common issues
+- Enhanced debug logging across all nodes
+
+#### Bug Fixes
+- Fixed edge cases in KV Store watch operation
+- Improved Stream Consumer message acknowledgment handling
+- Fixed status display inconsistencies
+
+---
+
 ### 0.0.2 – Server Manager Enhancements
 
 #### New Features
