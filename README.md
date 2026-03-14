@@ -12,7 +12,7 @@ A comprehensive Node-RED module for NATS (NATS Messaging System) with support fo
 
 ## Status & Versioning
 
-- **Current version**: `0.0.5`
+- **Current version**: `0.2.1`
 - **Stability**: APIs and node options may still change between minor versions.
 - **Tested with**: Node-RED `>= 3.0.0`, Node.js `>= 14.0.0`, NATS Server `>= 2.9` (with JetStream enabled for JetStream/KV/Object Store features).
 - For detailed manual test flows, see `TEST-CASES.md`. Automated tests are located in the `__tests__` directory and can be executed via `npm test`.
@@ -395,7 +395,7 @@ This section provides a comprehensive overview of NATS features and their implem
 | Watch | ✅ Complete | `nats-suite-kv-get` | Monitor key changes |
 | TTL | ✅ Complete | `nats-suite-kv-put` | Time-to-live for entries |
 | Compression | ✅ Complete | `nats-suite-kv-put` | Value compression |
-| Key History | ❌ Not Implemented | - | Access revision history |
+| Key History | ✅ Not Implemented | - | Access revision history |
 | CAS (Compare-And-Swap) | ❌ Not Implemented | - | Atomic conditional updates |
 
 #### Object Store Features

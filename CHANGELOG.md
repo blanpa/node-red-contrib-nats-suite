@@ -1,5 +1,28 @@
 ## Changelog
 
+### 0.2.1 – KV Enhancements & Stream Consumer Improvements
+
+#### New Features
+
+**KV Get (`nats-suite-kv-get`)**
+- **History Limit**: New `historyLimit` option to limit the number of revision history entries returned when `includeHistory` is enabled
+- **History Limit UI**: Show/hide history limit input dynamically based on the `includeHistory` checkbox, with validation (minimum 1)
+- **Topic as key source**: Added `msg.topic` as a new key source option (`keyFrom: 'topic'`) alongside config, msg.key, and msg.payload
+- **Debug logging for history**: Added detailed debug log output for history retrieval including entry count, limit, and per-entry details
+
+**Stream Consumer (`nats-suite-stream-consumer`)**
+- **Redelivery count**: Added `redelivery_count` to the message info object for consumed messages, exposing `jetMsg.info.redeliveryCount`
+
+#### Improvements
+- Improved code formatting and consistency across KV Get and KV Put nodes
+- Added `docker-dev` target description to Makefile help output
+- Updated Discord invite link in README
+
+#### Bug Fixes
+- Fixed `msg.bucket` using wrong reference (`this.bucketConfig.bucket` → `node.bucket`) in KV Put delete and purge operations
+
+---
+
 ### 0.0.5 – Stream Consumer Enhancements & Documentation
 
 #### New Features
