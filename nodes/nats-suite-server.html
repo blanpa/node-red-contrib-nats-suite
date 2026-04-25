@@ -62,9 +62,27 @@
       
       updateAuthFields();
       updateTLSFields();
-      
+
+      // Sync nkeySeed value to the nkey-only textarea on open
+      $('#node-config-input-nkeySeed-nkey').val($('#node-config-input-nkeySeed').val());
+
+      // Keep both nkeySeed fields in sync as the user types
+      $('#node-config-input-nkeySeed').on('input', function() {
+        $('#node-config-input-nkeySeed-nkey').val($(this).val());
+      });
+      $('#node-config-input-nkeySeed-nkey').on('input', function() {
+        $('#node-config-input-nkeySeed').val($(this).val());
+      });
+
       $('#node-config-input-authMethod').on('change', updateAuthFields);
       $('#node-config-input-enableTLS').on('change', updateTLSFields);
+    },
+    oneditsave: function() {
+      // Ensure the nkey-only field value is written back to the credential field Node-RED reads
+      const nkeyVal = $('#node-config-input-nkeySeed-nkey').val();
+      if ($('#node-config-input-authMethod').val() === 'nkey' && nkeyVal) {
+        $('#node-config-input-nkeySeed').val(nkeyVal);
+      }
     }
   });
 </script>
@@ -295,7 +313,7 @@
         <div id="auth-nkey-section" class="nats-auth-section">
           <div class="nats-form-row">
             <label><i class="fa fa-fingerprint"></i>NKey Seed</label>
-            <textarea id="node-config-input-nkeySeed" rows="2" placeholder="Paste NKey seed here..."></textarea>
+            <textarea id="node-config-input-nkeySeed-nkey" rows="2" placeholder="Paste NKey seed here..."></textarea>
           </div>
         </div>
         

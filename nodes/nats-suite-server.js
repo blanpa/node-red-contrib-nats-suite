@@ -1,4 +1,4 @@
-const { connect, StringCodec, credsAuthenticator } = require('nats');
+const { connect, StringCodec, credsAuthenticator, nkeyAuthenticator } = require('nats');
 const fs = require('fs');
 const path = require('path');
 
@@ -34,6 +34,9 @@ module.exports = function (RED) {
         this.log(`  - TLS Key File: ${this.tlsKeyFile || 'none'}`);
         this.log(`  - Verify Certificate: ${this.tlsRejectUnauthorized}`);
       }
+    }
+    if (this.authMethod === 'nkey' && this.nkeySeed.length == 0) {
+      this.error(`[NATS] Auth Method: ${this.authMethod} requires the nkeySeed to be set.`);
     }
     
     // Debug connection info
@@ -174,7 +177,7 @@ module.exports = function (RED) {
         case 'nkey':
           if (this.nkeySeed) {
             // NKey authentication
-            ConnectionOptions.authenticator = credsAuthenticator(
+            ConnectionOptions.authenticator = nkeyAuthenticator(
               new TextEncoder().encode(this.nkeySeed)
             );
             if (isDebug) this.log(`[NATS] Using NKey authentication`);
