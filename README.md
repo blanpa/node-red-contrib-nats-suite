@@ -12,7 +12,7 @@ A comprehensive Node-RED module for NATS (NATS Messaging System) with support fo
 
 ## Status & Versioning
 
-- **Current version**: `0.0.5`
+- **Current version**: `0.2.2`
 - **Stability**: APIs and node options may still change between minor versions.
 - **Tested with**: Node-RED `>= 3.0.0`, Node.js `>= 14.0.0`, NATS Server `>= 2.9` (with JetStream enabled for JetStream/KV/Object Store features).
 - For detailed manual test flows, see `TEST-CASES.md`. Automated tests are located in the `__tests__` directory and can be executed via `npm test`.
@@ -43,9 +43,10 @@ A comprehensive Node-RED module for NATS (NATS Messaging System) with support fo
 - **Bucket Management**: Create and configure KV buckets
 - **Get/Put**: Read and write values
 - **Watch**: Monitor changes
-- **History**: Access to history
+- **History**: Access to revision history with configurable limit
 - **TTL**: Time To Live support
 - **Compression**: Value compression
+- **Key Source**: Use `msg.topic` as key source
 
 ## Installation
 
@@ -395,7 +396,7 @@ This section provides a comprehensive overview of NATS features and their implem
 | Watch | ✅ Complete | `nats-suite-kv-get` | Monitor key changes |
 | TTL | ✅ Complete | `nats-suite-kv-put` | Time-to-live for entries |
 | Compression | ✅ Complete | `nats-suite-kv-put` | Value compression |
-| Key History | ❌ Not Implemented | - | Access revision history |
+| Key History | ✅ Complete | `nats-suite-kv-get` | Access revision history with configurable limit |
 | CAS (Compare-And-Swap) | ❌ Not Implemented | - | Atomic conditional updates |
 
 #### Object Store Features
@@ -448,7 +449,7 @@ This section provides a comprehensive overview of NATS features and their implem
 |----------|-------------|----------------|-----------------|----------|
 | **Core NATS** | 15 | 0 | 2 | 88% |
 | **JetStream** | 20 | 0 | 5 | 80% |
-| **KV Store** | 14 | 0 | 2 | 87% |
+| **KV Store** | 15 | 0 | 1 | 94% |
 | **Object Store** | 0 | 9 | 4 | 0% (prod) / 69% (dev) |
 | **Services API** | 0 | 7 | 1 | 0% (prod) / 87% (dev) |
 | **Server Management** | 8 | 0 | 0 | 100% |
@@ -467,11 +468,10 @@ This section provides a comprehensive overview of NATS features and their implem
 Features planned for future releases:
 
 1. **Object Store & Services API** - Move from `nodes-dev/` to production
-2. **KV History** - Access key revision history
-3. **KV Compare-And-Swap** - Atomic conditional updates
-4. **Stream Mirrors** - Read-only stream replication
-5. **Stream Sources** - Aggregate from multiple streams
-6. **Object Store Watch** - Monitor object changes
+2. **KV Compare-And-Swap** - Atomic conditional updates
+3. **Stream Mirrors** - Read-only stream replication
+4. **Stream Sources** - Aggregate from multiple streams
+5. **Object Store Watch** - Monitor object changes
 
 ---
 
