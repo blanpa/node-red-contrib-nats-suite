@@ -1,5 +1,23 @@
 ## Changelog
 
+### 0.2.2 – NKey-Only Authentication Fix
+
+> Note: version `0.2.1` was published to npm directly without a corresponding commit on `main`. This release continues from `0.2.0` on `main` and skips `0.2.1` to avoid version drift.
+
+#### Bug Fixes
+
+**NATS Server (`nats-suite-server`)**
+- Fixed broken NKey-only authentication (#14, fixes #15):
+  - Resolved duplicate HTML element ID `node-config-input-nkeySeed` shared between the JWT and NKey-only sections, which caused the seed value entered in the NKey-only form to never be persisted by Node-RED.
+  - The two NKey seed fields are now kept in sync via jQuery so the value entered in either section ends up in the credential store.
+  - Replaced incorrect use of `credsAuthenticator` with `nkeyAuthenticator` for the NKey-only authentication path (`credsAuthenticator` is only valid for combined JWT + NKey credentials files).
+  - Added a clear error message when `authMethod` is `nkey` but no NKey seed is configured.
+
+#### Credits
+- Thanks to @cfedersp for reporting (#15) and contributing the fix (#14).
+
+---
+
 ### 0.0.5 – Stream Consumer Enhancements & Documentation
 
 #### New Features
