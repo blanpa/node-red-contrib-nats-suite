@@ -11,9 +11,12 @@
   (section 4b). It remains fully permissive: commercial use, closed-source
   derivatives and forks are all still allowed.
 - **`NOTICE` added** and verified to ship inside the npm tarball.
-- **Fork guidance in the README.** Forks published under a different package
-  name are asked to rename their Node-RED node type IDs and use their own
-  palette category, so both packages can be installed side by side.
+- **Contributing and fork guidance in the README.** Pull requests are welcome,
+  including large ones — an issue up front means substantial work can usually
+  land here instead of in a parallel package. Forks that are published under
+  their own package name are asked to rename their Node-RED node type IDs and
+  use their own palette category, so both packages can be installed side by
+  side.
 
 ### 0.2.2 – NKey-Only Authentication Fix
 
