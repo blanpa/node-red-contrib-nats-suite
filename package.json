@@ -36,7 +36,7 @@
       "name": "dbleul"
     }
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "nats": "^2.29.3"
   },

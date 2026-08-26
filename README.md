@@ -477,11 +477,17 @@ Features planned for future releases:
 
 ## License
 
-MIT License - see LICENSE file for details.
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-## Author
+Copyright 2025-2026 blanpa
 
-blanpa
+## Forks
+
+Forks are welcome. If you publish a fork under a different package name, please
+also rename the Node-RED node type IDs (for example `myprefix-nats-suite-*`) and
+use your own palette category. Node-RED refuses to register a node type that is
+already claimed, so identical type IDs make it impossible to install both
+packages side by side.
 
 ## Support
 
