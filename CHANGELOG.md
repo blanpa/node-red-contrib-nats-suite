@@ -1,5 +1,20 @@
 ## Changelog
 
+### 0.2.3 – Relicensed to Apache-2.0
+
+#### Changed
+
+- **License changed from MIT to Apache-2.0.** Apache-2.0 is the license
+  Node-RED itself uses. Compared to MIT it adds an explicit patent grant
+  (section 3), keeps attribution intact downstream through the new `NOTICE`
+  file (section 4d), and requires modified files to be marked as changed
+  (section 4b). It remains fully permissive: commercial use, closed-source
+  derivatives and forks are all still allowed.
+- **`NOTICE` added** and verified to ship inside the npm tarball.
+- **Fork guidance in the README.** Forks published under a different package
+  name are asked to rename their Node-RED node type IDs and use their own
+  palette category, so both packages can be installed side by side.
+
 ### 0.2.2 – NKey-Only Authentication Fix
 
 > Note: version `0.2.1` was published to npm directly without a corresponding commit on `main`. This release continues from `0.2.0` on `main` and skips `0.2.1` to avoid version drift.
