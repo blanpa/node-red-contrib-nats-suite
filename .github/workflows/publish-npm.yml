@@ -1,5 +1,10 @@
 name: Publish NPM Package on Tag
 
+# Veröffentlicht via npm Trusted Publishing (OIDC) — es wird KEIN NPM_TOKEN
+# benötigt. Voraussetzung: Auf npmjs.com ist unter
+# "Package settings -> Trusted Publishers" dieses Repo mit dem Workflow-
+# Dateinamen publish-npm.yml hinterlegt.
+
 on:
   push:
     tags:
@@ -19,6 +24,11 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read      # checkout
+      id-token: write     # erforderlich für Trusted Publishing (OIDC)
+
     steps:
       - uses: actions/checkout@v4
       
@@ -26,7 +36,13 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
-      
+
+      # Trusted Publishing benötigt npm >= 11.5.1; Node 20 bringt npm 10.x mit.
+      # Bewusst auf die 11er-Linie gepinnt: npm@latest ist inzwischen 12.x und
+      # verlangt node ^22.22.2 || ^24.15.0 || >=26.
+      - name: Update npm
+        run: npm install -g npm@^11
+
       - run: npm install
       
       # Extrahiere Version aus Tag
@@ -41,8 +57,8 @@ jobs:
       - name: Dry-Run
         run: npm publish --dry-run
       
-      # Eigentliches Publizieren
+      # Kein NODE_AUTH_TOKEN: npm holt die Credentials per OIDC vom auf
+      # npmjs.com hinterlegten Trusted Publisher. Provenance wird dabei
+      # automatisch angehängt.
       - name: Publish to NPM
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+        run: npm publish --access public
