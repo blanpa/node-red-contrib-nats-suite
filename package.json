@@ -56,7 +56,11 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/blanpa/node-red-contrib-nats-suite.git"
+  },
+  "homepage": "https://github.com/blanpa/node-red-contrib-nats-suite#readme",
+  "bugs": {
+    "url": "https://github.com/blanpa/node-red-contrib-nats-suite/issues"
   },
   "devDependencies": {
     "jest": "^30.2.0"
