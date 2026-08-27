@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/node-red-contrib-nats-suite.svg)](https://www.npmjs.com/package/node-red-contrib-nats-suite)
 [![npm downloads](https://img.shields.io/npm/dm/node-red-contrib-nats-suite.svg)](https://www.npmjs.com/package/node-red-contrib-nats-suite)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Node-RED](https://img.shields.io/badge/Node--RED-node--red--contrib--nats--suite-red?logo=nodered)](https://flows.nodered.org/node/node-red-contrib-nats-suite)
 [![Node.js Version](https://img.shields.io/node/v/node-red-contrib-nats-suite.svg)](https://nodejs.org/)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-orange.svg)]()
