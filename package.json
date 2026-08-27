@@ -9,6 +9,14 @@
     "pubsub",
     "jetstream"
   ],
+  "files": [
+    "nodes/",
+    "examples/",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "node-red": {
     "version": ">=3.0.0",
     "nodes": {

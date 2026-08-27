@@ -17,6 +17,12 @@
   their own package name are asked to rename their Node-RED node type IDs and
   use their own palette category, so both packages can be installed side by
   side.
+- **Package contents restricted via `files`.** The tarball shipped the whole
+  repository, including `bin/act` (20.3 MB) and two `nats-server` binaries
+  (33 MB combined) that the nodes never load — the server-manager node resolves
+  `nats-server` from `nats-memory-server`, the system `PATH`, or a configured
+  custom path, never from a bundled `bin/`. The published package drops from
+  20.4 MB to 91 kB (480 kB unpacked).
 
 ### 0.2.2 – NKey-Only Authentication Fix
 
