@@ -191,7 +191,7 @@ Use the `nats-suite-server-manager` node to run an embedded NATS server directly
 #### Binary Source Options
 | Source | Description |
 |--------|-------------|
-| **Auto-detect** | Uses `nats-memory-server` npm package (optional dependency), falls back to system PATH |
+| **Auto-detect** | Uses the `nats-memory-server` binary (optional dependency), falls back to `/usr/local/bin`, `/usr/bin` and the system PATH |
 | **Custom Binary** | Mount your own nats-server binary (e.g., `/data/bin/nats-server-v2.12.2-linux-amd64`) |
 | **System PATH** | Uses `nats-server` from system PATH only |
 
@@ -204,10 +204,18 @@ Use the `nats-suite-server-manager` node to run an embedded NATS server directly
 - **Leaf Node Mode**: Connect to remote NATS clusters
 - **HTTP Monitoring**: Server stats via HTTP endpoints (`/varz`, `/connz`, `/healthz`, etc.)
 
-#### Pre-built Binaries
-This package includes pre-built NATS server binaries in the `bin/` folder:
-- `nats-server-v2.12.2-linux-amd64` (x86-64)
-- `nats-server-v2.12.2-linux-arm64` (ARM64)
+#### Where the binary comes from
+The npm package does **not** ship a `nats-server` binary — it resolves one at
+runtime, in this order:
+
+1. `nats-memory-server` (declared as an optional dependency, so npm installs a
+   matching binary into its cache unless you opt out with `--no-optional`)
+2. `/usr/local/bin/nats-server`, then `/usr/bin/nats-server`
+3. `nats-server` from the system `PATH`
+
+If none of these exist, the node reports `nats-server not found`. Either install
+the optional dependency, put a `nats-server` on the `PATH`, or select **Custom
+Binary** and point the node at your own build.
 
 #### Control Commands
 ```javascript
