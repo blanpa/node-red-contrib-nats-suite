@@ -6,11 +6,6 @@
       name: { value: '' },
       server: { value: '', type: 'nats-suite-server', required: true },
       bucket: { value: '' },
-      bucketConfig: {
-        value: '',
-        type: 'nats-suite-kv-bucket',
-        required: false,
-      },
       description: { value: '' },
       history: { value: 10 },
       maxAge: { value: 0 },
@@ -23,6 +18,9 @@
       key: { value: '' },
       keyFrom: { value: 'config' },
       watchPattern: { value: '' },
+      watchHeadersOnly: { value: false },
+      watchInclude: { value: '' },
+      watchResumeFromRevision: { value: 0 },
       includeHistory: { value: false },
       historyLimit: {
         value: 1,
@@ -44,16 +42,6 @@
     },
     paletteLabel: 'nats kv get',
     oneditprepare: function () {
-      // Collapsible sections
-      $('.nats-section-header').on('click', function () {
-        const $header = $(this);
-        const $content = $header.next('.nats-section-content');
-        const $icon = $header.find('.nats-section-toggle');
-        $content.slideToggle(200);
-        $icon.toggleClass('fa-chevron-down fa-chevron-right');
-        $header.toggleClass('collapsed');
-      });
-
       // Mode handler
       $('#node-input-mode').on('change', function () {
         const mode = $(this).val();
@@ -71,290 +59,182 @@
         }
       });
 
-      // Bucket config handler
-      $('#node-input-bucketConfig').on('change', function () {
-        if ($(this).val()) {
-          $('#bucket-direct-config').slideUp(200);
-        } else {
-          $('#bucket-direct-config').slideDown(200);
-        }
-      });
-
       // Include history handler
       $('#node-input-includeHistory').on('change', function () {
-        if ($(this).is(':checked')) {
-          $('#history-limit-row').slideDown(200);
-        } else {
-          $('#history-limit-row').slideUp(200);
-        }
+        $('#history-limit-row, #history-limit-tip').toggle(
+          $(this).is(':checked')
+        );
       });
 
       // Trigger initial state
       $('#node-input-mode').trigger('change');
       $('#node-input-keyFrom').trigger('change');
-      $('#node-input-bucketConfig').trigger('change');
       $('#node-input-includeHistory').trigger('change');
     },
   });
 </script>
 
 <script type="text/x-red" data-template-name="nats-suite-kv-get">
-  <style>
-    .nats-kv-config {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
-      padding: 10px 14px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
-      user-select: none;
-    }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-    }
-    .nats-section-header.collapsed { border-bottom: none; }
-    .nats-section-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 600;
-      font-size: 13px;
-      color: #2c3e50;
-    }
-    .nats-section-title i {
-      width: 18px;
-      text-align: center;
-      color: #2FAF9C;
-      font-size: 14px;
-    }
-    .nats-section-toggle {
-      color: #6c757d;
-      font-size: 11px;
-    }
-    .nats-section-content { padding: 14px; }
-    .nats-form-row { margin-bottom: 12px; }
-    .nats-form-row:last-child { margin-bottom: 0; }
-    .nats-form-row label {
-      display: block;
-      font-size: 12px;
-      font-weight: 500;
-      color: #495057;
-      margin-bottom: 5px;
-    }
-    .nats-form-row label i {
-      margin-right: 6px;
-      color: #2FAF9C;
-      width: 14px;
-      text-align: center;
-    }
-    .nats-form-row input[type="text"],
-    .nats-form-row input[type="number"],
-    .nats-form-row select {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #ced4da;
-      border-radius: 6px;
-      font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
-    }
-    .nats-form-row input:focus,
-    .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
-      outline: none;
-    }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
-      line-height: 1.4;
-    }
-    .nats-checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 0;
-    }
-    .nats-checkbox-row input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: #2FAF9C;
-      cursor: pointer;
-    }
-    .nats-checkbox-row label {
-      margin: 0;
-      font-size: 13px;
-      font-weight: 500;
-      color: #2c3e50;
-      cursor: pointer;
-    }
-    .nats-checkbox-row label i {
-      margin-right: 8px;
-      color: #2FAF9C;
-    }
-    .nats-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      background: #d4edda;
-      color: #155724;
-    }
-    .nats-mode-options {
-      display: none;
-      padding-top: 12px;
-      border-top: 1px dashed #dee2e6;
-      margin-top: 12px;
-    }
-  </style>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Optional display name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
+    <input type="text" id="node-input-server">
+  </div>
+  <div class="form-row">
+    <label for="node-input-bucket"><i class="fa fa-database"></i> Bucket Name</label>
+    <input type="text" id="node-input-bucket" placeholder="my-bucket" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-debug"> </label>
+    <label for="node-input-debug" style="width:70%">
+      <input type="checkbox" id="node-input-debug" style="display:inline-block; width:22px; vertical-align:top;">Enable Debug Logging
+    </label>
+  </div>
 
-  <div class="nats-kv-config">
+  <h4>Bucket Settings</h4>
+  <div class="form-tips">Used only if the bucket does not exist yet and needs to be created.</div>
+  <div class="form-row">
+    <label for="node-input-description">Description</label>
+    <input type="text" id="node-input-description" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-history">History</label>
+    <input type="number" id="node-input-history" min="1" max="64" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-maxAge">Max Age (s)</label>
+    <input type="number" id="node-input-maxAge" min="0" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-maxBytes">Max Bytes</label>
+    <input type="number" id="node-input-maxBytes" min="0" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-maxValueSize">Max Value Size</label>
+    <input type="number" id="node-input-maxValueSize" min="0" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-storage">Storage</label>
+    <select id="node-input-storage" style="width:70%">
+      <option value="file">File</option>
+      <option value="memory">Memory</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-replicas">Replicas</label>
+    <input type="number" id="node-input-replicas" min="1" style="width:70%">
+  </div>
+  <div class="form-row">
+    <label for="node-input-compression"> </label>
+    <label for="node-input-compression" style="width:70%">
+      <input type="checkbox" id="node-input-compression" style="display:inline-block; width:22px; vertical-align:top;">Enable Compression
+    </label>
+  </div>
 
-    <!-- Basic Configuration -->
-    <div class="nats-section">
-      <div class="nats-section-header">
-        <div class="nats-section-title">
-          <i class="fa fa-cog"></i>
-          <span>Basic Configuration</span>
-        </div>
-        <i class="fa fa-chevron-down nats-section-toggle"></i>
-      </div>
-      <div class="nats-section-content">
-        <div class="nats-form-row">
-          <label><i class="fa fa-tag"></i>Name</label>
-          <input type="text" id="node-input-name" placeholder="Optional display name">
-        </div>
-        <div class="nats-form-row">
-          <label><i class="fa fa-server"></i>NATS Server</label>
-          <input type="text" id="node-input-server">
-        </div>
-        <div class="nats-form-row">
-          <label><i class="fa fa-database"></i>Bucket Config (optional)</label>
-          <input type="text" id="node-input-bucketConfig">
-        </div>
-        <div class="nats-form-row" id="bucket-direct-config">
-          <label><i class="fa fa-database"></i>Bucket Name</label>
-          <input type="text" id="node-input-bucket" placeholder="my-bucket">
-        </div>
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-debug">
-          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
-        </div>
-      </div>
+  <h4>Operation</h4>
+  <div class="form-row">
+    <label for="node-input-mode"><i class="fa fa-cogs"></i> Mode</label>
+    <select id="node-input-mode" style="width:70%">
+      <option value="get">Get Value</option>
+      <option value="watch">Watch Key(s)</option>
+      <option value="keys">List All Keys</option>
+    </select>
+  </div>
+
+  <div id="get-config">
+    <div class="form-row">
+      <label for="node-input-keyFrom"><i class="fa fa-arrow-right"></i> Key From</label>
+      <select id="node-input-keyFrom" style="width:70%">
+        <option value="config">Configuration</option>
+        <option value="msg">msg.key</option>
+        <option value="payload">msg.payload</option>
+        <option value="topic">msg.topic</option>
+      </select>
     </div>
-
-    <!-- Operation -->
-    <div class="nats-section">
-      <div class="nats-section-header">
-        <div class="nats-section-title">
-          <i class="fa fa-download"></i>
-          <span>Operation</span>
-        </div>
-        <i class="fa fa-chevron-down nats-section-toggle"></i>
-      </div>
-      <div class="nats-section-content">
-        <div class="nats-form-row">
-          <label><i class="fa fa-cogs"></i>Mode</label>
-          <select id="node-input-mode">
-            <option value="get">Get Value</option>
-            <option value="watch">Watch Key(s)</option>
-            <option value="keys">List All Keys</option>
-          </select>
-        </div>
-
-        <!-- Get Mode Options -->
-        <div id="get-config" class="nats-mode-options">
-          <div class="nats-form-row">
-            <label><i class="fa fa-arrow-right"></i>Key From</label>
-            <select id="node-input-keyFrom">
-              <option value="config">Configuration</option>
-              <option value="msg">msg.key</option>
-              <option value="payload">msg.payload</option>
-              <option value="topic">msg.topic</option>
-            </select>
-          </div>
-          <div class="nats-form-row" id="key-config-row">
-            <label><i class="fa fa-key"></i>Key <span class="nats-badge">msg.key</span></label>
-            <input type="text" id="node-input-key" placeholder="config.production.speed">
-          </div>
-          <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-includeHistory">
-            <label for="node-input-includeHistory"><i class="fa fa-history"></i>Include Revision History</label>
-          </div>
-          <div class="nats-form-row" id="history-limit-row" style="display:none;">
-            <label><i class="fa fa-list-ol"></i>History Limit</label>
-            <input type="number" id="node-input-historyLimit" min="1" step="1" placeholder="1">
-            <div class="nats-hint">
-              Maximum number of history entries to return.
-            </div>
-          </div>
-        </div>
-
-        <!-- Watch Mode Options -->
-        <div id="watch-config" class="nats-mode-options">
-          <div class="nats-form-row">
-            <label><i class="fa fa-eye"></i>Watch Pattern</label>
-            <input type="text" id="node-input-watchPattern" placeholder="config.* or leave empty for all">
-            <div class="nats-hint">
-              Use <code>*</code> for wildcard, leave empty to watch all keys
-            </div>
-          </div>
-          <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-ignoreDeletes" checked>
-            <label for="node-input-ignoreDeletes"><i class="fa fa-trash-o"></i>Ignore Deletes</label>
-          </div>
-        </div>
-
-        <div class="nats-checkbox-row" style="margin-top: 12px;">
-          <input type="checkbox" id="node-input-parseJSON" checked>
-          <label for="node-input-parseJSON"><i class="fa fa-code"></i>Auto-Parse JSON Values</label>
-        </div>
-      </div>
+    <div class="form-row" id="key-config-row">
+      <label for="node-input-key"><i class="fa fa-key"></i> Key</label>
+      <input type="text" id="node-input-key" placeholder="config.production.speed" style="width:70%">
     </div>
+    <div class="form-row">
+      <label for="node-input-includeHistory"> </label>
+      <label for="node-input-includeHistory" style="width:70%">
+        <input type="checkbox" id="node-input-includeHistory" style="display:inline-block; width:22px; vertical-align:top;">Include Revision History
+      </label>
+    </div>
+    <div class="form-row" id="history-limit-row" style="display:none;">
+      <label for="node-input-historyLimit"><i class="fa fa-list-ol"></i> History Limit</label>
+      <input type="number" id="node-input-historyLimit" min="1" step="1" placeholder="1" style="width:70%">
+    </div>
+    <div class="form-row form-tips" id="history-limit-tip" style="display:none;">Maximum number of history entries to return.</div>
+  </div>
 
+  <div id="watch-config">
+    <div class="form-row">
+      <label for="node-input-watchPattern"><i class="fa fa-eye"></i> Watch Pattern</label>
+      <input type="text" id="node-input-watchPattern" placeholder="config.* or leave empty for all" style="width:70%">
+    </div>
+    <div class="form-row form-tips">Use <code>*</code> for wildcard, leave empty to watch all keys. Comma-separate multiple keys/patterns for a multi-key watch (requires NATS server 2.10+).</div>
+    <div class="form-row">
+      <label for="node-input-ignoreDeletes"> </label>
+      <label for="node-input-ignoreDeletes" style="width:70%">
+        <input type="checkbox" id="node-input-ignoreDeletes" style="display:inline-block; width:22px; vertical-align:top;">Ignore Deletes
+      </label>
+    </div>
+    <div class="form-row">
+      <label for="node-input-watchHeadersOnly"> </label>
+      <label for="node-input-watchHeadersOnly" style="width:70%">
+        <input type="checkbox" id="node-input-watchHeadersOnly" style="display:inline-block; width:22px; vertical-align:top;">Headers Only (skip value payload)
+      </label>
+    </div>
+    <div class="form-row">
+      <label for="node-input-watchInclude"><i class="fa fa-history"></i> Include</label>
+      <select id="node-input-watchInclude" style="width:70%">
+        <option value="">Last value only (default)</option>
+        <option value="history">All history</option>
+        <option value="updates">Updates only (no initial values)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="node-input-watchResumeFromRevision">Resume From Revision</label>
+      <input type="number" id="node-input-watchResumeFromRevision" min="0" placeholder="0 (start fresh)" style="width:70%">
+    </div>
+    <div class="form-row form-tips">For a watcher restarting after a redeploy that remembers the last revision it processed. Leave at 0 to start fresh.</div>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-parseJSON"> </label>
+    <label for="node-input-parseJSON" style="width:70%">
+      <input type="checkbox" id="node-input-parseJSON" style="display:inline-block; width:22px; vertical-align:top;">Auto-Parse JSON Values
+    </label>
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-kv-get">
-  <p>Get values from NATS Key-Value store or watch for changes.</p>
+<script type="text/markdown" data-help-name="nats-suite-kv-get">
+  Get values from a NATS JetStream Key-Value bucket, or watch for changes.
 
-  <h3>Modes</h3>
-  <ul>
-    <li><strong>get:</strong> Retrieve a single value</li>
-    <li><strong>watch:</strong> Subscribe to key changes</li>
-    <li><strong>keys/list:</strong> List all keys in bucket</li>
-  </ul>
+  ### Modes
 
-  <h3>Dynamic Operation</h3>
-  <p>The operation mode can be set dynamically via <code>msg.operation</code>.
-  Valid values: <code>get</code>, <code>watch</code>, <code>keys</code>, <code>list</code>.</p>
-  <p>If <code>msg.operation</code> is set, it overrides the configured mode.</p>
+  - `get` - retrieve a single value
+  - `watch` - subscribe to key changes
+  - `keys` - list all keys in the bucket
 
-  <h3>Outputs</h3>
-  <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>Value from KV store (or array of keys)</dd>
-    <dt>key <span class="property-type">string</span></dt>
-    <dd>The key name</dd>
-    <dt>revision <span class="property-type">number</span></dt>
-    <dd>Revision number</dd>
-    <dt>operation <span class="property-type">string</span></dt>
-    <dd>"GET", "PUT", "DEL", or "LIST"</dd>
-  </dl>
+  The mode can be overridden dynamically by setting `msg.operation` to `get`, `watch`, `keys` or `list`.
+
+  ### Watch options
+
+  - **Watch Pattern** - comma-separate multiple keys/patterns for a multi-key watch (server 2.10+).
+  - **Headers Only** - server sends only metadata, not the value bytes. `msg.payload` is `null` on these events; `msg.length` still reports the real value size.
+  - **Include** - `history` delivers all existing revisions before switching to live updates; `updates` skips the initial values entirely and only delivers changes from now on.
+  - **Resume From Revision** - restart a watcher from a remembered revision instead of the beginning.
+
+  ### Outputs
+
+  : payload (any) : the value from the KV store, or an array of keys (`null` for a Headers Only watch event)
+  : key (string) : the key name
+  : revision (number) : the revision number
+  : length (number) : the real value size in bytes, even when payload is `null` due to Headers Only
+  : operation (string) : `"GET"`, `"PUT"`, `"DEL"`, or `"LIST"`
 </script>

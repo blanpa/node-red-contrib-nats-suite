@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm audit --omit=dev
+      - name: Verify packed package contents
+        run: |
+          npm pack --dry-run --ignore-scripts --json > /tmp/package-manifest.json
+          node <<'NODE'
+          const parsed = require('/tmp/package-manifest.json');
+          const manifest = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+          const allowed = /^(CHANGELOG\.md|LICENSE|NOTICE|README\.md|package\.json)$|^(?:nodes|lib|examples)\//;
+          const unexpected = manifest.files.map((file) => file.path).filter((file) => !allowed.test(file));
+          if (unexpected.length > 0) {
+            throw new Error(`Unexpected package files: ${unexpected.join(', ')}`);
+          }
+          console.log(`Verified ${manifest.entryCount} package files`);
+          NODE
+
+  test:
+    name: Node-RED + NATS tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        node-version: [22.13.0, 24]
+      max-parallel: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - name: Run tests against Docker stack
+        run: |
+          export NODERED_UID="$(id -u)"
+          export NODERED_GID="$(id -g)"
+          npm test

@@ -8,55 +8,86 @@ name: Publish NPM Package on Tag
 on:
   push:
     tags:
-      - '*.*.*'  # Triggert bei Tags wie 1.0.0, 2.1.3, etc.
+      - '*.*.*' # Triggert bei Tags wie v0.3.0 oder 1.2.3
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  verify:
+    name: Lint, test and verify package
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install
-      - run: npm test
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Der Tag muss zur package.json passen; die Version wird nicht mehr aus
+      # dem Tag überschrieben, damit Tag, package.json und CHANGELOG nicht
+      # auseinanderlaufen können.
+      - name: Verify package.json matches the tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          TAG_VERSION=${TAG_VERSION#v} # existing tags use a v prefix (v0.2.3)
+          node -e "const v=require('./package.json').version; if (v !== process.argv[1]) { throw new Error('package.json version ' + v + ' does not match tag ' + process.argv[1]); } console.log('version ' + v + ' matches tag');" "$TAG_VERSION"
+
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm audit --omit=dev
+
+      - name: Run tests against the Docker stack
+        run: |
+          export NODERED_UID="$(id -u)"
+          export NODERED_GID="$(id -g)"
+          npm test
+
+      - name: Verify packed package contents
+        run: |
+          npm pack --dry-run --ignore-scripts --json > /tmp/package-manifest.json
+          node <<'NODE'
+          const parsed = require('/tmp/package-manifest.json');
+          // npm <12 prints a top-level array; npm 12+ prints an object keyed by package name.
+          const manifest = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+          const allowed = /^(CHANGELOG\.md|LICENSE|NOTICE|README\.md|package\.json)$|^(?:nodes|lib|examples)\//;
+          const unexpected = manifest.files.map((file) => file.path).filter((file) => !allowed.test(file));
+          if (unexpected.length > 0) {
+            throw new Error(`Unexpected package files: ${unexpected.join(', ')}`);
+          }
+          console.log(`Verified ${manifest.entryCount} package files`);
+          NODE
 
   publish-npm:
-    needs: build
+    needs: verify
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read      # checkout
-      id-token: write     # erforderlich für Trusted Publishing (OIDC)
+      contents: read # checkout
+      id-token: write # erforderlich für Trusted Publishing (OIDC)
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org/
 
-      # Trusted Publishing benötigt npm >= 11.5.1; Node 20 bringt npm 10.x mit.
+      # Trusted Publishing benötigt npm >= 11.5.1; Node 22 bringt npm 10.x mit.
       # Bewusst auf die 11er-Linie gepinnt: npm@latest ist inzwischen 12.x und
       # verlangt node ^22.22.2 || ^24.15.0 || >=26.
       - name: Update npm
         run: npm install -g npm@^11
 
-      - run: npm install
-      
-      # Extrahiere Version aus Tag
-      - name: Set version from tag
-        run: |
-          # GITHUB_REF ist z.B. refs/tags/1.2.3
-          TAG_VERSION=${GITHUB_REF#refs/tags/}
-          echo "Setze Version auf: $TAG_VERSION"
-          npm version $TAG_VERSION --no-git-tag-version --allow-same-version
-      
+      - run: npm ci
+
       # Dry-Run: Zeigt was publiziert würde, ohne zu publizieren
       - name: Dry-Run
         run: npm publish --dry-run
-      
+
       # Kein NODE_AUTH_TOKEN: npm holt die Credentials per OIDC vom auf
       # npmjs.com hinterlegten Trusted Publisher. Provenance wird dabei
       # automatisch angehängt.

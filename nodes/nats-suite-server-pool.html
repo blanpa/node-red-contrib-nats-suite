@@ -1,0 +1,88 @@
+<script type="text/javascript">
+  RED.nodes.registerType('nats-suite-server-pool', {
+    category: 'NATS Suite',
+    color: '#2FAF9C',
+    defaults: {
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server', required: true },
+      operation: { value: 'get-servers', required: true },
+      reconnectAfterSet: { value: false },
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: 'nats-icon-white.png',
+    align: 'left',
+    label: function () {
+      return (
+        this.name ||
+        `server pool (${this.operation === 'set-servers' ? 'set' : 'get'})`
+      );
+    },
+    paletteLabel: 'nats server pool',
+    oneditprepare: function () {
+      $('#node-input-operation').on('change', function () {
+        $('#reconnect-row').toggle($(this).val() === 'set-servers');
+      });
+      $('#node-input-operation').trigger('change');
+    },
+  });
+</script>
+
+<script type="text/x-red" data-template-name="nats-suite-server-pool">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Optional display name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
+    <input type="text" id="node-input-server">
+  </div>
+  <div class="form-row">
+    <label for="node-input-operation"><i class="fa fa-cogs"></i> Operation</label>
+    <select id="node-input-operation" style="width:70%">
+      <option value="get-servers">Get Servers</option>
+      <option value="set-servers">Set Servers</option>
+    </select>
+  </div>
+  <div class="form-row" id="reconnect-row">
+    <label for="node-input-reconnectAfterSet"> </label>
+    <label for="node-input-reconnectAfterSet" style="width:70%">
+      <input type="checkbox" id="node-input-reconnectAfterSet" style="display:inline-block; width:22px; vertical-align:top;">Reconnect Immediately After Set
+    </label>
+  </div>
+  <div class="form-row form-tips">
+    <code>msg.operation</code> overrides the configured operation per-message (<code>get-servers</code> / <code>set-servers</code>).
+  </div>
+</script>
+
+<script type="text/markdown" data-help-name="nats-suite-server-pool">
+  Get or replace the shared NATS connection's known server pool (`NatsConnection.getServers()` / `.setServers()`).
+
+  ### Operations
+
+  - `get-servers` - returns the connection's current server pool.
+  - `set-servers` - replaces the pool with a new list of `host:port` entries.
+
+  The operation can be overridden per-message via `msg.operation`.
+
+  ### Important: `set-servers` does not move the live connection by itself
+
+  Per the NATS client's own contract, `setServers()` only replaces the pool used
+  for _future_ reconnect attempts - it does not drop the current connection or
+  affect in-flight subscriptions/requests. To actually switch onto the new pool
+  immediately, enable **Reconnect Immediately After Set** (or send
+  `msg.reconnectAfterSet: true`), which forces a reconnect. Forcing a reconnect
+  rejects any requests currently in flight on this connection.
+
+  ### Inputs
+
+  For `set-servers`:
+
+  : payload (string[]) : non-empty array of `host:port` strings to replace the pool with
+  : reconnectAfterSet (boolean, optional) : overrides the configured reconnect-after-set toggle for this message
+
+  ### Outputs
+
+  : payload (string[]) : the resulting server pool, as plain `host:port` strings
+  : servers (object[]) : the full server pool with diagnostics (`hostname`, `port`, `listen`, `gossiped`, `reconnects`, `lastConnect`, `didConnect`)
+</script>

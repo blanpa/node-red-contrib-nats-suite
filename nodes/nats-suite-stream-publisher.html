@@ -23,13 +23,40 @@
       maxMsgSize: { value: -1 },
       discard: { value: 'old' },
       compression: { value: 'none' },
-      allowDirect: { value: false },
-      mirrorDirect: { value: false },
       sealed: { value: false },
       denyDelete: { value: false },
       denyPurge: { value: false },
       allowRollupHdrs: { value: false },
       allowMsgTtl: { value: false },
+      allowMsgSchedules: { value: false },
+      allowDirect: { value: false },
+      allowAtomic: { value: false },
+      scheduleType: { value: 'none' },
+      scheduleAt: {
+        value: '',
+        validate: function (v) {
+          if (this.scheduleType !== 'at') return true;
+          return !isNaN(Date.parse(v));
+        },
+      },
+      scheduleCron: {
+        value: '',
+        validate: function (v) {
+          if (this.scheduleType !== 'cron') return true;
+          return v.trim().split(/\s+/).filter(Boolean).length === 6;
+        },
+      },
+      scheduleTimezone: { value: '' },
+      scheduleTarget: {
+        value: '',
+        validate: function (v) {
+          if (this.scheduleType === 'none') return true;
+          return v.trim().length > 0;
+        },
+      },
+      expectLastMsgID: { value: '' },
+      expectLastSequence: { value: '' },
+      persistMode: { value: 'default' },
     },
     inputs: 1,
     outputs: 1,
@@ -77,6 +104,16 @@
         updateCreateOnInitVisibility();
       });
 
+      // Schedule type handler - only relevant while publishing
+      const updateScheduleVisibility = function () {
+        const type = $('#node-input-scheduleType').val();
+        $('#schedule-at-row').toggle(type === 'at');
+        $('#schedule-cron-row, #schedule-timezone-row').toggle(type === 'cron');
+        $('#schedule-target-row').toggle(type !== 'none');
+      };
+      $('#node-input-scheduleType').on('change', updateScheduleVisibility);
+      updateScheduleVisibility();
+
       // Operation handler
       $('#node-input-operation').on('change', function () {
         const op = $(this).val();
@@ -84,6 +121,8 @@
           $('#publish-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
           $('#create-on-init-row').slideDown(200);
+          $('#schedule-section').slideDown(200);
+          $('#expect-section').slideDown(200);
           // Show all fields for publish
           $('.create-only').show();
           // Let createOnInit checkbox control these sections
@@ -93,6 +132,8 @@
           $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
           $('#create-on-init-row').slideUp(200);
+          $('#schedule-section').slideUp(200);
+          $('#expect-section').slideUp(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -103,6 +144,8 @@
           $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
           $('#create-on-init-row').slideUp(200);
+          $('#schedule-section').slideUp(200);
+          $('#expect-section').slideUp(200);
           $('#stream-settings-section').slideDown(200);
           $('#stream-limits-section').slideDown(200);
           $('#stream-advanced-section').slideDown(200);
@@ -111,15 +154,24 @@
         } else if (op === 'list') {
           $('#stream-configuration-section').slideUp(200);
           $('#create-on-init-row').slideUp(200);
+          $('#schedule-section').slideUp(200);
+          $('#expect-section').slideUp(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
-        } else if (op === 'info' || op === 'delete' || op === 'purge') {
+        } else if (
+          op === 'info' ||
+          op === 'delete' ||
+          op === 'purge' ||
+          op === 'batch-publish'
+        ) {
           $('#stream-configuration-section').slideDown(200);
           $('#publish-config').slideUp(200);
           $('#subject-pattern-config').slideUp(200);
           $('#stream-name-config').slideDown(200);
           $('#create-on-init-row').slideUp(200);
+          $('#schedule-section').slideUp(200);
+          $('#expect-section').slideUp(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
@@ -129,6 +181,8 @@
           $('#subject-pattern-config').slideDown(200);
           $('#stream-name-config').slideDown(200);
           $('#create-on-init-row').slideUp(200);
+          $('#schedule-section').slideUp(200);
+          $('#expect-section').slideUp(200);
           $('#stream-settings-section').slideUp(200);
           $('#stream-limits-section').slideUp(200);
           $('#stream-advanced-section').slideUp(200);
@@ -146,26 +200,21 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
-    }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
     }
     .nats-section-header.collapsed { border-bottom: none; }
     .nats-section-title {
@@ -174,16 +223,15 @@
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
     }
     .nats-section-content { padding: 14px; }
@@ -193,12 +241,11 @@
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
@@ -207,22 +254,16 @@
     .nats-form-row select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
     .nats-form-row input:focus,
     .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
-    }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
     }
     .nats-grid {
       display: grid;
@@ -236,8 +277,8 @@
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      background: #d4edda;
-      color: #155724;
+      border: 1px solid var(--red-ui-border-color-success);
+      color: var(--red-ui-form-text-color);
     }
   </style>
 
@@ -272,6 +313,7 @@
             <option value="delete">Delete Stream</option>
             <option value="purge">Purge Stream</option>
             <option value="list">List Streams</option>
+            <option value="batch-publish">Batch Publish (atomic)</option>
           </select>
         </div>
       </div>
@@ -290,24 +332,89 @@
         <div class="nats-form-row" id="stream-name-config">
           <label><i class="fa fa-database"></i>Stream Name</label>
           <input type="text" id="node-input-streamName" placeholder="sensor-data">
-          <div class="nats-hint">Cannot be changed after creation</div>
+          <div class="form-tips">Cannot be changed after creation</div>
         </div>
         <div class="nats-form-row" id="publish-config">
           <label><i class="fa fa-paper-plane"></i>Default Subject <span class="nats-badge">msg.subject</span></label>
           <input type="text" id="node-input-defaultSubject" placeholder="sensor.temperature">
-          <div class="nats-hint">Used when msg.subject is not provided</div>
+          <div class="form-tips">Used when msg.subject is not provided</div>
         </div>
         <div class="nats-form-row" id="create-on-init-row">
           <label>
             <input type="checkbox" id="node-input-createOnInit" style="width: auto; margin-right: 8px;">
             <i class="fa fa-plus-circle"></i>Create Stream on initialization
           </label>
-          <div class="nats-hint">Automatically create stream when node initializes</div>
+          <div class="form-tips">Automatically create stream when node initializes</div>
         </div>
         <div class="nats-form-row" id="subject-pattern-config">
           <label><i class="fa fa-filter"></i>Subject Pattern</label>
           <input type="text" id="node-input-subjectPattern" placeholder="sensor.*, data.>, orders.*">
-          <div class="nats-hint">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>
+          <div class="form-tips">Pattern for subjects captured by this stream. Use comma to separate multiple subjects</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="nats-section" id="schedule-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-clock-o"></i>
+          <span>Schedule</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-calendar"></i>Schedule Type</label>
+          <select id="node-input-scheduleType">
+            <option value="none">None (publish immediately)</option>
+            <option value="at">One-time (ISO date)</option>
+            <option value="cron">Recurring (cron)</option>
+          </select>
+          <div class="form-tips">Only applies when the outgoing message doesn't already set <code>msg.schedule</code> or <code>msg.options.schedule</code> - those always win. The stream also needs "Allow Message Schedules" enabled below.</div>
+        </div>
+        <div class="nats-form-row" id="schedule-at-row">
+          <label><i class="fa fa-calendar-check-o"></i>Fire At (ISO date)</label>
+          <input type="text" id="node-input-scheduleAt" placeholder="2026-01-01T00:00:00Z">
+          <div class="form-tips">Requires the supported nats-server floor: &ge;2.14.0</div>
+        </div>
+        <div class="nats-form-row" id="schedule-cron-row">
+          <label><i class="fa fa-repeat"></i>Cron Expression</label>
+          <input type="text" id="node-input-scheduleCron" placeholder="0 0 5 * * *">
+          <div class="form-tips">6 fields: sec min hr dom mon dow. Requires nats-server &ge;2.14.0.</div>
+        </div>
+        <div class="nats-form-row" id="schedule-timezone-row">
+          <label><i class="fa fa-globe"></i>Timezone (optional)</label>
+          <input type="text" id="node-input-scheduleTimezone" placeholder="America/Denver">
+          <div class="form-tips">IANA name. Empty uses the server default (UTC). Requires nats-server &ge;2.14.0.</div>
+        </div>
+        <div class="nats-form-row" id="schedule-target-row">
+          <label><i class="fa fa-paper-plane"></i>Delivery Target Subject</label>
+          <input type="text" id="node-input-scheduleTarget" placeholder="orders.processed">
+          <div class="form-tips">Subject the scheduled message is delivered to.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimistic Concurrency -->
+    <div class="nats-section" id="expect-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-shield"></i>
+          <span>Optimistic Concurrency</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-hashtag"></i>Expect Last Msg ID</label>
+          <input type="text" id="node-input-expectLastMsgID" placeholder="optional">
+          <div class="form-tips">Reject the publish unless the stream's last message ID matches. Overridable via <code>msg.expectLastMsgID</code>. Only applies when nothing already set <code>msg.options.expect</code>.</div>
+        </div>
+        <div class="nats-form-row">
+          <label><i class="fa fa-list-ol"></i>Expect Last Sequence</label>
+          <input type="number" id="node-input-expectLastSequence" placeholder="optional">
+          <div class="form-tips">Reject the publish unless the stream's last sequence matches. Overridable via <code>msg.expectLastSequence</code>. Other <code>StreamExpectations</code> fields (stream name, last-subject-sequence) stay reachable only via <code>msg.options.expect</code>.</div>
         </div>
       </div>
     </div>
@@ -330,7 +437,7 @@
               <option value="interest">Interest</option>
               <option value="workqueue">WorkQueue</option>
             </select>
-            <div class="nats-hint">Cannot be changed after creation</div>
+            <div class="form-tips">Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row create-only">
             <label><i class="fa fa-hdd-o"></i>Storage</label>
@@ -338,7 +445,7 @@
               <option value="file">File</option>
               <option value="memory">Memory</option>
             </select>
-            <div class="nats-hint">Cannot be changed after creation</div>
+            <div class="form-tips">Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-trash"></i>Discard Policy</label>
@@ -372,37 +479,37 @@
           <div class="nats-form-row">
             <label><i class="fa fa-list-ol"></i>Max Messages</label>
             <input type="number" id="node-input-maxMessages" placeholder="-1 (unlimited)">
-            <div class="nats-hint">-1 for unlimited</div>
+            <div class="form-tips">-1 for unlimited</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-database"></i>Max Bytes</label>
             <input type="number" id="node-input-maxBytes" placeholder="-1 (unlimited)">
-            <div class="nats-hint">-1 for unlimited</div>
+            <div class="form-tips">-1 for unlimited</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-clock-o"></i>Max Age</label>
             <input type="text" id="node-input-maxAge" placeholder="24h">
-            <div class="nats-hint">e.g. 1h, 24h, 7d</div>
+            <div class="form-tips">e.g. 1h, 24h, 7d</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-window-restore"></i>Duplicate Window</label>
             <input type="text" id="node-input-duplicateWindow" placeholder="2m">
-            <div class="nats-hint">Deduplication time window</div>
+            <div class="form-tips">Deduplication time window</div>
           </div>
           <div class="nats-form-row create-only">
             <label><i class="fa fa-users"></i>Max Consumers</label>
             <input type="number" id="node-input-maxConsumers" placeholder="-1 (unlimited)">
-            <div class="nats-hint">-1 for unlimited. Cannot be changed after creation</div>
+            <div class="form-tips">-1 for unlimited. Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-filter"></i>Max Msgs/Subject</label>
             <input type="number" id="node-input-maxMsgsPerSubject" placeholder="-1 (unlimited)">
-            <div class="nats-hint">-1 for unlimited</div>
+            <div class="form-tips">-1 for unlimited</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-file-o"></i>Max Msg Size</label>
             <input type="number" id="node-input-maxMsgSize" placeholder="-1 (unlimited)">
-            <div class="nats-hint">Max single message size in bytes</div>
+            <div class="form-tips">Max single message size in bytes</div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-copy"></i>Replicas</label>
@@ -425,52 +532,67 @@
         <div class="nats-grid">
           <div class="nats-form-row">
             <label>
-              <input type="checkbox" id="node-input-allowDirect" style="width: auto; margin-right: 8px;">
-              <i class="fa fa-bolt"></i>Allow Direct Get
-            </label>
-            <div class="nats-hint">Allow direct message access</div>
-          </div>
-          <div class="nats-form-row">
-            <label>
-              <input type="checkbox" id="node-input-mirrorDirect" style="width: auto; margin-right: 8px;">
-              <i class="fa fa-clone"></i>Mirror Direct
-            </label>
-            <div class="nats-hint">Allow direct access from mirror</div>
-          </div>
-          <div class="nats-form-row">
-            <label>
               <input type="checkbox" id="node-input-sealed" style="width: auto; margin-right: 8px;">
               <i class="fa fa-lock"></i>Sealed
             </label>
-            <div class="nats-hint">Seal stream (read-only)</div>
+            <div class="form-tips">Seal stream (read-only)</div>
           </div>
           <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-denyDelete" style="width: auto; margin-right: 8px;">
               <i class="fa fa-ban"></i>Deny Delete
             </label>
-            <div class="nats-hint">Prevent message deletion. Cannot be changed after creation</div>
+            <div class="form-tips">Prevent message deletion. Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-denyPurge" style="width: auto; margin-right: 8px;">
               <i class="fa fa-ban"></i>Deny Purge
             </label>
-            <div class="nats-hint">Prevent stream purging. Cannot be changed after creation</div>
+            <div class="form-tips">Prevent stream purging. Cannot be changed after creation</div>
           </div>
           <div class="nats-form-row">
             <label>
               <input type="checkbox" id="node-input-allowRollupHdrs" style="width: auto; margin-right: 8px;">
               <i class="fa fa-compress"></i>Allow Rollup Headers
             </label>
-            <div class="nats-hint">Enable header rollups</div>
+            <div class="form-tips">Enable header rollups</div>
           </div>
           <div class="nats-form-row create-only">
             <label>
               <input type="checkbox" id="node-input-allowMsgTtl" style="width: auto; margin-right: 8px;">
               <i class="fa fa-hourglass-half"></i>Allow Message TTL
             </label>
-            <div class="nats-hint">Allow per-message TTL. Can only be enabled at creation</div>
+            <div class="form-tips">Allow per-message TTL. Can only be enabled at creation</div>
+          </div>
+          <div class="nats-form-row create-only">
+            <label>
+              <input type="checkbox" id="node-input-allowMsgSchedules" style="width: auto; margin-right: 8px;">
+              <i class="fa fa-clock-o"></i>Allow Message Schedules
+            </label>
+            <div class="form-tips">Enable delayed delivery. Cannot be disabled after enabling</div>
+          </div>
+          <div class="nats-form-row create-only">
+            <label>
+              <input type="checkbox" id="node-input-allowDirect" style="width: auto; margin-right: 8px;">
+              <i class="fa fa-bolt"></i>Allow Direct Get
+            </label>
+            <div class="form-tips">Enables the faster jsm.direct.getMessage() read path (used by nats-suite-stream-consumer's "Get Message" operation) instead of the always-available manager-level jsm.streams.getMessage()</div>
+          </div>
+          <div class="nats-form-row create-only">
+            <label>
+              <input type="checkbox" id="node-input-allowAtomic" style="width: auto; margin-right: 8px;">
+              <i class="fa fa-list-ol"></i>Allow Atomic Batch Publish
+            </label>
+            <div class="form-tips">Required for the "Batch Publish (atomic)" operation below. Can be freely enabled/disabled later, same as "Allow Direct Get" above.</div>
+          </div>
+          <div class="nats-form-row create-only">
+            <label><i class="fa fa-hdd-o"></i>Persist Mode</label>
+            <select id="node-input-persistMode">
+              <option value="default">Default (sync to disk before ack)</option>
+              <option value="async">Async (higher throughput, some durability risk)</option>
+            </select>
+            <div class="form-tips">Async only takes effect on file-storage streams. Fixed at stream creation - the server rejects any later attempt to change it on an existing stream, unlike "Allow Direct" above.</div>
           </div>
         </div>
       </div>
@@ -479,134 +601,158 @@
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-stream-publisher">
-      <p>Publishes messages to NATS JetStream with persistence and acknowledgment, and manages JetStream streams.</p>
+<script type="text/markdown" data-help-name="nats-suite-stream-publisher">
+  Publishes messages to NATS JetStream with persistence and acknowledgment, and manages JetStream streams.
 
-      <h3>Operations</h3>
-      <p>This node supports multiple operations for stream management and message publishing:</p>
+  ### Operations
 
-      <h4>Publish Messages (default)</h4>
-      <p>Publishes messages to a JetStream stream with persistence and acknowledgment.</p>
-      <p><strong>Create Stream on initialization</strong>: When enabled, the stream is automatically created when the node initializes or reconnects, using the configured stream settings. When disabled, the node assumes the stream already exists and will only publish messages to it - no stream configuration options are shown.</p>
+  This node supports multiple operations for stream management and message publishing:
 
-      <h4>Create Stream</h4>
-      <p>Creates a new JetStream stream with the configured settings. The node will display <strong>"stream {name} created"</strong> for 2 seconds upon successful creation, then return to showing the connection state.</p>
+  #### Publish Messages (default)
 
-      <h4>Update Stream</h4>
-      <p>Updates an existing stream's configuration. Can be triggered via node configuration or by sending a message with <code>msg.operation = "update"</code>.</p>
+  Publishes messages to a JetStream stream with persistence and acknowledgment.
 
-      <h4>Update Subjects Only</h4>
-      <p>Updates only the subject patterns for an existing stream without changing other settings.</p>
+  **Create Stream on initialization**: When enabled, the stream is automatically created when the node initializes or reconnects, using the configured stream settings. When disabled, the node assumes the stream already exists and will only publish messages to it - no stream configuration options are shown.
 
-      <h4>Stream Info</h4>
-      <p>Retrieves detailed information about a stream including configuration, state, and statistics.</p>
+  **Schedule** (Publish mode only): configure a one-time (ISO date) or recurring (cron) delayed delivery without hand-building `msg.schedule`. Requires the stream's "Allow Message Schedules" option and the supported nats-server floor of &ge;2.14.0. A message that already sets `msg.schedule` or `msg.options.schedule` always overrides these fields.
 
-      <h4>Delete Stream</h4>
-      <p>Permanently deletes a stream and all its messages.</p>
+  **Optimistic Concurrency** (Publish mode only): "Expect Last Msg ID" and "Expect Last Sequence" reject the publish unless the stream's real state matches, without hand-building `msg.options.expect`. A message that already sets `msg.options.expect` always wins over these fields. Other `StreamExpectations` fields (expected stream name, last-subject-sequence) stay reachable only via `msg.options.expect`.
 
-      <h4>Purge Stream</h4>
-      <p>Removes all messages from a stream while keeping the stream itself.</p>
+  **Persist Mode**: "Default" syncs to disk before acknowledging a publish (strongest durability). "Async" acknowledges before the disk sync completes, trading some durability for throughput - only takes effect on file-storage streams. Fixed at stream creation - confirmed against a real broker that the server rejects any later attempt to change it on an existing stream ("stream configuration update can not change persist mode"), unlike "Allow Direct" (freely toggleable) or "Allow Message TTL"/"Allow Message Schedules" (one-way latches) above. Set it correctly at creation time; changing it later means recreating the stream.
 
-      <h4>List Streams</h4>
-      <p>Lists all available streams in the JetStream server.</p>
+  #### Create Stream
 
-      <h3>Inputs (Publish)</h3>
-      <dl class="message-properties">
-        <dt>payload <span class="property-type">any</span></dt>
-        <dd>Data to publish to the stream</dd>
-        <dt class="optional">subject <span class="property-type">string</span></dt>
-        <dd>Target subject (overrides default subject configuration)</dd>
-        <dt class="optional">headers <span class="property-type">object</span></dt>
-        <dd>Message headers to attach</dd>
-        <dt class="optional">_msgID <span class="property-type">string</span></dt>
-        <dd>Optional message ID for deduplication within the duplicate window</dd>
-      </dl>
+  Creates a new JetStream stream with the configured settings. The node will display **"stream {name} created"** for 2 seconds upon successful creation, then return to showing the connection state.
 
-      <h3>Inputs (Stream Operations)</h3>
-      <dl class="message-properties">
-        <dt class="optional">operation <span class="property-type">string</span></dt>
-        <dd>Operation to perform: "create", "update", "update-subjects", "info", "delete", "purge", "list"</dd>
-        <dt class="optional">stream <span class="property-type">string</span></dt>
-        <dd>Stream name (overrides node configuration)</dd>
-        <dt class="optional">payload <span class="property-type">object</span></dt>
-        <dd>For create/update operations: full stream configuration in NATS native format. See <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS Stream Configuration</a></dd>
-        <dt class="optional">subjects <span class="property-type">string[] | string</span></dt>
-        <dd>Subject patterns for the stream (array or comma-separated string)</dd>
-        <dt class="optional">retention <span class="property-type">string</span></dt>
-        <dd>Retention policy: "limits", "interest", or "workqueue"</dd>
-        <dt class="optional">maxMessages <span class="property-type">number</span></dt>
-        <dd>Maximum number of messages (-1 for unlimited)</dd>
-        <dt class="optional">maxBytes <span class="property-type">number</span></dt>
-        <dd>Maximum total bytes (-1 for unlimited)</dd>
-        <dt class="optional">maxAge <span class="property-type">string</span></dt>
-        <dd>Maximum message age (e.g., "24h", "7d")</dd>
-      </dl>
+  #### Update Stream
 
-      <h3>Outputs (Publish)</h3>
-      <dl class="message-properties">
-        <dt>sequence <span class="property-type">number</span></dt>
-        <dd>Message sequence number in the stream</dd>
-        <dt>stream <span class="property-type">string</span></dt>
-        <dd>Stream name where message was published</dd>
-        <dt>published <span class="property-type">boolean</span></dt>
-        <dd>True if published successfully, false on error</dd>
-        <dt>subject <span class="property-type">string</span></dt>
-        <dd>Subject where message was published</dd>
-        <dt class="optional">_duplicate <span class="property-type">boolean</span></dt>
-        <dd>True if message was detected as a duplicate</dd>
-      </dl>
+  Updates an existing stream's configuration. Can be triggered via node configuration or by sending a message with `msg.operation = "update"`.
 
-      <h3>Outputs (Stream Operations)</h3>
-      <dl class="message-properties">
-        <dt>payload <span class="property-type">object</span></dt>
-        <dd>Operation result containing success status, stream name, and relevant data</dd>
-        <dt>operation <span class="property-type">string</span></dt>
-        <dd>The operation that was performed</dd>
-        <dt class="optional">config <span class="property-type">object</span></dt>
-        <dd>Stream configuration (for info, create, update operations)</dd>
-        <dt class="optional">state <span class="property-type">object</span></dt>
-        <dd>Stream state including message count, bytes, etc. (for info operation)</dd>
-      </dl>
+  #### Update Subjects Only
 
-      <h3>Stream Configuration</h3>
-      <p>Streams can be configured with various settings (only visible when "Create Stream on initialization" is enabled in Publish mode):</p>
-      <ul>
-        <li><strong>Stream Name</strong>: Unique identifier for the stream</li>
-        <li><strong>Subject Pattern</strong>: Wildcards pattern for subjects captured (e.g., "sensor.*")</li>
-        <li><strong>Retention Policy</strong>: How messages are retained (limits/interest/workqueue)</li>
-        <li><strong>Storage</strong>: File-based (persistent) or memory-based (fast but volatile)</li>
-        <li><strong>Limits</strong>: Max messages, bytes, age, and per-subject limits</li>
-        <li><strong>Deduplication</strong>: Time window for detecting duplicate messages</li>
-        <li><strong>Replicas</strong>: Number of stream replicas for high availability</li>
-      </ul>
+  Updates only the subject patterns for an existing stream without changing other settings.
 
-      <h3>Node Status</h3>
-      <p>The node displays its current state:</p>
-      <ul>
-        <li><strong>connected</strong> (green): Connected to NATS server</li>
-        <li><strong>connecting</strong> (yellow): Attempting to connect</li>
-        <li><strong>disconnected</strong> (red): Not connected</li>
-        <li><strong>stream {name} created</strong> (green, 2 seconds): Stream successfully created</li>
-      </ul>
+  #### Stream Info
 
-      <h3>Examples</h3>
+  Retrieves detailed information about a stream including configuration, state, and statistics.
 
-      <h4>Publish Message</h4>
-      <pre>msg.subject = "sensor.temperature";
-    msg.payload = { value: 22.5, unit: "C" };
-    return msg;</pre>
+  #### Delete Stream
 
-      <h4>Create Stream Programmatically (Simple)</h4>
-      <pre>msg.operation = "create";
+  Permanently deletes a stream and all its messages.
+
+  #### Purge Stream
+
+  Removes all messages from a stream while keeping the stream itself.
+
+  #### List Streams
+
+  Lists all available streams in the JetStream server.
+
+  #### Batch Publish (atomic)
+
+  Publishes multiple messages to the target stream atomically, via
+  `JetStreamClient.startBatch()`/`.add()`/`.commit()`. Requires "Allow Atomic
+  Batch Publish" enabled on the stream.
+
+  Input is `msg.batch`, an array of at least 2 items (the underlying API
+  requires a start message and a commit message, each of which publishes a
+  real message - a 1-item batch isn't representable): `{ subject, payload,
+headers?, expect?, ack? }`. `expect` (optimistic concurrency) is only
+  supported on the first item; `ack` on a middle item makes that one
+  message's `add()` call wait for a server round trip instead of firing and
+  forgetting. Nothing is durably published unless the whole batch commits -
+  an error partway through leaves nothing on the stream (the server abandons
+  an incomplete batch after 10 seconds of inactivity). Server limits: at
+  most 1000 messages per batch, at most 50 concurrent batches per stream.
+
+  Output: `msg.payload` is the real `BatchAck` (`{ batch, count, stream,
+seq, duplicate }`) from the commit call.
+
+  ### Inputs (Publish)
+
+  : payload (any) : Data to publish to the stream
+  : subject (string, optional) : Target subject (overrides default subject configuration)
+  : headers (object, optional) : Message headers to attach
+  : _msgID (string, optional) : Optional message ID for deduplication within the duplicate window
+  : options (object, optional) : Native `JetStreamPublishOptions`, including timeout, retries, expect, ttl, schedule, and cancelSchedule
+  : schedule (object, optional) : Convenience alias for `msg.options.schedule`
+  : cancelSchedule (object, optional) : Convenience alias for `msg.options.cancelSchedule`
+  : expectLastMsgID (string, optional) : Reject the publish unless the stream's last message ID matches. Overrides the node's Expect Last Msg ID field
+  : expectLastSequence (number, optional) : Reject the publish unless the stream's last sequence matches. Overrides the node's Expect Last Sequence field
+
+  ### Inputs (Stream Operations)
+
+  : operation (string, optional) : Operation to perform: "create", "update", "update-subjects", "info", "delete", "purge", "list"
+  : stream (string, optional) : Stream name (overrides node configuration)
+  : payload (object, optional) : For create/update operations: full stream configuration in NATS native format. See [NATS Stream Configuration](https://docs.nats.io/nats-concepts/jetstream/streams)
+  : subjects (string[] | string, optional) : Subject patterns for the stream (array or comma-separated string)
+  : retention (string, optional) : Retention policy: "limits", "interest", or "workqueue"
+  : maxMessages (number, optional) : Maximum number of messages (-1 for unlimited)
+  : maxBytes (number, optional) : Maximum total bytes (-1 for unlimited)
+  : maxAge (string, optional) : Maximum message age (e.g., "24h", "7d")
+
+  ### Outputs (Publish)
+
+  : sequence (number) : Message sequence number in the stream
+  : stream (string) : Stream name where message was published
+  : published (boolean) : True if published successfully, false on error
+  : subject (string) : Subject where message was published
+  : _duplicate (boolean, optional) : True if message was detected as a duplicate
+
+  ### Outputs (Stream Operations)
+
+  : payload (object) : Operation result containing success status, stream name, and relevant data
+  : operation (string) : The operation that was performed
+  : config (object, optional) : Stream configuration (for info, create, update operations)
+  : state (object, optional) : Stream state including message count, bytes, etc. (for info operation)
+
+  ### Stream Configuration
+
+  Streams can be configured with various settings (only visible when "Create Stream on initialization" is enabled in Publish mode):
+
+  - **Stream Name**: Unique identifier for the stream
+  - **Subject Pattern**: Wildcards pattern for subjects captured (e.g., "sensor.*")
+  - **Retention Policy**: How messages are retained (limits/interest/workqueue)
+  - **Storage**: File-based (persistent) or memory-based (fast but volatile)
+  - **Limits**: Max messages, bytes, age, and per-subject limits
+  - **Deduplication**: Time window for detecting duplicate messages
+  - **Replicas**: Number of stream replicas for high availability
+
+  ### Node Status
+
+  The node displays its current state:
+
+  - **connected** (green): Connected to NATS server
+  - **connecting** (yellow): Attempting to connect
+  - **disconnected** (red): Not connected
+  - **stream {name} created** (green, 2 seconds): Stream successfully created
+
+  ### Examples
+
+  #### Publish Message
+
+  ```
+  msg.subject = "sensor.temperature";
+  msg.payload = { value: 22.5, unit: "C" };
+  return msg;
+  ```
+
+  #### Create Stream Programmatically (Simple)
+
+  ```
+  msg.operation = "create";
   msg.stream = "my-stream";
   msg.subjects = ["data.>"];
   msg.retention = "limits";
   msg.maxMessages = 1000;
   msg.maxAge = "24h";
-  return msg;</pre>
+  return msg;
+  ```
 
-      <h4>Create Stream Programmatically (Native NATS Format)</h4>
-      <pre>msg.operation = "create";
+  #### Create Stream Programmatically (Native NATS Format)
+
+  ```
+  msg.operation = "create";
   msg.payload = {
       name: "my-stream",
       subjects: ["data.>"],
@@ -615,17 +761,37 @@
       max_age: 86400000000000,  // 24h in nanoseconds
       storage: "file"
   };
-  return msg;</pre>
+  return msg;
+  ```
 
-      <h4>Get Stream Info</h4>
-      <pre>msg.operation = "info";
-    msg.stream = "my-stream";
-    return msg;</pre>
+  #### Get Stream Info
 
-      <h3>Details</h3>
-      <p>This node provides comprehensive JetStream stream management alongside message publishing. When publishing, messages receive acknowledgments and sequence numbers. The stream is automatically created on startup if it doesn't exist, with configuration from the node settings.</p>
+  ```
+  msg.operation = "info";
+  msg.stream = "my-stream";
+  return msg;
+  ```
 
-      <p>For advanced use cases, stream operations can be performed programmatically by setting <code>msg.operation</code> to the desired action. Stream configurations can be provided either as individual message properties or as a complete NATS-native configuration object in <code>msg.payload</code>.</p>
+  #### Schedule a Message
 
-      <p>For more information about NATS JetStream stream configuration, see the <a href="https://docs.nats.io/nats-concepts/jetstream/streams" target="_blank">NATS JetStream Streams Documentation</a>.</p>
+  The Schedule section's editor fields cover one-time and cron scheduling without a Function node - set **Schedule Type** to "One-time (ISO date)" or "Recurring (cron)", fill in **Fire At**/**Cron Expression** and **Delivery Target Subject**, and every publish through this node is scheduled automatically.
+
+  For anything the editor fields don't cover (`every`, `predefined`, `rollup`, `source`, `ttl`, or a schedule decided at runtime), set `msg.schedule` directly - it always overrides the editor fields:
+
+  ```
+  msg.subject = "schedules.orders." + msg._msgid;
+  msg.schedule = {
+    specification: { at: new Date(Date.now() + 30000).toISOString() },
+    target: "orders"
+  };
+  return msg;
+  ```
+
+  ### Details
+
+  This node provides comprehensive JetStream stream management alongside message publishing. When publishing, messages receive acknowledgments and sequence numbers. The stream is automatically created on startup if it doesn't exist, with configuration from the node settings.
+
+  For advanced use cases, stream operations can be performed programmatically by setting `msg.operation` to the desired action. Stream configurations can be provided either as individual message properties or as a complete NATS-native configuration object in `msg.payload`.
+
+  For more information about NATS JetStream stream configuration, see the [NATS JetStream Streams Documentation](https://docs.nats.io/nats-concepts/jetstream/streams).
 </script>
