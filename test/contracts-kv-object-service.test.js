@@ -12,6 +12,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Kvm } = require('@nats-io/kv');
 const {
+  assertCompletedBy,
   ensureStackUp,
   deployFlow,
   deleteFlow,
@@ -180,8 +181,8 @@ async function assertCatchAndComplete(t, { type, config, failProps, okProps }) {
       await triggerInject(inj);
       const completeMsg = await completed;
 
-      assert.equal(
-        completeMsg.complete.source.id,
+      assertCompletedBy(
+        completeMsg,
         node,
         'complete event should be attributed to the node under test'
       );
@@ -363,8 +364,8 @@ test('service (service mode): failed start fires Catch and real start fires Comp
     await triggerInject(inj);
     const completeMsg = await completed;
 
-    assert.equal(
-      completeMsg.complete.source.id,
+    assertCompletedBy(
+      completeMsg,
       node,
       'complete event should be attributed to the service node'
     );

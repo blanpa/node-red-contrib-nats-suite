@@ -6,6 +6,7 @@
 // its real /comms websocket, and NATS is exercised directly from this
 // process with the modular NATS transport declared as a dependency.
 
+const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -340,7 +341,28 @@ async function subscribeOnceMsg(nc, subject, timeoutMs = 8000) {
   }
 }
 
+// --- Node-RED version differences ------------------------------------------
+
+// Node-RED >= 4 annotates a message delivered through a Complete node with
+// msg.complete = { source: { id, type, name } }. Node-RED 3.x delivers the
+// same message without that annotation (reproduced against
+// nodered/node-red:3.1.15-18). Attribution then rests on the Complete node's
+// `scope`, which every fixture in this suite pins to the node under test, so
+// the arrival of the message is already the proof; the id check is an extra
+// assertion only where the runtime provides the data.
+function assertCompletedBy(completeMsg, nodeId, message) {
+  assert.ok(completeMsg, message || 'a Complete message should have arrived');
+  if (completeMsg.complete && completeMsg.complete.source) {
+    assert.equal(
+      completeMsg.complete.source.id,
+      nodeId,
+      message || 'complete event should be attributed to the node under test'
+    );
+  }
+}
+
 module.exports = {
+  assertCompletedBy,
   NODE_RED_URL,
   NATS_URL,
   NATS_CONTAINER_URL,

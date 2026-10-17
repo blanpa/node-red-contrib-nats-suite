@@ -13,6 +13,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { headers: natsHeaders } = require('@nats-io/nats-core');
 const {
+  assertCompletedBy,
   ensureStackUp,
   deployFlow,
   deleteFlow,
@@ -864,8 +865,8 @@ test('publish: a wired Complete node fires (done()) only after a real publish su
       probe,
       'the message should genuinely have reached NATS'
     );
-    assert.equal(
-      completeMsg.complete.source.id,
+    assertCompletedBy(
+      completeMsg,
       pub,
       'complete event should be attributed to the publish node'
     );

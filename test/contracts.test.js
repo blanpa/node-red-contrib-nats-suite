@@ -12,6 +12,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { jetstreamManager } = require('@nats-io/jetstream');
 const {
+  assertCompletedBy,
   ensureStackUp,
   deployFlow,
   deleteFlow,
@@ -238,8 +239,8 @@ test('stream-publisher: Catch fires on a real operation failure, Complete fires 
     const completed = comms.waitForDebug(dbgCmp, 8000);
     await triggerInject(injOk);
     const completeMsg = await completed;
-    assert.equal(
-      completeMsg.complete.source.id,
+    assertCompletedBy(
+      completeMsg,
       sp,
       'complete event should be attributed to the stream-publisher node'
     );
@@ -313,8 +314,8 @@ test('stream-consumer: Catch fires on a real operation failure, Complete fires o
     const completed = comms.waitForDebug(dbgCmp, 8000);
     await triggerInject(injOk);
     const completeMsg = await completed;
-    assert.equal(
-      completeMsg.complete.source.id,
+    assertCompletedBy(
+      completeMsg,
       sc,
       'complete event should be attributed to the stream-consumer node'
     );
@@ -356,8 +357,8 @@ test('subscribe: Complete fires after a real dynamic-mode subscription update', 
     const completed = comms.waitForDebug(dbgCmp, 8000);
     await triggerInject(inj);
     const completeMsg = await completed;
-    assert.equal(
-      completeMsg.complete.source.id,
+    assertCompletedBy(
+      completeMsg,
       sub,
       'complete event should be attributed to the subscribe node'
     );
@@ -421,7 +422,7 @@ test('server-manager: Catch/Complete fire correctly and close awaits process exi
     const completed = comms.waitForDebug(dbgCmp, 8000);
     await triggerInject(injStatus);
     const completeMsg = await completed;
-    assert.equal(completeMsg.complete.source.id, sm);
+    assertCompletedBy(completeMsg, sm);
 
     // 2) The close-handler bug fix: start a real embedded nats-server, then
     // delete the flow. Before Step 6 the zero-arg async close handler was
