@@ -1,5 +1,6 @@
 'use strict';
 
+require('../lib/webcrypto'); // Node 18: global Web Crypto for @nats-io/obj
 const { readFile } = require('node:fs/promises');
 const { Objm } = require('@nats-io/obj');
 const { nanos, headers: natsHeaders } = require('@nats-io/nats-core');

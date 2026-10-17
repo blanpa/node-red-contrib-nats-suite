@@ -246,3 +246,20 @@ test('parseSize: missing or malformed input returns undefined (caller skips the 
   assert.equal(parseSize('1TB'), undefined);
   assert.equal(parseSize('big'), undefined);
 });
+
+// --- lib/webcrypto ----------------------------------------------------------
+
+test('webcrypto: requiring the shim guarantees a global Web Crypto with subtle.digest (Node 18 has none by default)', async () => {
+  const webcrypto = require('../lib/webcrypto');
+  assert.equal(typeof globalThis.crypto, 'object');
+  assert.equal(webcrypto, globalThis.crypto);
+  assert.equal(typeof globalThis.crypto.subtle.digest, 'function');
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode('abc')
+  );
+  assert.equal(
+    Buffer.from(digest).toString('hex'),
+    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+  );
+});
