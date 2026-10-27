@@ -6,36 +6,19 @@
       name: { value: '' },
       server: { value: '', type: 'nats-suite-server' },
       debug: { value: false },
-      enableBuffer: { value: false },
-      mode: { value: 'publish' }, // 'publish', 'reply', 'request'
-      bufferSize: { value: 1000 },
-      bufferSizeType: { value: 'count' },
-      bufferSizeBytes: { value: 10485760 },
-      bufferMode: { value: 'drop-oldest' },
-      bufferPersistence: { value: 'none' },
-      bufferAutoSaveInterval: { value: 30 },
-      message: { value: '' },
+      mode: { value: 'publish' }, // 'publish', 'reply', 'request', 'requestMany'
       dataformat: { value: 'json', required: true },
       datapointid: { value: '' },
       enableTopicOverride: { value: false },
-      enableBatch: { value: false },
-      batchSize: { value: 100 },
-      batchInterval: { value: 1000 },
-      batchMode: { value: 'hybrid' },
       requestTimeout: { value: 5000 },
       requestFallbackToPublish: { value: true },
       enableAutoReply: { value: false },
-      replyTimeout: { value: 5000 },
-      enableRateLimit: { value: false },
-      rateLimit: { value: 100 },
-      rateLimitWindow: { value: 1000 },
-      rateLimitBurst: { value: 20 },
-      rateLimitAction: { value: 'drop' },
       enableHeaders: { value: false },
       headers: { value: '' },
-      enableMsgExpiration: { value: false },
-      msgExpiration: { value: 0 },
-      outputs: { value: 0 }
+      requestManyStrategy: { value: 'timer' }, // 'timer', 'count', 'stall', 'sentinel'
+      requestManyMaxWait: { value: 2000 },
+      requestManyMaxMessages: { value: 0 },
+      requestManyStall: { value: 200 },
     },
     inputs: 1,
     outputs: 0,
@@ -45,156 +28,101 @@
       return this.name || 'nats publish';
     },
     paletteLabel: 'nats publish',
-    oneditprepare: function() {
+    oneditprepare: function () {
       // Collapsible sections
-      $('.nats-section-header').on('click', function() {
+      $('.nats-section-header').on('click', function () {
         const $header = $(this);
         const $content = $header.next('.nats-section-content');
         const $icon = $header.find('.nats-section-toggle');
-        
+
         $content.slideToggle(200);
         $icon.toggleClass('fa-chevron-down fa-chevron-right');
         $header.toggleClass('collapsed');
       });
-      
-      // Buffer configuration
-      $('#node-input-enableBuffer').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#buffer-options').slideDown(200);
-          $('#node-input-bufferSizeType').trigger('change');
-          $('#node-input-bufferPersistence').trigger('change');
-        } else {
-          $('#buffer-options').slideUp(200);
-        }
-      });
-      
-      $('#node-input-bufferPersistence').on('change', function() {
-        if ($(this).val() === 'none') {
-          $('#buffer-autosave-row').hide();
-        } else {
-          $('#buffer-autosave-row').show();
-        }
-      });
-      
-      $('#node-input-bufferSizeType').on('change', function() {
-        if ($(this).val() === 'count') {
-          $('#buffer-size-count-row').show();
-          $('#buffer-size-bytes-row').hide();
-        } else {
-          $('#buffer-size-count-row').hide();
-          $('#buffer-size-bytes-row').show();
-        }
-      });
-      
-      // Batch configuration
-      $('#node-input-enableBatch').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#batch-options').slideDown(200);
-        } else {
-          $('#batch-options').slideUp(200);
-        }
-      });
-      
-      // Auto-Reply configuration
-      $('#node-input-enableAutoReply').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#autoreply-options').slideDown(200);
-        } else {
-          $('#autoreply-options').slideUp(200);
-        }
-      });
-      
-      // Rate Limit configuration
-      $('#node-input-enableRateLimit').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#ratelimit-options').slideDown(200);
-        } else {
-          $('#ratelimit-options').slideUp(200);
-        }
-      });
-      
+
       // Headers configuration
-      $('#node-input-enableHeaders').on('change', function() {
+      $('#node-input-enableHeaders').on('change', function () {
         if ($(this).is(':checked')) {
           $('#headers-options').slideDown(200);
         } else {
           $('#headers-options').slideUp(200);
         }
       });
-      
-      // Message Expiration configuration
-      $('#node-input-enableMsgExpiration').on('change', function() {
-        if ($(this).is(':checked')) {
-          $('#expiration-options').slideDown(200);
-        } else {
-          $('#expiration-options').slideUp(200);
-        }
-      });
-      
+
+      const updateOutputs = () => {
+        const mode = $('#node-input-mode').val();
+        this.outputs =
+          mode === 'request' ||
+          mode === 'requestMany' ||
+          (mode === 'reply' && $('#node-input-enableAutoReply').is(':checked'))
+            ? 1
+            : 0;
+      };
+
+      const updateAutoReply = mode => {
+        $('#node-input-enableAutoReply').prop('disabled', mode !== 'reply');
+      };
+
+      const updateRequestManyVisibility = () => {
+        const strategy = $('#node-input-requestManyStrategy').val();
+        $('#request-many-maxmessages-row').toggle(strategy === 'count');
+        $('#request-many-stall-row').toggle(strategy === 'stall');
+      };
+      $('#node-input-requestManyStrategy').on(
+        'change',
+        updateRequestManyVisibility
+      );
+
       // Mode configuration - affects outputs and visibility
-      $('#node-input-mode').on('change', function() {
+      $('#node-input-mode').on('change', function () {
         const mode = $(this).val();
-        
+
         // Show/hide request timeout section
         if (mode === 'request') {
           $('#requestreply-options').slideDown(200);
         } else {
           $('#requestreply-options').slideUp(200);
         }
-        
+
+        // Show/hide scatter-gather options
+        if (mode === 'requestMany') {
+          $('#request-many-options').slideDown(200);
+          updateRequestManyVisibility();
+        } else {
+          $('#request-many-options').slideUp(200);
+        }
+
         // Show/hide subject field and topic override (hidden in reply mode as it comes from msg._reply)
         if (mode === 'reply') {
           $('#subject-row').slideUp(200);
           $('#topic-override-row').slideUp(200);
-          // Also hide message expiration in reply mode
-          $('#node-input-enableMsgExpiration').closest('.nats-checkbox-row').slideUp(200);
-          $('#expiration-options').slideUp(200);
         } else {
           $('#subject-row').slideDown(200);
           $('#topic-override-row').slideDown(200);
-          // Show message expiration in non-reply modes
-          $('#node-input-enableMsgExpiration').closest('.nats-checkbox-row').slideDown(200);
-          if ($('#node-input-enableMsgExpiration').is(':checked')) {
-            $('#expiration-options').slideDown(200);
-          }
         }
-        
-        // Show/hide Performance & Reliability section (only in publish mode)
-        if (mode === 'publish') {
-          $('#performance-section').slideDown(200);
-        } else {
-          $('#performance-section').slideUp(200);
-        }
+        updateAutoReply(mode);
+        updateOutputs();
       });
-      
-      // Set defaults
-      if (!this.bufferMode) $('#node-input-bufferMode').val('drop-oldest');
-      if (!this.batchMode) $('#node-input-batchMode').val('hybrid');
-      
-      // Initialize outputs based on current mode
-      const currentMode = this.mode || 'publish';
-      this.outputs = (currentMode === 'request') ? 1 : 0;
-      
+
+      $('#node-input-enableAutoReply').on('change', updateOutputs);
+
       // Trigger initial state
       $('#node-input-mode').trigger('change');
-      $('#node-input-enableBuffer').trigger('change');
-      $('#node-input-enableBatch').trigger('change');
-      $('#node-input-enableAutoReply').trigger('change');
-      $('#node-input-enableRateLimit').trigger('change');
       $('#node-input-enableHeaders').trigger('change');
-      $('#node-input-enableMsgExpiration').trigger('change');
+      $('#node-input-enableAutoReply').trigger('change');
+      updateRequestManyVisibility();
     },
 
-    oneditsave: function() {
+    oneditsave: function () {
       const mode = $('#node-input-mode').val();
-      
-      // Set the number of outputs based on the subscription mode
-      if (mode === 'publish'|| mode === 'reply') {
-        this.outputs = 0;
-      } else {
-        this.outputs = 1;
-      }
-    }
+
+      this.outputs =
+        mode === 'request' ||
+        mode === 'requestMany' ||
+        (mode === 'reply' && $('#node-input-enableAutoReply').is(':checked'))
+          ? 1
+          : 0;
+    },
   });
 </script>
 
@@ -203,161 +131,143 @@
     .nats-publish-config {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    
+
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    
+
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
     }
-    
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-    }
-    
+
     .nats-section-header.collapsed {
       border-bottom: none;
     }
-    
+
     .nats-section-title {
       display: flex;
       align-items: center;
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
-    
+
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
-    
+
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
       transition: transform 0.2s ease;
     }
-    
+
     .nats-section-content {
       padding: 14px;
     }
-    
+
     .nats-form-row {
       margin-bottom: 12px;
     }
-    
+
     .nats-form-row:last-child {
       margin-bottom: 0;
     }
-    
+
     .nats-form-row label {
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
-    
+
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
-    
+
     .nats-form-row input[type="text"],
     .nats-form-row input[type="number"],
     .nats-form-row select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
-    
+
     .nats-form-row input:focus,
     .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
     }
-    
+
     .nats-form-row input[type="number"] {
       width: 120px;
     }
-    
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
-      line-height: 1.4;
-    }
-    
+
     .nats-unit {
       font-size: 12px;
-      color: #6c757d;
+      color: var(--red-ui-form-placeholder-color);
       margin-left: 8px;
     }
-    
+
     .nats-checkbox-row {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 0;
     }
-    
+
     .nats-checkbox-row input[type="checkbox"] {
       width: 16px;
       height: 16px;
-      accent-color: #2FAF9C;
       cursor: pointer;
     }
-    
+
     .nats-checkbox-row label {
       margin: 0;
       font-size: 13px;
       font-weight: 500;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
       cursor: pointer;
     }
-    
+
     .nats-checkbox-row label i {
       margin-right: 8px;
-      color: #2FAF9C;
     }
-    
+
     .nats-options {
       display: none;
       padding-top: 12px;
-      border-top: 1px dashed #dee2e6;
+      border-top: 1px dashed var(--red-ui-form-input-border-color);
       margin-top: 8px;
     }
-    
+
     .nats-inline-row {
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    
+
     .nats-badge {
       display: inline-block;
       padding: 2px 8px;
@@ -366,43 +276,43 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      border: 1px solid;
     }
-    
+
     .nats-badge-optional {
-      background: #e9ecef;
-      color: #6c757d;
+      border-color: var(--red-ui-form-input-border-color);
+      color: var(--red-ui-secondary-text-color);
     }
-    
+
     .nats-badge-dynamic {
-      background: #d4edda;
-      color: #155724;
+      border-color: var(--red-ui-border-color-success);
+      color: var(--red-ui-form-text-color);
     }
-    
+
     .nats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
-    
+
     @media (max-width: 500px) {
       .nats-grid {
         grid-template-columns: 1fr;
       }
     }
-    
+
     .nats-divider {
       height: 1px;
-      background: linear-gradient(90deg, transparent, #dee2e6, transparent);
+      background: var(--red-ui-form-input-border-color);
       margin: 16px 0;
     }
-    
+
     .nats-feature-tag {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       padding: 3px 8px;
-      background: linear-gradient(135deg, #2FAF9C 0%, #3CC9AD 100%);
-      color: white;
+      border: 1px solid var(--red-ui-border-color-success);
       border-radius: 4px;
       font-size: 10px;
       font-weight: 600;
@@ -411,7 +321,7 @@
   </style>
 
   <div class="nats-publish-config">
-    
+
     <!-- Basic Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -426,19 +336,19 @@
           <label><i class="fa fa-tag"></i>Name</label>
           <input type="text" id="node-input-name" placeholder="Optional display name">
         </div>
-        
+
         <div class="nats-form-row">
           <label><i class="fa fa-server"></i>NATS Server</label>
           <input type="text" id="node-input-server">
         </div>
-        
+
         <div class="nats-checkbox-row">
           <input type="checkbox" id="node-input-debug">
           <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
         </div>
       </div>
     </div>
-    
+
     <!-- Message Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -456,6 +366,7 @@
             <option value="publish">Publish</option>
             <option value="reply">Reply</option>
             <option value="request">Request</option>
+            <option value="requestMany">Request Many (scatter-gather)</option>
           </select>
         </div>
 
@@ -468,7 +379,7 @@
           <input type="checkbox" id="node-input-enableTopicOverride">
           <label for="node-input-enableTopicOverride"><i class="fa fa-exchange"></i>Allow msg.topic to override subject</label>
         </div>
-        
+
         <div class="nats-form-row">
           <label><i class="fa fa-file-code-o"></i>Data Format</label>
           <select id="node-input-dataformat">
@@ -477,7 +388,7 @@
             <option value="buffer">Buffer (binary data)</option>
           </select>
         </div>
-        
+
         <!-- Request Timeout (shown when mode is 'request') -->
         <div id="requestreply-options" class="nats-options">
           <div class="nats-form-row">
@@ -486,7 +397,7 @@
               <input type="number" id="node-input-requestTimeout" placeholder="5000" min="100" max="60000">
               <span class="nats-unit">ms</span>
             </div>
-            <div class="nats-hint">
+            <div class="form-tips">
               Sends request and waits for reply. Reply appears at output.<br>
               On timeout: <code>msg.error</code> is set with timeout info.
             </div>
@@ -496,9 +407,60 @@
             <label for="node-input-requestFallbackToPublish"><i class="fa fa-mail-forward"></i>Send as publish on timeout</label>
           </div>
         </div>
+
+        <!-- Scatter-gather options (shown when mode is 'requestMany') -->
+        <div id="request-many-options" class="nats-options">
+          <div class="nats-form-row">
+            <label><i class="fa fa-sitemap"></i>Collection Strategy</label>
+            <select id="node-input-requestManyStrategy">
+              <option value="timer">Timer - collect until max wait elapses</option>
+              <option value="count">Count - stop early once max messages arrives</option>
+              <option value="stall">Stall - stop early once replies go quiet</option>
+              <option value="sentinel">Sentinel - stop on an empty reply</option>
+            </select>
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass-half"></i>Max Wait</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-input-requestManyMaxWait" placeholder="2000" min="1" max="60000">
+              <span class="nats-unit">ms</span>
+            </div>
+            <div class="form-tips">
+              Hard ceiling on the whole collection window, regardless of strategy - a subscriber that never replies cannot hang this node past this limit.
+            </div>
+          </div>
+          <div class="nats-form-row" id="request-many-maxmessages-row">
+            <label><i class="fa fa-list-ol"></i>Max Messages <span class="nats-badge nats-badge-optional">optional</span></label>
+            <input type="number" id="node-input-requestManyMaxMessages" placeholder="0 = unlimited" min="0">
+            <div class="form-tips">
+              Count strategy only - verified against a real broker, the other strategies silently ignore this field. Stop early once this many replies arrive. 0 = unlimited (bounded only by Max Wait).
+            </div>
+          </div>
+          <div class="nats-form-row" id="request-many-stall-row">
+            <label><i class="fa fa-clock-o"></i>Stall Window</label>
+            <div class="nats-inline-row">
+              <input type="number" id="node-input-requestManyStall" placeholder="200" min="1" max="60000">
+              <span class="nats-unit">ms</span>
+            </div>
+            <div class="form-tips">
+              Stall strategy only: stop once this long passes with no new reply.
+            </div>
+          </div>
+          <div class="form-tips">
+            Produces exactly one output message containing the whole collected batch (<code>msg.payload</code> as an array) - not one message per reply.
+          </div>
+        </div>
+
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-enableAutoReply">
+          <label for="node-input-enableAutoReply"><i class="fa fa-reply"></i>Auto-Reply (Reply mode only)</label>
+        </div>
+        <div class="form-tips" style="margin-left: 24px;">
+          In Reply mode, forwards the incoming message to the output for processing, then publishes the returned message back as a reply.
+        </div>
       </div>
     </div>
-    
+
     <!-- Advanced Features -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -509,7 +471,7 @@
         <i class="fa fa-chevron-down nats-section-toggle"></i>
       </div>
       <div class="nats-section-content">
-        
+
         <!-- Headers -->
         <div class="nats-checkbox-row">
           <input type="checkbox" id="node-input-enableHeaders">
@@ -520,277 +482,99 @@
           <div class="nats-form-row">
             <label><i class="fa fa-code"></i>Static Headers (JSON) <span class="nats-badge nats-badge-optional">optional</span></label>
             <input type="text" id="node-input-headers" placeholder='{"X-App": "MyApp", "X-Priority": "high"}'>
-            <div class="nats-hint">
+            <div class="form-tips">
               Static headers merged with dynamic <code>msg.headers</code> at runtime
             </div>
           </div>
         </div>
-        
-        <!-- Message Expiration -->
-        <div class="nats-checkbox-row">
-          <div class="nats-divider"></div>
-          <input type="checkbox" id="node-input-enableMsgExpiration">
-          <label for="node-input-enableMsgExpiration"><i class="fa fa-clock-o"></i>Message Expiration (TTL)</label>
-          <span class="nats-badge nats-badge-dynamic">msg.expiration</span>
-        </div>
-        <div id="expiration-options" class="nats-options">
-          <div class="nats-form-row">
-            <label><i class="fa fa-hourglass-end"></i>Expiration Time</label>
-            <div class="nats-inline-row">
-              <input type="number" id="node-input-msgExpiration" placeholder="0" min="0" max="86400">
-              <span class="nats-unit">seconds</span>
-            </div>
-            <div class="nats-hint">
-              Messages expire if not consumed within this time. Requires JetStream.
-            </div>
-          </div>
-        </div>
-        
+
       </div>
     </div>
-    
-    <!-- Performance & Reliability -->
-    <div class="nats-section" id="performance-section">
-      <div class="nats-section-header">
-        <div class="nats-section-title">
-          <i class="fa fa-tachometer"></i>
-          <span>Performance & Reliability</span>
-        </div>
-        <i class="fa fa-chevron-down nats-section-toggle"></i>
-      </div>
-      <div class="nats-section-content">
-        
-        <!-- Message Buffering -->
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableBuffer">
-          <label for="node-input-enableBuffer"><i class="fa fa-database"></i>Message Buffering</label>
-        </div>
-        <div class="nats-hint" style="margin-left: 24px; margin-bottom: 8px;">
-          Queue messages when disconnected, publish when reconnected
-        </div>
-        <div id="buffer-options" class="nats-options">
-          <div class="nats-grid">
-            <div class="nats-form-row">
-              <label><i class="fa fa-sliders"></i>Limit Type</label>
-              <select id="node-input-bufferSizeType">
-                <option value="count">Message Count</option>
-                <option value="size">Buffer Size (Bytes)</option>
-              </select>
-            </div>
-            
-            <div class="nats-form-row" id="buffer-size-count-row">
-              <label><i class="fa fa-list"></i>Max Messages</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-bufferSize" placeholder="1000" min="10" max="10000">
-                <span class="nats-unit">msgs</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row" id="buffer-size-bytes-row" style="display: none;">
-              <label><i class="fa fa-hdd-o"></i>Max Size</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-bufferSizeBytes" placeholder="10485760" min="1024">
-                <span class="nats-unit">bytes</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row">
-              <label><i class="fa fa-exchange"></i>Overflow Mode</label>
-              <select id="node-input-bufferMode">
-                <option value="drop-oldest">Drop Oldest (FIFO)</option>
-                <option value="drop-newest">Drop Newest</option>
-                <option value="drop-on-full">Reject on Full</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="nats-divider"></div>
-          
-          <div class="nats-grid">
-            <div class="nats-form-row">
-              <label><i class="fa fa-floppy-o"></i>Persistence</label>
-              <select id="node-input-bufferPersistence">
-                <option value="none">None (RAM only)</option>
-                <option value="context">Context Storage</option>
-                <option value="file">File System</option>
-                <option value="both">Both (Max Safety)</option>
-              </select>
-            </div>
-            
-            <div class="nats-form-row" id="buffer-autosave-row" style="display: none;">
-              <label><i class="fa fa-save"></i>Auto-Save</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-bufferAutoSaveInterval" placeholder="30" min="5" max="300">
-                <span class="nats-unit">sec</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="nats-divider"></div>
-        
-        <!-- Batch Publishing -->
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableBatch">
-          <label for="node-input-enableBatch"><i class="fa fa-th-large"></i>Batch Publishing</label>
-        </div>
-        <div class="nats-hint" style="margin-left: 24px; margin-bottom: 8px;">
-          Group messages for more efficient publishing
-        </div>
-        <div id="batch-options" class="nats-options">
-          <div class="nats-grid">
-            <div class="nats-form-row">
-              <label><i class="fa fa-list-ol"></i>Batch Size</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-batchSize" placeholder="100" min="1" max="1000">
-                <span class="nats-unit">msgs</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row">
-              <label><i class="fa fa-clock-o"></i>Interval</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-batchInterval" placeholder="1000" min="100" max="60000">
-                <span class="nats-unit">ms</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="nats-form-row">
-            <label><i class="fa fa-gears"></i>Batch Mode</label>
-            <select id="node-input-batchMode">
-              <option value="hybrid">Hybrid (Size OR Time)</option>
-              <option value="size">Size Only</option>
-              <option value="time">Time Only</option>
-            </select>
-            <div class="nats-hint">
-              Hybrid: Publish when batch size OR interval reached (whichever first)
-            </div>
-          </div>
-        </div>
-        
-        <div class="nats-divider"></div>
-        
-        <!-- Rate Limiting -->
-        <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableRateLimit">
-          <label for="node-input-enableRateLimit"><i class="fa fa-shield"></i>Rate Limiting</label>
-        </div>
-        <div class="nats-hint" style="margin-left: 24px; margin-bottom: 8px;">
-          Prevent message flooding with throughput limits
-        </div>
-        <div id="ratelimit-options" class="nats-options">
-          <div class="nats-grid">
-            <div class="nats-form-row">
-              <label><i class="fa fa-line-chart"></i>Rate Limit</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-rateLimit" placeholder="100" min="1" max="10000">
-                <span class="nats-unit">msgs/window</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row">
-              <label><i class="fa fa-clock-o"></i>Time Window</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-rateLimitWindow" placeholder="1000" min="100" max="60000">
-                <span class="nats-unit">ms</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row">
-              <label><i class="fa fa-bolt"></i>Burst Allowance</label>
-              <div class="nats-inline-row">
-                <input type="number" id="node-input-rateLimitBurst" placeholder="20" min="0" max="1000">
-                <span class="nats-unit">extra</span>
-              </div>
-            </div>
-            
-            <div class="nats-form-row">
-              <label><i class="fa fa-exclamation-triangle"></i>On Limit</label>
-              <select id="node-input-rateLimitAction">
-                <option value="drop">Drop (Silent)</option>
-                <option value="drop-warn">Drop + Warning</option>
-                <option value="delay">Delay (Queue)</oeption>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-      </div>
-    </div>
-    
+
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-publish">
-  <p>Publishes messages to NATS subjects with advanced features.</p>
+<script type="text/markdown" data-help-name="nats-suite-publish">
+  Publishes messages to NATS subjects with advanced features.
 
-  <h3>Inputs</h3>
-  <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>The data to publish. Format depends on the selected data format.</dd>
-    
-    <dt class="optional">topic <span class="property-type">string</span></dt>
-    <dd>Override the configured NATS subject (only if "Allow msg.topic to override subject" is enabled in publish/request modes).</dd>
-    
-    <dt class="optional">headers <span class="property-type">object</span></dt>
-    <dd>Dynamic NATS headers to include with the message.</dd>
-    
-    <dt class="optional">expiration <span class="property-type">number</span></dt>
-    <dd>Message TTL in seconds (requires JetStream).</dd>
-  </dl>
+  ### Inputs
 
-  <h3>Data Formats</h3>
-  <ul>
-    <li><strong>JSON:</strong> Automatically stringifies objects</li>
-    <li><strong>String:</strong> Sends payload as-is</li>
-    <li><strong>Buffer:</strong> Binary data support</li>
-    <li><strong>Reply:</strong> For request-reply patterns using <code>msg._reply</code></li>
-  </ul>
+  : payload (any) : The data to publish. Format depends on the selected data format.
+  : topic (string, optional) : Override the configured NATS subject (only if "Allow msg.topic to override subject" is enabled in publish/request modes).
+  : headers (object, optional) : Dynamic NATS headers to include with the message.
+  : _reply / _unsreply (string, optional) : Reply-to subject used when mode is set to "Reply".
 
-  <h3>Features</h3>
-  
-  <h4>Message Headers</h4>
-  <p>Add custom NATS headers to messages. Static headers configured in the node are merged with dynamic headers from <code>msg.headers</code>.</p>
-  <pre>msg.headers = {
-  "X-User": "john",
-  "X-Request-ID": "abc123"
-};</pre>
+  ### Data Formats
 
-  <h4>Message Buffering</h4>
-  <p>Queues messages when disconnected from NATS and automatically publishes them when reconnected. Supports persistence to survive Node-RED restarts.</p>
+  - **JSON:** Automatically stringifies objects
+  - **String:** Sends payload as-is
+  - **Buffer:** Binary data support
 
-  <h4>Batch Publishing</h4>
-  <p>Groups multiple messages together for more efficient publishing. Supports size-based, time-based, or hybrid triggering.</p>
+  ### Features
 
-  <h4>Rate Limiting</h4>
-  <p>Prevents message flooding using a token bucket algorithm. Configurable rate, time window, and burst allowance.</p>
+  #### Message Headers
 
-  <h4>Request-Reply Mode (Client Side)</h4>
-  <p>Enables the NATS request-reply pattern. The node sends a request to the configured subject and waits for a reply.</p>
-  <ul>
-    <li>Automatically generates a unique inbox subject for the reply</li>
-    <li>Waits for response up to the configured timeout</li>
-    <li>Reply message appears at the node output</li>
-    <li>On timeout: <code>msg.error</code> contains timeout information</li>
-  </ul>
-  <pre>// Input
-msg.payload = { action: "getData", id: 123 };
-msg.topic = "my.service";
+  Add custom NATS headers to messages. Static headers configured in the node are merged with dynamic headers from `msg.headers`.
 
-// Output (on success)
-msg.payload = { result: "data..." };
-msg.requestTime = 45; // ms
+  ```
+  msg.headers = {
+    "X-User": "john",
+    "X-Request-ID": "abc123"
+  };
+  ```
 
-// Output (on timeout)
-msg.error = { message: "Request timeout", code: "TIMEOUT" };</pre>
+  #### Request-Reply Mode (Client Side)
 
-  <h4>Auto-Reply Handler (Service Side)</h4>
-  <p>For building services: Forwards input to output for processing, then sends the returned payload as a reply to <code>msg.replyTo</code>.</p>
+  Enables the NATS request-reply pattern. The node sends a request to the configured subject and waits for a reply.
 
-  <h3>Subject Wildcards</h3>
-  <ul>
-    <li><code>*</code> - matches a single token (e.g., <code>sensor.*.temperature</code>)</li>
-    <li><code>&gt;</code> - matches one or more tokens (e.g., <code>sensor.&gt;</code>)</li>
-  </ul>
+  - Automatically generates a unique inbox subject for the reply
+  - Waits for response up to the configured timeout
+  - Reply message appears at the node output
+  - On timeout: `msg.error` contains timeout information
+
+  ```
+  // Input
+  msg.payload = { action: "getData", id: 123 };
+  msg.topic = "my.service";
+
+  // Output (on success)
+  msg.payload = { result: "data..." };
+  msg.requestTime = 45; // ms
+
+  // Output (on timeout)
+  msg.error = { message: "Request timeout", code: "TIMEOUT" };
+  ```
+
+  #### Auto-Reply Handler (Service Side)
+
+  For building services in Reply mode: forwards the incoming message to the output unchanged. When the processed response is looped back into this node's input, it is published back to the request's reply subject.
+
+  #### Request Many (Scatter-Gather)
+
+  Broadcasts one request and collects every reply that arrives within a bounded window into a single output message - useful for "ask N services, gather whatever answers" patterns. Unlike Request mode, there is no fallback-to-publish on timeout: an empty or partial batch is a normal result, not a failure.
+
+  - **Timer** - collect until Max Wait elapses, whatever arrived by then wins.
+  - **Count** - stop as soon as Max Messages replies arrive (still bounded by Max Wait as a safety net).
+  - **Stall** - stop once no new reply has arrived for the Stall Window, even if Max Wait hasn't elapsed yet (renamed from the v2 client's "Jitter" strategy).
+  - **Sentinel** - stop when a responder sends an empty reply signalling "no more coming" (a protocol convention some services use, not something this node injects).
+
+  Max Messages only takes effect on the Count strategy (verified against a real broker: the other three strategies silently ignore it). A responder that never replies cannot hang this node past Max Wait, regardless of strategy.
+
+  ```
+  // Input
+  msg.payload = { action: "healthCheck" };
+  msg.topic = "workers.broadcast";
+
+  // Output (always exactly one message, however many replies arrived)
+  msg.payload = [{ status: "ok" }, { status: "ok" }];       // decoded payloads
+  msg.replies = [{ payload: {...}, headers: {...}, subject: "..." }, ...];
+  msg.replyCount = 2;
+  ```
+
+  Per-message overrides (all optional, fall back to the node's configured defaults): `msg.requestManyStrategy`, `msg.requestManyMaxWait`, `msg.requestManyMaxMessages`, `msg.requestManyStall`.
+
+  ### Subject Wildcards
+
+  - `*` - matches a single token (e.g., `sensor.*.temperature`)
+  - `>` - matches one or more tokens (e.g., `sensor.>`)
 </script>

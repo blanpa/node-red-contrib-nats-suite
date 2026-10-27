@@ -1,87 +1,70 @@
 'use strict';
 
+const { Kvm } = require('@nats-io/kv');
+const { resolveServer } = require('../lib/connect');
+const { attachStatus } = require('../lib/status');
+
 module.exports = function (RED) {
-  function UnsKvGetNode(config) {
+  function NatsKvGetNode(config) {
     RED.nodes.createNode(this, config);
     const node = this;
 
-    // Server configuration (required)
-    if (!config.server) {
-      node.error('NATS server configuration not selected');
-      node.status({ fill: 'red', shape: 'ring', text: 'no server' });
-      return;
-    }
+    this.serverConfig = resolveServer(RED, node, config);
+    if (!this.serverConfig) return;
 
-    this.serverConfig = RED.nodes.getNode(config.server);
-    if (!this.serverConfig) {
-      node.error('NATS server configuration not found');
-      node.status({ fill: 'red', shape: 'ring', text: 'server not found' });
-      return;
-    }
-
-    // Bucket configuration - can use bucketConfig node OR direct settings
     this.bucket = config.bucket || '';
-    this.bucketConfig = config.bucketConfig
-      ? RED.nodes.getNode(config.bucketConfig)
-      : null;
-
-    if (this.bucketConfig) {
-      this.bucket = this.bucketConfig.bucket;
-      this.serverConfig = this.bucketConfig.serverConfig;
-    } else {
-      // Direct bucket settings
-      this.description = config.description || '';
-      this.history = parseInt(config.history) || 10;
-      this.maxAge = parseInt(config.maxAge) || 0;
-      this.maxBytes = parseInt(config.maxBytes) || 0;
-      this.maxValueSize = parseInt(config.maxValueSize) || 0;
-      this.compression = !!config.compression;
-      this.replicas = parseInt(config.replicas) || 1;
-      this.storage = config.storage || 'file';
-    }
+    this.description = config.description || '';
+    this.history = parseInt(config.history) || 10;
+    this.maxAge = parseInt(config.maxAge) || 0;
+    this.maxBytes = parseInt(config.maxBytes) || 0;
+    this.maxValueSize = parseInt(config.maxValueSize) || 0;
+    this.compression = !!config.compression;
+    this.replicas = parseInt(config.replicas) || 1;
+    this.storage = config.storage || 'file';
 
     let kvStore = null;
     let watcher = null;
+    let watchTask = null;
+    let watchSetupTask = null;
+    let pendingWatchStart = null;
     let isWatching = false;
+    let statusTimer = null;
+    let closing = false;
     const isDebug = config.debug || this.serverConfig.debug || false;
 
-    // Helper: Get or create KV bucket
+    const detachStatus = attachStatus(node, this.serverConfig, {
+      connected: () => {
+        if (isWatching) {
+          node.status({ fill: 'green', shape: 'dot', text: 'watching' });
+        } else if (config.mode !== 'watch') {
+          node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
+        }
+      },
+    });
+
+    // Helper: Get or create KV bucket. Kvm#create() is create-or-open (a
+    // no-op if the bucket already exists), so it replaces the old
+    // try-bare-open-then-create-with-options fallback outright.
     const getKVBucket = async () => {
       if (kvStore) return kvStore;
 
-      try {
-        const nc = await node.serverConfig.getConnection();
-        const js = nc.jetstream();
+      const nc = await node.serverConfig.getConnection();
+      const createOptions = {
+        history: node.history,
+        ttl: node.maxAge * 1000,
+        max_bytes: node.maxBytes || undefined,
+        maxValueSize: node.maxValueSize || undefined,
+        compression: node.compression,
+        replicas: node.replicas,
+        storage: node.storage === 'memory' ? 'memory' : 'file',
+      };
 
-        try {
-          kvStore = await js.views.kv(node.bucket);
-          return kvStore;
-        } catch (err) {
-          if (node.bucketConfig) {
-            kvStore = await node.bucketConfig.getKVBucket();
-          } else {
-            const createOptions = {
-              history: node.history,
-              max_age: node.maxAge * 1000,
-              max_bytes: node.maxBytes || undefined,
-              max_value_size: node.maxValueSize || undefined,
-              compression: node.compression,
-              replicas: node.replicas,
-              storage: node.storage === 'memory' ? 'memory' : 'file',
-            };
+      Object.keys(createOptions).forEach(key => {
+        if (createOptions[key] === undefined) delete createOptions[key];
+      });
 
-            Object.keys(createOptions).forEach(key => {
-              if (createOptions[key] === undefined) delete createOptions[key];
-            });
-
-            kvStore = await js.views.kv(node.bucket, createOptions);
-          }
-          return kvStore;
-        }
-      } catch (err) {
-        node.error(`Failed to get KV bucket: ${err.message}`);
-        throw err;
-      }
+      kvStore = await new Kvm(nc).create(node.bucket, createOptions);
+      return kvStore;
     };
 
     // Helper: Parse value if JSON
@@ -91,7 +74,7 @@ module.exports = function (RED) {
       if (typeof value === 'string') {
         try {
           return JSON.parse(value);
-        } catch (e) {
+        } catch {
           // Not JSON, return as-is
           return value;
         }
@@ -101,187 +84,228 @@ module.exports = function (RED) {
 
     // Helper: Get single key
     const getValue = async key => {
-      try {
-        const kv = await getKVBucket();
-        const entry = await kv.get(key);
+      const kv = await getKVBucket();
+      const entry = await kv.get(key);
 
-        if (!entry) {
-          return null;
-        }
-
-        const value = entry.string();
-        const parsedValue = parseValue(value);
-
-        const result = {
-          payload: parsedValue,
-          key: key,
-          operation: 'GET',
-          revision: entry.revision,
-          created: entry.created ? new Date(entry.created).toISOString() : null,
-          bucket: node.bucket,
-        };
-
-        // Include history if requested
-        if (config.includeHistory) {
-          try {
-            const limit = parseInt(config.historyLimit) || 1;
-
-            if (isDebug) {
-              node.log(
-                `[KV GET] History - config.historyLimit: ${JSON.stringify(config.historyLimit)} (type: ${typeof config.historyLimit}), parsed limit: ${limit}`
-              );
-            }
-
-            const history = await kv.history({ key });
-            const historyArray = [];
-
-            for await (const h of history) {
-              if (isDebug) {
-                node.log(
-                  `[KV GET] History entry #${historyArray.length + 1} - revision: ${h.revision}, operation: ${h.operation}, key: ${h.key}`
-                );
-              }
-              historyArray.push({
-                revision: h.revision,
-                value: parseValue(h.string()),
-                created: h.created ? new Date(h.created).toISOString() : null,
-                operation: h.operation,
-              });
-              if (limit > 0 && historyArray.length >= limit) {
-                break;
-              }
-            }
-
-            if (isDebug) {
-              node.log(
-                `[KV GET] History collected ${historyArray.length} entries (limit was ${limit})`
-              );
-            }
-
-            result._history = historyArray;
-          } catch (histErr) {
-            node.warn(`Failed to get history: ${histErr.message}`);
-          }
-        }
-
-        return result;
-      } catch (err) {
-        if (err.message && err.message.includes('no message found')) {
-          return null; // Key doesn't exist
-        }
-        throw err;
+      if (!entry) {
+        return null;
       }
+
+      const value = entry.string();
+      const parsedValue = parseValue(value);
+
+      const result = {
+        payload: parsedValue,
+        key: key,
+        operation: 'GET',
+        revision: entry.revision,
+        created: entry.created ? new Date(entry.created).toISOString() : null,
+        bucket: node.bucket,
+      };
+
+      // Include history if requested
+      if (config.includeHistory) {
+        try {
+          const limit = parseInt(config.historyLimit) || 1;
+
+          if (isDebug) {
+            node.log(
+              `[KV GET] History - config.historyLimit: ${JSON.stringify(config.historyLimit)} (type: ${typeof config.historyLimit}), parsed limit: ${limit}`
+            );
+          }
+
+          const history = await kv.history({ key });
+          const historyArray = [];
+
+          for await (const h of history) {
+            if (isDebug) {
+              node.log(
+                `[KV GET] History entry #${historyArray.length + 1} - revision: ${h.revision}, operation: ${h.operation}, key: ${h.key}`
+              );
+            }
+            historyArray.push({
+              revision: h.revision,
+              value: parseValue(h.string()),
+              created: h.created ? new Date(h.created).toISOString() : null,
+              operation: h.operation,
+            });
+            if (limit > 0 && historyArray.length >= limit) {
+              break;
+            }
+          }
+
+          if (isDebug) {
+            node.log(
+              `[KV GET] History collected ${historyArray.length} entries (limit was ${limit})`
+            );
+          }
+
+          result._history = historyArray;
+        } catch (histErr) {
+          node.warn(`Failed to get history: ${histErr.message}`);
+        }
+      }
+
+      return result;
     };
 
     // Helper: List all keys
     const listKeys = async () => {
-      try {
-        const kv = await getKVBucket();
-        const keys = await kv.keys();
-        const keyArray = [];
+      const kv = await getKVBucket();
+      const keys = await kv.keys();
+      const keyArray = [];
 
-        for await (const key of keys) {
-          keyArray.push(key);
-        }
-
-        return {
-          payload: keyArray,
-          operation: 'LIST',
-          bucket: node.bucket,
-          count: keyArray.length,
-        };
-      } catch (err) {
-        throw err;
+      for await (const key of keys) {
+        keyArray.push(key);
       }
+
+      return {
+        payload: keyArray,
+        operation: 'LIST',
+        bucket: node.bucket,
+        count: keyArray.length,
+      };
     };
 
     // Helper: Start watching keys
-    const startWatch = async () => {
-      if (isWatching) return;
+    const startWatch = () => {
+      if (isWatching) return Promise.resolve();
+      if (pendingWatchStart) return pendingWatchStart;
 
-      try {
-        const kv = await getKVBucket();
+      pendingWatchStart = (async () => {
+        try {
+          const kv = await getKVBucket();
 
-        // Determine watch options
-        const watchOptions = {};
-        if (config.watchPattern) {
-          watchOptions.key = config.watchPattern;
-        }
-
-        if (config.ignoreDeletes) {
-          watchOptions.ignoreDeletes = true;
-        }
-
-        watcher = await kv.watch(watchOptions);
-        isWatching = true;
-
-        node.status({ fill: 'green', shape: 'dot', text: 'watching' });
-        if (isDebug)
-          node.log(`[KV GET] Started watching: ${config.watchPattern || '*'}`);
-
-        // Process watch events
-        (async () => {
-          try {
-            for await (const entry of watcher) {
-              if (!isWatching) break;
-
-              const value = entry.value ? entry.string() : null;
-              const parsedValue = value !== null ? parseValue(value) : null;
-
-              const msg = {
-                payload: parsedValue,
-                key: entry.key,
-                operation: entry.operation,
-                revision: entry.revision,
-                created: entry.created
-                  ? new Date(entry.created).toISOString()
-                  : null,
-                bucket: node.bucket,
-                _watchEvent: true,
-              };
-
-              node.send(msg);
-
-              node.status({
-                fill: 'blue',
-                shape: 'dot',
-                text: `${entry.operation}: ${entry.key}`,
-              });
-
-              // Reset status after 1 second
-              setTimeout(() => {
-                if (isWatching) {
-                  node.status({
-                    fill: 'green',
-                    shape: 'dot',
-                    text: 'watching',
-                  });
-                }
-              }, 1000);
-            }
-          } catch (err) {
-            if (isWatching) {
-              node.error(`Watch error: ${err.message}`);
-              node.status({ fill: 'red', shape: 'ring', text: 'watch error' });
-            }
+          // Determine watch options
+          const watchOptions = {};
+          if (config.watchPattern) {
+            // A comma-separated pattern becomes a real multi-key watch (server
+            // 2.10+); a single pattern keeps working exactly as before.
+            const keys = config.watchPattern
+              .split(',')
+              .map(k => k.trim())
+              .filter(Boolean);
+            watchOptions.key = keys.length > 1 ? keys : keys[0];
           }
-        })();
-      } catch (err) {
-        node.error(`Failed to start watch: ${err.message}`);
-        node.status({ fill: 'red', shape: 'ring', text: 'watch failed' });
-      }
+
+          if (config.ignoreDeletes) {
+            watchOptions.ignoreDeletes = true;
+          }
+
+          if (config.watchHeadersOnly) {
+            watchOptions.headers_only = true;
+          }
+
+          if (config.watchInclude) {
+            watchOptions.include = config.watchInclude;
+          }
+
+          if (config.watchResumeFromRevision) {
+            watchOptions.resumeFromRevision = parseInt(
+              config.watchResumeFromRevision,
+              10
+            );
+          }
+
+          watcher = await kv.watch(watchOptions);
+          if (closing) {
+            await watcher.stop();
+            watcher = null;
+            return;
+          }
+          const activeWatcher = watcher;
+          isWatching = true;
+
+          node.status({ fill: 'green', shape: 'dot', text: 'watching' });
+          if (isDebug)
+            node.log(
+              `[KV GET] Started watching: ${config.watchPattern || '*'}`
+            );
+
+          // Process watch events
+          const consumeWatch = async () => {
+            try {
+              for await (const entry of activeWatcher) {
+                if (!isWatching) break;
+
+                // With headers_only, entry.value is a truthy-but-empty Buffer -
+                // entry.value.length (the real buffer) is 0 even though
+                // entry.length (metadata) still reports the real byte count.
+                // Check the buffer itself, not the metadata field, or
+                // entry.string() returns '' instead of "we stripped this".
+                const value =
+                  entry.value && entry.value.length > 0 ? entry.string() : null;
+                const parsedValue = value !== null ? parseValue(value) : null;
+
+                const msg = {
+                  payload: parsedValue,
+                  key: entry.key,
+                  operation: entry.operation,
+                  revision: entry.revision,
+                  length: entry.length,
+                  created: entry.created
+                    ? new Date(entry.created).toISOString()
+                    : null,
+                  bucket: node.bucket,
+                  _watchEvent: true,
+                };
+
+                node.send(msg);
+
+                node.status({
+                  fill: 'blue',
+                  shape: 'dot',
+                  text: `${entry.operation}: ${entry.key}`,
+                });
+
+                // Reset status after 1 second
+                if (statusTimer) clearTimeout(statusTimer);
+                statusTimer = setTimeout(() => {
+                  statusTimer = null;
+                  if (isWatching) {
+                    node.status({
+                      fill: 'green',
+                      shape: 'dot',
+                      text: 'watching',
+                    });
+                  }
+                }, 1000);
+              }
+            } catch (err) {
+              isWatching = false;
+              watcher = null;
+              watchTask = null;
+              if (statusTimer) {
+                clearTimeout(statusTimer);
+                statusTimer = null;
+              }
+              if (!closing) {
+                node.error(`Watch error: ${err.message}`);
+                node.status({
+                  fill: 'red',
+                  shape: 'ring',
+                  text: 'watch error',
+                });
+              }
+            }
+          };
+          watchTask = consumeWatch();
+        } finally {
+          pendingWatchStart = null;
+        }
+      })();
+
+      return pendingWatchStart;
     };
 
     // Helper: Stop watching
     const stopWatch = async () => {
       if (watcher) {
-        try {
-          await watcher.stop();
-          if (isDebug) node.log(`[KV GET] Stopped watching`);
-        } catch (err) {
-          node.warn(`Error stopping watch: ${err.message}`);
-        }
+        await watcher.stop();
+        await watchTask;
+        if (isDebug) node.log(`[KV GET] Stopped watching`);
         watcher = null;
+        watchTask = null;
       }
       isWatching = false;
     };
@@ -292,13 +316,21 @@ module.exports = function (RED) {
     // Initialize based on mode
     if (config.mode === 'watch') {
       // Start watching immediately
-      startWatch();
+      const initializeWatch = async () => {
+        try {
+          await startWatch();
+        } catch (err) {
+          node.error(`Failed to start watch: ${err.message}`);
+          node.status({ fill: 'red', shape: 'ring', text: 'watch failed' });
+        }
+      };
+      watchSetupTask = initializeWatch();
     } else {
       node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
     }
 
     // Input handler
-    node.on('input', async function (msg) {
+    node.on('input', async function (msg, send, done) {
       try {
         // Determine operation mode - msg.operation takes precedence
         const mode = msg.operation || config.mode;
@@ -317,7 +349,7 @@ module.exports = function (RED) {
           }
 
           if (!key) {
-            node.error('No key specified', msg);
+            done(new Error('No key specified'));
             return;
           }
 
@@ -338,7 +370,7 @@ module.exports = function (RED) {
             msg.operation = 'GET';
             msg._notFound = true;
             msg.bucket = node.bucket;
-            node.send(msg);
+            send(msg);
             node.status({ fill: 'grey', shape: 'ring', text: 'not found' });
           } else {
             if (isDebug) {
@@ -348,14 +380,17 @@ module.exports = function (RED) {
             }
             // Merge result into msg
             Object.assign(msg, result);
-            node.send(msg);
+            send(msg);
             node.status({ fill: 'green', shape: 'dot', text: 'retrieved' });
           }
 
           // Reset status
-          setTimeout(() => {
+          if (statusTimer) clearTimeout(statusTimer);
+          statusTimer = setTimeout(() => {
+            statusTimer = null;
             node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
           }, 1000);
+          done();
         } else if (mode === 'keys' || mode === 'list') {
           if (isDebug) {
             node.log(`[KV GET] LIST operation - Bucket: ${node.bucket}`);
@@ -368,39 +403,54 @@ module.exports = function (RED) {
           }
 
           Object.assign(msg, result);
-          node.send(msg);
+          send(msg);
           node.status({
             fill: 'green',
             shape: 'dot',
             text: `${result.count} keys`,
           });
 
-          setTimeout(() => {
+          if (statusTimer) clearTimeout(statusTimer);
+          statusTimer = setTimeout(() => {
+            statusTimer = null;
             node.status({ fill: 'yellow', shape: 'ring', text: 'ready' });
           }, 1000);
+          done();
         } else if (mode === 'watch') {
           // Watch mode doesn't use input, but we can trigger a re-watch
           if (!isWatching) {
             await startWatch();
           }
+          done();
         } else {
-          node.error(`Unknown operation: ${mode}`, msg);
+          done(new Error(`Unknown operation: ${mode}`));
           return;
         }
       } catch (err) {
-        node.error(`KV GET error: ${err.message}`, msg);
         node.status({ fill: 'red', shape: 'ring', text: 'error' });
+        done(err);
       }
     });
 
     // Cleanup on close
-    node.on('close', async function () {
-      await stopWatch();
-      this.serverConfig.unregisterConnectionUser(node.id);
-      kvStore = null;
-      node.status({});
+    node.on('close', async function (done) {
+      let closeError;
+      try {
+        closing = true;
+        detachStatus();
+        if (statusTimer) clearTimeout(statusTimer);
+        if (watchSetupTask) await watchSetupTask;
+        await stopWatch();
+      } catch (err) {
+        closeError = err;
+      } finally {
+        this.serverConfig.unregisterConnectionUser(node.id);
+        kvStore = null;
+        node.status({});
+        done(closeError);
+      }
     });
   }
 
-  RED.nodes.registerType('nats-suite-kv-get', UnsKvGetNode);
+  RED.nodes.registerType('nats-suite-kv-get', NatsKvGetNode);
 };

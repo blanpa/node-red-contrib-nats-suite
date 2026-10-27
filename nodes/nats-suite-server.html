@@ -3,34 +3,44 @@
     category: 'config',
     icon: 'nats-icon-white.png',
     defaults: {
-      server: { value: "", required: false },
-      authMethod: { value: "none" },
+      server: { value: '', required: false },
+      authMethod: { value: 'none' },
       enableTLS: { value: false },
       tlsRejectUnauthorized: { value: true },
-      tlsCaFile: { value: "" },
-      tlsCertFile: { value: "" },
-      tlsKeyFile: { value: "" },
-      maxReconnectAttempts: { value: 10 },
+      tlsCaFile: { value: '' },
+      tlsCertFile: { value: '' },
+      tlsKeyFile: { value: '' },
       reconnectTimeWait: { value: 1000 },
       timeout: { value: 10000 },
       pingInterval: { value: 30000 },
       maxPingOut: { value: 3 },
-      debug: { value: false }
+      enableTracing: { value: false },
+      traceDestination: {
+        value: '',
+        validate: function (v) {
+          // `this` is the node's data object here, not the DOM - validation
+          // also runs on the canvas/deploy with no edit dialog open, where a
+          // DOM selector always resolves empty and silently reports valid.
+          if (!this.enableTracing) return true;
+          return !!v && v.trim().length > 0;
+        },
+      },
+      debug: { value: false },
     },
     credentials: {
-      user: { type: "text" },
-      pass: { type: "password" },
-      token: { type: "password" },
-      jwt: { type: "password" },
-      nkeySeed: { type: "password" }
+      user: { type: 'text' },
+      pass: { type: 'password' },
+      token: { type: 'password' },
+      jwt: { type: 'password' },
+      nkeySeed: { type: 'password' },
     },
     label: function () {
-      return this.server || "NATS Server";
+      return this.server || 'NATS Server';
     },
     paletteLabel: 'nats server',
-    oneditprepare: function() {
+    oneditprepare: function () {
       // Collapsible sections
-      $('.nats-section-header').on('click', function() {
+      $('.nats-section-header').on('click', function () {
         const $header = $(this);
         const $content = $header.next('.nats-section-content');
         const $icon = $header.find('.nats-section-toggle');
@@ -38,52 +48,74 @@
         $icon.toggleClass('fa-chevron-down fa-chevron-right');
         $header.toggleClass('collapsed');
       });
-      
+
       // Auth method handler
       const updateAuthFields = () => {
         const authMethod = $('#node-config-input-authMethod').val();
-        $('#auth-userpass-section, #auth-token-section, #auth-jwt-section, #auth-nkey-section').hide();
-        switch(authMethod) {
-          case 'userpass': $('#auth-userpass-section').slideDown(200); break;
-          case 'token': $('#auth-token-section').slideDown(200); break;
-          case 'jwt': $('#auth-jwt-section').slideDown(200); break;
-          case 'nkey': $('#auth-nkey-section').slideDown(200); break;
+        $(
+          '#auth-userpass-section, #auth-token-section, #auth-jwt-section, #auth-nkey-section'
+        ).hide();
+        switch (authMethod) {
+          case 'userpass':
+            $('#auth-userpass-section').slideDown(200);
+            break;
+          case 'token':
+            $('#auth-token-section').slideDown(200);
+            break;
+          case 'jwt':
+            $('#auth-jwt-section').slideDown(200);
+            break;
+          case 'nkey':
+            $('#auth-nkey-section').slideDown(200);
+            break;
         }
       };
-      
-      // TLS handler
-      const updateTLSFields = () => {
-        if ($('#node-config-input-enableTLS').is(':checked')) {
-          $('#tls-config-section').slideDown(200);
+
+      // Checkbox-driven section toggle (TLS, Tracing, ...)
+      const makeCheckboxToggle = (checkboxSel, sectionSel) => () => {
+        if ($(checkboxSel).is(':checked')) {
+          $(sectionSel).slideDown(200);
         } else {
-          $('#tls-config-section').slideUp(200);
+          $(sectionSel).slideUp(200);
         }
       };
-      
+      const updateTLSFields = makeCheckboxToggle(
+        '#node-config-input-enableTLS',
+        '#tls-config-section'
+      );
+      const updateTracingFields = makeCheckboxToggle(
+        '#node-config-input-enableTracing',
+        '#tracing-config-section'
+      );
+
       updateAuthFields();
       updateTLSFields();
+      updateTracingFields();
 
       // Sync nkeySeed value to the nkey-only textarea on open
-      $('#node-config-input-nkeySeed-nkey').val($('#node-config-input-nkeySeed').val());
+      $('#node-config-input-nkeySeed-nkey').val(
+        $('#node-config-input-nkeySeed').val()
+      );
 
       // Keep both nkeySeed fields in sync as the user types
-      $('#node-config-input-nkeySeed').on('input', function() {
+      $('#node-config-input-nkeySeed').on('input', function () {
         $('#node-config-input-nkeySeed-nkey').val($(this).val());
       });
-      $('#node-config-input-nkeySeed-nkey').on('input', function() {
+      $('#node-config-input-nkeySeed-nkey').on('input', function () {
         $('#node-config-input-nkeySeed').val($(this).val());
       });
 
       $('#node-config-input-authMethod').on('change', updateAuthFields);
       $('#node-config-input-enableTLS').on('change', updateTLSFields);
+      $('#node-config-input-enableTracing').on('change', updateTracingFields);
     },
-    oneditsave: function() {
+    oneditsave: function () {
       // Ensure the nkey-only field value is written back to the credential field Node-RED reads
       const nkeyVal = $('#node-config-input-nkeySeed-nkey').val();
       if ($('#node-config-input-authMethod').val() === 'nkey' && nkeyVal) {
         $('#node-config-input-nkeySeed').val(nkeyVal);
       }
-    }
+    },
   });
 </script>
 
@@ -93,26 +125,21 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
-    }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
     }
     .nats-section-header.collapsed { border-bottom: none; }
     .nats-section-title {
@@ -121,16 +148,15 @@
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
     }
     .nats-section-content { padding: 14px; }
@@ -140,12 +166,11 @@
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
@@ -156,17 +181,16 @@
     .nats-form-row textarea {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
     .nats-form-row input:focus,
     .nats-form-row select:focus,
     .nats-form-row textarea:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
     }
     .nats-form-row input[type="number"] { width: 120px; }
@@ -174,12 +198,6 @@
       font-family: 'Monaco', 'Menlo', monospace;
       font-size: 11px;
       resize: vertical;
-    }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
-      line-height: 1.4;
     }
     .nats-checkbox-row {
       display: flex;
@@ -190,19 +208,17 @@
     .nats-checkbox-row input[type="checkbox"] {
       width: 16px;
       height: 16px;
-      accent-color: #2FAF9C;
       cursor: pointer;
     }
     .nats-checkbox-row label {
       margin: 0;
       font-size: 13px;
       font-weight: 500;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
       cursor: pointer;
     }
     .nats-checkbox-row label i {
       margin-right: 8px;
-      color: #2FAF9C;
     }
     .nats-grid {
       display: grid;
@@ -212,12 +228,12 @@
     .nats-auth-section {
       display: none;
       padding-top: 12px;
-      border-top: 1px dashed #dee2e6;
+      border-top: 1px dashed var(--red-ui-form-input-border-color);
       margin-top: 8px;
     }
     .nats-unit {
       font-size: 12px;
-      color: #6c757d;
+      color: var(--red-ui-form-placeholder-color);
       margin-left: 8px;
     }
     .nats-inline-row {
@@ -228,7 +244,7 @@
   </style>
 
   <div class="nats-server-config">
-    
+
     <!-- Connection -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -242,18 +258,18 @@
         <div class="nats-form-row">
           <label><i class="fa fa-link"></i>NATS Server URL</label>
           <input type="text" id="node-config-input-server" placeholder="nats://localhost:4222">
-          <div class="nats-hint">
+          <div class="form-tips">
             Examples: <code>nats://localhost:4222</code>, <code>nats://server1:4222,nats://server2:4222</code>
           </div>
         </div>
-        
+
         <div class="nats-checkbox-row">
           <input type="checkbox" id="node-config-input-debug">
           <label for="node-config-input-debug"><i class="fa fa-bug"></i>Enable Debug Logging</label>
         </div>
       </div>
     </div>
-    
+
     <!-- Security & Authentication -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -274,7 +290,7 @@
             <option value="nkey">NKey Only</option>
           </select>
         </div>
-        
+
         <!-- Username/Password -->
         <div id="auth-userpass-section" class="nats-auth-section">
           <div class="nats-grid">
@@ -288,7 +304,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Token -->
         <div id="auth-token-section" class="nats-auth-section">
           <div class="nats-form-row">
@@ -296,7 +312,7 @@
             <input type="password" id="node-config-input-token" placeholder="Token">
           </div>
         </div>
-        
+
         <!-- JWT -->
         <div id="auth-jwt-section" class="nats-auth-section">
           <div class="nats-form-row">
@@ -308,7 +324,7 @@
             <textarea id="node-config-input-nkeySeed" rows="2" placeholder="Paste NKey seed here..."></textarea>
           </div>
         </div>
-        
+
         <!-- NKey Only -->
         <div id="auth-nkey-section" class="nats-auth-section">
           <div class="nats-form-row">
@@ -316,14 +332,14 @@
             <textarea id="node-config-input-nkeySeed-nkey" rows="2" placeholder="Paste NKey seed here..."></textarea>
           </div>
         </div>
-        
+
         <!-- TLS -->
-        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e9ecef;">
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--red-ui-form-input-border-color);">
           <div class="nats-checkbox-row">
             <input type="checkbox" id="node-config-input-enableTLS">
             <label for="node-config-input-enableTLS"><i class="fa fa-lock"></i>Enable TLS/SSL Encryption</label>
           </div>
-          
+
           <div id="tls-config-section" style="display: none; margin-top: 12px;">
             <div class="nats-form-row">
               <label><i class="fa fa-certificate"></i>CA Certificate Path</label>
@@ -347,7 +363,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Connection Settings -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -359,12 +375,6 @@
       </div>
       <div class="nats-section-content">
         <div class="nats-grid">
-          <div class="nats-form-row">
-            <label><i class="fa fa-refresh"></i>Max Reconnect Attempts</label>
-            <div class="nats-inline-row">
-              <input type="number" id="node-config-input-maxReconnectAttempts" min="1" max="100" placeholder="10">
-            </div>
-          </div>
           <div class="nats-form-row">
             <label><i class="fa fa-clock-o"></i>Reconnect Wait</label>
             <div class="nats-inline-row">
@@ -391,37 +401,56 @@
           <label><i class="fa fa-exclamation-triangle"></i>Max Ping Outs</label>
           <div class="nats-inline-row">
             <input type="number" id="node-config-input-maxPingOut" min="1" max="10" placeholder="3">
-            <span class="nats-hint" style="margin: 0;">before disconnect</span>
+            <span class="form-tips" style="margin: 0;">before disconnect</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--red-ui-form-input-border-color);">
+          <div class="nats-checkbox-row">
+            <input type="checkbox" id="node-config-input-enableTracing">
+            <label for="node-config-input-enableTracing"><i class="fa fa-crosshairs"></i>Enable Message Tracing</label>
+          </div>
+          <div id="tracing-config-section" style="display: none; margin-top: 12px;">
+            <div class="nats-form-row">
+              <label><i class="fa fa-map-signs"></i>Trace Destination Subject</label>
+              <input type="text" id="node-config-input-traceDestination" placeholder="$SYS.trace.my-app">
+              <div class="form-tips">Publish/request and JetStream publish made through this connection report their delivery trace to this subject (KV, Object Store, and Service nodes aren't wired in yet). Applies to the whole connection - not configurable per node or per message.</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    
+
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-server">
-  <p>Configures a connection to a NATS server.</p>
+<script type="text/markdown" data-help-name="nats-suite-server">
+  Configures a connection to a NATS server.
 
-  <h3>Connection URL</h3>
-  <p>Examples:</p>
-  <ul>
-    <li><code>nats://localhost:4222</code> - Local server</li>
-    <li><code>nats://server1:4222,nats://server2:4222</code> - Cluster</li>
-  </ul>
+  ### Connection URL
 
-  <h3>Authentication</h3>
-  <ul>
-    <li><strong>None:</strong> No authentication</li>
-    <li><strong>Username/Password:</strong> Basic auth</li>
-    <li><strong>Token:</strong> Single token</li>
-    <li><strong>JWT + NKey:</strong> NATS 2.x authentication</li>
-    <li><strong>NKey:</strong> Cryptographic auth</li>
-  </ul>
+  Examples:
 
-  <h3>TLS/SSL</h3>
-  <p>Enable TLS for encrypted connections. For mutual TLS (mTLS), provide client certificate and key.</p>
+  - `nats://localhost:4222` - Local server
+  - `nats://server1:4222,nats://server2:4222` - Cluster
 
-  <h3>Reconnection</h3>
-  <p>Automatic exponential backoff: 5s → 10s → 20s → 40s → 60s (max)</p>
+  ### Authentication
+
+  - **None:** No authentication
+  - **Username/Password:** Basic auth
+  - **Token:** Single token
+  - **JWT + NKey:** NATS 2.x authentication
+  - **NKey:** Cryptographic auth
+
+  ### TLS/SSL
+
+  Enable TLS for encrypted connections. For mutual TLS (mTLS), provide client certificate and key.
+
+  ### Reconnection
+
+  Retries indefinitely using the native NATS reconnect loop and the configured reconnect wait.
+
+  ### Message Tracing
+
+  One switch for the whole connection: when enabled, publish/request (`nats-suite-publish`) and JetStream publish (`nats-suite-stream-publisher`) made through it also report delivery trace to the configured destination subject. KV, Object Store, and Service nodes don't carry tracing yet. Not a per-message or per-node setting.
 </script>

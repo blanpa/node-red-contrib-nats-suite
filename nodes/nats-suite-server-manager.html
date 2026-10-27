@@ -3,74 +3,112 @@
     category: 'NATS Suite',
     color: '#2FAF9C',
     defaults: {
-      name: { value: "" },
-      port: { value: 4222, required: true, validate: function(val) { return /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536; } },
-      leafPort: { value: 7422, required: true, validate: function(val) { return /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536; } },
+      name: { value: '' },
+      port: {
+        value: 4222,
+        required: true,
+        validate: function (val) {
+          return (
+            /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536
+          );
+        },
+      },
+      leafPort: {
+        value: 7422,
+        required: true,
+        validate: function (val) {
+          return (
+            /^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536
+          );
+        },
+      },
       enableJetStream: { value: false },
-      storeDir: { value: "" },
-      leafRemoteUrl: { value: "" },
-      leafRemoteUser: { value: "" },
-      leafRemotePass: { value: "" },
+      storeDir: { value: '' },
+      leafRemoteUrl: { value: '' },
+      leafRemoteUser: { value: '' },
       autoStart: { value: true },
       debug: { value: false },
       // Binary source selection
-      binarySource: { value: "auto" },
-      customBinaryPath: { value: "" },
+      binarySource: { value: 'auto' },
+      customBinaryPath: { value: '' },
       // Config source selection
-      configSource: { value: "generated" },
-      configFilePath: { value: "" },
+      configSource: { value: 'generated' },
+      configFilePath: { value: '' },
       // MQTT options
       enableMqtt: { value: false },
-      mqttPort: { value: 1883, validate: function(val) { return !val || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536); } },
+      mqttPort: {
+        value: 1883,
+        validate: function (val) {
+          return (
+            !val ||
+            (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536)
+          );
+        },
+      },
       // WebSocket options
       enableWebsocket: { value: false },
-      websocketPort: { value: 8080, validate: function(val) { return !val || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536); } },
+      websocketPort: {
+        value: 8080,
+        validate: function (val) {
+          return (
+            !val ||
+            (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 65536)
+          );
+        },
+      },
       // TLS options
       enableTls: { value: false },
-      tlsCert: { value: "" },
-      tlsKey: { value: "" },
-      tlsCaCert: { value: "" },
+      tlsCert: { value: '' },
+      tlsKey: { value: '' },
+      tlsCaCert: { value: '' },
       tlsVerify: { value: false },
       // Authentication options
       enableAuth: { value: false },
-      authUser: { value: "" },
-      authPassword: { value: "" },
-      authToken: { value: "" },
+      authUser: { value: '' },
       // New embedded server options
-      serverName: { value: "" },
-      maxConnections: { value: "" },
-      maxPayload: { value: "" },
-      maxSubscriptions: { value: "" },
-      maxControlLine: { value: "" },
-      writeDeadline: { value: "" },
-      httpPort: { value: "" },
-      httpsPort: { value: "" },
-      logLevel: { value: "info" },
+      serverName: { value: '' },
+      maxConnections: { value: '' },
+      maxPayload: { value: '' },
+      maxSubscriptions: { value: '' },
+      maxControlLine: { value: '' },
+      writeDeadline: { value: '' },
+      httpPort: { value: '' },
+      httpsPort: { value: '' },
+      logLevel: { value: 'info' },
       enableTrace: { value: false },
       enableDebugLog: { value: false },
       noLog: { value: false },
-      logFile: { value: "" },
-      pidFile: { value: "" },
-      maxMemoryStore: { value: "" },
-      maxFileStore: { value: "" },
-      syncInterval: { value: "" },
-      hostAddr: { value: "" },
-      clientAdvertise: { value: "" },
+      logFile: { value: '' },
+      pidFile: { value: '' },
+      maxMemoryStore: { value: '' },
+      maxFileStore: { value: '' },
+      memStoreOnly: { value: false },
+      syncInterval: { value: '' },
+      hostAddr: { value: '' },
+      clientAdvertise: { value: '' },
       noAdvertise: { value: false },
-      connectRetries: { value: "" },
-      enableLeafNodeMode: { value: false }
+      connectRetries: { value: '' },
+      enableLeafNodeMode: { value: false },
+    },
+    // Breaking change (v1.0.0): these three moved out of defaults and into
+    // credentials (encrypted), matching nats-suite-server. Existing plaintext
+    // values in flows.json do NOT carry over automatically.
+    credentials: {
+      leafRemotePass: { type: 'password' },
+      authPassword: { type: 'password' },
+      authToken: { type: 'password' },
     },
     inputs: 1,
     outputs: 1,
-    icon: "nats-icon-white.png",
-    align: "left",
-    label: function() {
-      return this.name || "nats server manager";
+    icon: 'nats-icon-white.png',
+    align: 'left',
+    label: function () {
+      return this.name || 'nats server manager';
     },
     paletteLabel: 'nats server manager',
-    oneditprepare: function() {
+    oneditprepare: function () {
       // Collapsible sections
-      $('.nats-section-header').on('click', function() {
+      $('.nats-section-header').on('click', function () {
         const $header = $(this);
         const $content = $header.next('.nats-section-content');
         const $icon = $header.find('.nats-section-toggle');
@@ -78,7 +116,7 @@
         $icon.toggleClass('fa-chevron-down fa-chevron-right');
         $header.toggleClass('collapsed');
       });
-      
+
       // Server type handler - simplified as only 'embedded' type remains
       const updateVisibility = () => {
         const enableLeaf = $('#node-input-enableLeafNodeMode').is(':checked');
@@ -86,45 +124,49 @@
         // All embedded config (including leaf mode toggle) is always visible
         $('#embedded-config').show();
         $('#port-row').toggle(!enableLeaf); // Main port only if not leaf
-        
+
         // Leaf options only visible if enableLeaf is checked
         $('#embedded-leaf-options').toggle(enableLeaf);
       };
 
       $('#node-input-enableLeafNodeMode').on('change', updateVisibility);
-      
+
       // JetStream handler
-      $('#node-input-enableJetStream').on('change', function() {
+      $('#node-input-enableJetStream').on('change', function () {
         if ($(this).is(':checked')) {
           $('#jetstream-options').slideDown(200);
         } else {
           $('#jetstream-options').slideUp(200);
         }
       });
-      
+
       // HTTP Monitoring handler
-      $('#node-input-httpPort').on('input', function() {
+      $('#node-input-httpPort').on('input', function () {
         const val = $(this).val();
         if (val && parseInt(val) > 0) {
-          $('#http-hint').text('Monitoring available at http://localhost:' + val);
+          $('#http-hint').text(
+            'Monitoring available at http://localhost:' + val
+          );
         } else {
           $('#http-hint').text('Leave empty to disable HTTP monitoring');
         }
       });
-      
+
       // MQTT handler
-      $('#node-input-enableMqtt').on('change', function() {
+      $('#node-input-enableMqtt').on('change', function () {
         const mqttEnabled = $(this).is(':checked');
         $('#mqtt-options').toggle(mqttEnabled);
-        
+
         // MQTT requires JetStream - auto-enable
         if (mqttEnabled && !$('#node-input-enableJetStream').is(':checked')) {
-          $('#node-input-enableJetStream').prop('checked', true).trigger('change');
+          $('#node-input-enableJetStream')
+            .prop('checked', true)
+            .trigger('change');
           $('#mqtt-jetstream-hint').show();
         } else {
           $('#mqtt-jetstream-hint').hide();
         }
-        
+
         // MQTT requires server_name - show hint
         if (mqttEnabled && !$('#node-input-serverName').val()) {
           $('#mqtt-servername-hint').show();
@@ -132,62 +174,63 @@
           $('#mqtt-servername-hint').hide();
         }
       });
-      
+
       // Update MQTT hint when server name changes
-      $('#node-input-serverName').on('input', function() {
+      $('#node-input-serverName').on('input', function () {
         if ($('#node-input-enableMqtt').is(':checked') && !$(this).val()) {
           $('#mqtt-servername-hint').show();
         } else {
           $('#mqtt-servername-hint').hide();
         }
       });
-      
+
       // Binary source handler
-      $('#node-input-binarySource').on('change', function() {
+      $('#node-input-binarySource').on('change', function () {
         const source = $(this).val();
         $('#custom-binary-path-row').toggle(source === 'custom');
 
         // Update hint text based on selection
         const hints = {
-          'auto': 'Auto-detect: Uses nats-memory-server (npm package) or falls back to system PATH',
-          'custom': 'Specify the full path to your mounted nats-server binary',
-          'system': 'Uses nats-server from system PATH (must be installed on host)'
+          auto: 'Auto-detect: Checks available local/cache locations, then system PATH (no bundled binary)',
+          custom: 'Specify the full path to your mounted nats-server binary',
+          system:
+            'Uses nats-server from system PATH (must be installed on host)',
         };
         $('#binary-source-hint').text(hints[source] || hints['auto']);
       });
-      
+
       // Config source handler
-      $('#node-input-configSource').on('change', function() {
+      $('#node-input-configSource').on('change', function () {
         const source = $(this).val();
         $('#config-file-path-row').toggle(source === 'file');
         // Hide/show generated config sections when using external file
         $('.generated-config-section').toggle(source !== 'file');
-        
+
         const hints = {
-          'generated': 'Configuration is built from the settings below',
-          'file': 'Use an external NATS config file (all settings below are ignored)'
+          generated: 'Configuration is built from the settings below',
+          file: 'Use an external NATS config file (all settings below are ignored)',
         };
         $('#config-source-hint').text(hints[source] || hints['generated']);
       });
-      
+
       // WebSocket handler
-      $('#node-input-enableWebsocket').on('change', function() {
+      $('#node-input-enableWebsocket').on('change', function () {
         $('#websocket-options').toggle($(this).is(':checked'));
       });
-      
+
       // TLS handler
-      $('#node-input-enableTls').on('change', function() {
+      $('#node-input-enableTls').on('change', function () {
         $('#tls-options').toggle($(this).is(':checked'));
       });
-      
+
       // Auth handler
-      $('#node-input-enableAuth').on('change', function() {
+      $('#node-input-enableAuth').on('change', function () {
         const authEnabled = $(this).is(':checked');
         $('#auth-options').toggle(authEnabled);
       });
-      
+
       // Auth type toggle (token vs user/pass)
-      $('#node-input-authToken').on('input', function() {
+      $('#node-input-authToken').on('input', function () {
         const hasToken = $(this).val().length > 0;
         $('#auth-userpass-row').toggle(!hasToken);
         if (hasToken) {
@@ -196,7 +239,7 @@
           $('#auth-type-hint').text('Using username/password authentication');
         }
       });
-      
+
       updateVisibility(); // Initial call
       $('#node-input-enableJetStream').trigger('change');
       $('#node-input-enableMqtt').trigger('change');
@@ -207,95 +250,94 @@
       $('#node-input-httpPort').trigger('input');
       $('#node-input-binarySource').trigger('change');
       $('#node-input-configSource').trigger('change');
-    }
+    },
   });
 </script>
 
 <script type="text/html" data-template-name="nats-suite-server-manager">
   <style>
     .nats-manager-config {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+        sans-serif;
     }
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
     }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    .nats-section-header.collapsed {
+      border-bottom: none;
     }
-    .nats-section-header.collapsed { border-bottom: none; }
     .nats-section-title {
       display: flex;
       align-items: center;
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
     }
-    .nats-section-content { padding: 14px; }
-    .nats-form-row { margin-bottom: 12px; }
-    .nats-form-row:last-child { margin-bottom: 0; }
+    .nats-section-content {
+      padding: 14px;
+    }
+    .nats-form-row {
+      margin-bottom: 12px;
+    }
+    .nats-form-row:last-child {
+      margin-bottom: 0;
+    }
     .nats-form-row label {
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
-    .nats-form-row input[type="text"],
-    .nats-form-row input[type="number"],
-    .nats-form-row input[type="password"],
+    .nats-form-row input[type='text'],
+    .nats-form-row input[type='number'],
+    .nats-form-row input[type='password'],
     .nats-form-row select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
     .nats-form-row input:focus,
     .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
     }
-    .nats-form-row input[type="number"] { width: 120px; }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
+    .nats-form-row input[type='number'] {
+      width: 120px;
     }
     .nats-checkbox-row {
       display: flex;
@@ -303,22 +345,20 @@
       gap: 8px;
       padding: 8px 0;
     }
-    .nats-checkbox-row input[type="checkbox"] {
+    .nats-checkbox-row input[type='checkbox'] {
       width: 16px;
       height: 16px;
-      accent-color: #2FAF9C;
       cursor: pointer;
     }
     .nats-checkbox-row label {
       margin: 0;
       font-size: 13px;
       font-weight: 500;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
       cursor: pointer;
     }
     .nats-checkbox-row label i {
       margin-right: 8px;
-      color: #2FAF9C;
     }
     .nats-grid {
       display: grid;
@@ -338,51 +378,50 @@
       font-weight: 600;
       text-transform: uppercase;
       margin-left: 8px;
+      border: 1px solid;
     }
     .nats-badge-info {
-      background: #d4edda;
-      color: #155724;
+      border-color: var(--red-ui-border-color-success);
+      color: var(--red-ui-form-text-color);
     }
     .nats-badge-advanced {
-      background: #fff3cd;
-      color: #856404;
+      border-color: var(--red-ui-border-color-warning);
+      color: var(--red-ui-form-text-color);
     }
     .nats-info-box {
-      background: linear-gradient(135deg, #e7f5ff 0%, #d0ebff 100%);
-      border: 1px solid #74c0fc;
+      background: var(--red-ui-secondary-background);
+      border: 1px solid var(--red-ui-border-color-success);
       border-radius: 6px;
       padding: 10px 12px;
       margin-bottom: 12px;
       font-size: 12px;
-      color: #1864ab;
+      color: var(--red-ui-form-text-color);
     }
     .nats-info-box i {
       margin-right: 8px;
-      color: #339af0;
+    }
+    .nats-info-box.nats-info-box-warning {
+      border-color: var(--red-ui-border-color-warning);
     }
     .nats-subsection {
-      background: #f8f9fa;
+      background: var(--red-ui-secondary-background);
       border-radius: 6px;
       padding: 12px;
       margin-top: 12px;
-      border: 1px solid #e9ecef;
+      border: 1px solid var(--red-ui-form-input-border-color);
     }
     .nats-subsection-title {
       font-size: 12px;
       font-weight: 600;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .nats-subsection-title i {
-      color: #2FAF9C;
-    }
   </style>
 
   <div class="nats-manager-config">
-    
     <!-- Basic Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -395,42 +434,79 @@
       <div class="nats-section-content">
         <div class="nats-form-row">
           <label><i class="fa fa-tag"></i>Name</label>
-          <input type="text" id="node-input-name" placeholder="Optional display name">
+          <input
+            type="text"
+            id="node-input-name"
+            placeholder="Optional display name"
+          />
         </div>
         <div class="nats-form-row" id="port-row">
           <label><i class="fa fa-plug"></i>Port</label>
-          <input type="number" id="node-input-port" placeholder="4222" min="1" max="65535">
-          <div class="nats-hint">Client connection port (default: 4222)</div>
+          <input
+            type="number"
+            id="node-input-port"
+            placeholder="4222"
+            min="1"
+            max="65535"
+          />
+          <div class="form-tips">Client connection port (default: 4222)</div>
         </div>
         <div class="nats-form-row">
           <label><i class="fa fa-cube"></i>Binary Source</label>
           <select id="node-input-binarySource">
-            <option value="auto">Auto-detect (nats-memory-server / system)</option>
+            <option value="auto">Auto-detect (local/cache / system)</option>
             <option value="custom">Custom Binary (mounted path)</option>
             <option value="system">System PATH only</option>
           </select>
-          <div class="nats-hint" id="binary-source-hint">Auto-detect: Uses nats-memory-server (npm package) or falls back to system PATH</div>
+          <div class="form-tips" id="binary-source-hint">
+            Auto-detect: Checks available local/cache locations, then system
+            PATH (no bundled binary)
+          </div>
         </div>
-        <div class="nats-form-row" id="custom-binary-path-row" style="display: none;">
+        <div
+          class="nats-form-row"
+          id="custom-binary-path-row"
+          style="display: none;"
+        >
           <label><i class="fa fa-file-code-o"></i>Custom Binary Path</label>
-          <input type="text" id="node-input-customBinaryPath" placeholder="/data/bin/nats-server">
-          <div class="nats-hint">Full path to your mounted nats-server binary</div>
+          <input
+            type="text"
+            id="node-input-customBinaryPath"
+            placeholder="/data/bin/nats-server"
+          />
+          <div class="form-tips">
+            Full path to your mounted nats-server binary
+          </div>
         </div>
-        
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;">
-        
+
+        <hr
+          style="border: none; border-top: 1px solid var(--red-ui-form-input-border-color); margin: 15px 0;"
+        />
+
         <div class="nats-form-row">
           <label><i class="fa fa-file-text"></i>Config Source</label>
           <select id="node-input-configSource">
             <option value="generated">Generated (from settings below)</option>
             <option value="file">External Config File</option>
           </select>
-          <div class="nats-hint" id="config-source-hint">Configuration is built from the settings below</div>
+          <div class="form-tips" id="config-source-hint">
+            Configuration is built from the settings below
+          </div>
         </div>
-        <div class="nats-form-row" id="config-file-path-row" style="display: none;">
+        <div
+          class="nats-form-row"
+          id="config-file-path-row"
+          style="display: none;"
+        >
           <label><i class="fa fa-file-code-o"></i>Config File Path</label>
-          <input type="text" id="node-input-configFilePath" placeholder="/data/nats-server.conf">
-          <div class="nats-hint">Path to your NATS server config file (.conf)</div>
+          <input
+            type="text"
+            id="node-input-configFilePath"
+            placeholder="/data/nats-server.conf"
+          />
+          <div class="form-tips">
+            Path to your NATS server config file (.conf)
+          </div>
         </div>
       </div>
     </div>
@@ -447,30 +523,49 @@
       <div class="nats-section-content" style="display: none;">
         <div class="nats-info-box">
           <i class="fa fa-info-circle"></i>
-          Enable MQTT to allow MQTT clients to connect to the NATS server. MQTT messages are bridged to NATS subjects.
+          Enable MQTT to allow MQTT clients to connect to the NATS server. MQTT
+          messages are bridged to NATS subjects.
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableMqtt">
-          <label for="node-input-enableMqtt"><i class="fa fa-rss"></i>Enable MQTT</label>
+          <input type="checkbox" id="node-input-enableMqtt" />
+          <label for="node-input-enableMqtt"
+            ><i class="fa fa-rss"></i>Enable MQTT</label
+          >
         </div>
         <div id="mqtt-options" style="display: none;">
           <div class="nats-form-row">
             <label><i class="fa fa-plug"></i>MQTT Port</label>
-            <input type="number" id="node-input-mqttPort" placeholder="1883" min="1" max="65535">
-            <div class="nats-hint">MQTT client connection port (default: 1883)</div>
+            <input
+              type="number"
+              id="node-input-mqttPort"
+              placeholder="1883"
+              min="1"
+              max="65535"
+            />
+            <div class="form-tips">
+              MQTT client connection port (default: 1883)
+            </div>
           </div>
-          <div class="nats-info-box" id="mqtt-jetstream-hint" style="display: none; background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); border-color: #ffc107; color: #856404;">
+          <div
+            class="nats-info-box nats-info-box-warning"
+            id="mqtt-jetstream-hint"
+            style="display: none;"
+          >
             <i class="fa fa-exclamation-triangle"></i>
             MQTT requires JetStream - JetStream has been automatically enabled.
           </div>
-          <div class="nats-info-box" id="mqtt-servername-hint" style="display: none; background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); border-color: #ffc107; color: #856404;">
+          <div
+            class="nats-info-box nats-info-box-warning"
+            id="mqtt-servername-hint"
+            style="display: none;"
+          >
             <i class="fa fa-exclamation-triangle"></i>
             MQTT requires a Server Name - one will be auto-generated if not set.
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- WebSocket Configuration -->
     <div class="nats-section generated-config-section">
       <div class="nats-section-header">
@@ -483,17 +578,28 @@
       <div class="nats-section-content" style="display: none;">
         <div class="nats-info-box">
           <i class="fa fa-info-circle"></i>
-          Enable WebSocket to allow browser-based clients to connect to the NATS server.
+          Enable WebSocket to allow browser-based clients to connect to the NATS
+          server.
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableWebsocket">
-          <label for="node-input-enableWebsocket"><i class="fa fa-globe"></i>Enable WebSocket</label>
+          <input type="checkbox" id="node-input-enableWebsocket" />
+          <label for="node-input-enableWebsocket"
+            ><i class="fa fa-globe"></i>Enable WebSocket</label
+          >
         </div>
         <div id="websocket-options" style="display: none;">
           <div class="nats-form-row">
             <label><i class="fa fa-plug"></i>WebSocket Port</label>
-            <input type="number" id="node-input-websocketPort" placeholder="8080" min="1" max="65535">
-            <div class="nats-hint">WebSocket client connection port (default: 8080)</div>
+            <input
+              type="number"
+              id="node-input-websocketPort"
+              placeholder="8080"
+              min="1"
+              max="65535"
+            />
+            <div class="form-tips">
+              WebSocket client connection port (default: 8080)
+            </div>
           </div>
         </div>
       </div>
@@ -511,31 +617,55 @@
       <div class="nats-section-content" style="display: none;">
         <div class="nats-info-box">
           <i class="fa fa-info-circle"></i>
-          Enable TLS for encrypted connections. Requires certificate and key files.
+          Enable TLS for encrypted connections. Requires certificate and key
+          files.
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableTls">
-          <label for="node-input-enableTls"><i class="fa fa-lock"></i>Enable TLS</label>
+          <input type="checkbox" id="node-input-enableTls" />
+          <label for="node-input-enableTls"
+            ><i class="fa fa-lock"></i>Enable TLS</label
+          >
         </div>
         <div id="tls-options" style="display: none;">
           <div class="nats-form-row">
             <label><i class="fa fa-certificate"></i>Certificate File</label>
-            <input type="text" id="node-input-tlsCert" placeholder="/path/to/server-cert.pem">
-            <div class="nats-hint">Path to server certificate file (PEM format)</div>
+            <input
+              type="text"
+              id="node-input-tlsCert"
+              placeholder="/path/to/server-cert.pem"
+            />
+            <div class="form-tips">
+              Path to server certificate file (PEM format)
+            </div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-key"></i>Key File</label>
-            <input type="text" id="node-input-tlsKey" placeholder="/path/to/server-key.pem">
-            <div class="nats-hint">Path to server private key file (PEM format)</div>
+            <input
+              type="text"
+              id="node-input-tlsKey"
+              placeholder="/path/to/server-key.pem"
+            />
+            <div class="form-tips">
+              Path to server private key file (PEM format)
+            </div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-shield"></i>CA Certificate (optional)</label>
-            <input type="text" id="node-input-tlsCaCert" placeholder="/path/to/ca.pem">
-            <div class="nats-hint">Path to CA certificate for client verification</div>
+            <input
+              type="text"
+              id="node-input-tlsCaCert"
+              placeholder="/path/to/ca.pem"
+            />
+            <div class="form-tips">
+              Path to CA certificate for client verification
+            </div>
           </div>
           <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-tlsVerify">
-            <label for="node-input-tlsVerify"><i class="fa fa-check-circle"></i>Verify Client Certificates</label>
+            <input type="checkbox" id="node-input-tlsVerify" />
+            <label for="node-input-tlsVerify"
+              ><i class="fa fa-check-circle"></i>Verify Client
+              Certificates</label
+            >
           </div>
         </div>
       </div>
@@ -556,24 +686,42 @@
           Enable authentication to require credentials for client connections.
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableAuth">
-          <label for="node-input-enableAuth"><i class="fa fa-user-secret"></i>Enable Authentication</label>
+          <input type="checkbox" id="node-input-enableAuth" />
+          <label for="node-input-enableAuth"
+            ><i class="fa fa-user-secret"></i>Enable Authentication</label
+          >
         </div>
         <div id="auth-options" style="display: none;">
           <div class="nats-form-row">
             <label><i class="fa fa-ticket"></i>Token (optional)</label>
-            <input type="password" id="node-input-authToken" placeholder="Enter token for token-based auth">
-            <div class="nats-hint" id="auth-type-hint">Leave empty to use username/password authentication</div>
+            <input
+              type="password"
+              id="node-input-authToken"
+              placeholder="Enter token for token-based auth"
+              autocomplete="new-password"
+            />
+            <div class="form-tips" id="auth-type-hint">
+              Leave empty to use username/password authentication
+            </div>
           </div>
           <div id="auth-userpass-row">
             <div class="nats-grid">
               <div class="nats-form-row">
                 <label><i class="fa fa-user"></i>Username</label>
-                <input type="text" id="node-input-authUser" placeholder="Username">
+                <input
+                  type="text"
+                  id="node-input-authUser"
+                  placeholder="Username"
+                />
               </div>
               <div class="nats-form-row">
                 <label><i class="fa fa-lock"></i>Password</label>
-                <input type="password" id="node-input-authPassword" placeholder="Password">
+                <input
+                  type="password"
+                  id="node-input-authPassword"
+                  placeholder="Password"
+                  autocomplete="new-password"
+                />
               </div>
             </div>
           </div>
@@ -595,30 +743,47 @@
           <div class="nats-grid">
             <div class="nats-form-row">
               <label><i class="fa fa-id-badge"></i>Server Name</label>
-              <input type="text" id="node-input-serverName" placeholder="Auto-generated">
-              <div class="nats-hint">Unique server identifier</div>
+              <input
+                type="text"
+                id="node-input-serverName"
+                placeholder="Auto-generated"
+              />
+              <div class="form-tips">Unique server identifier</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-globe"></i>Host Address</label>
-              <input type="text" id="node-input-hostAddr" placeholder="0.0.0.0">
-              <div class="nats-hint">Bind address (0.0.0.0 = all interfaces)</div>
+              <input
+                type="text"
+                id="node-input-hostAddr"
+                placeholder="0.0.0.0"
+              />
+              <div class="form-tips">
+                Bind address (0.0.0.0 = all interfaces)
+              </div>
             </div>
           </div>
           <div class="nats-grid">
             <div class="nats-form-row">
               <label><i class="fa fa-bullhorn"></i>Client Advertise</label>
-              <input type="text" id="node-input-clientAdvertise" placeholder="Auto">
-              <div class="nats-hint">Address advertised to clients</div>
+              <input
+                type="text"
+                id="node-input-clientAdvertise"
+                placeholder="Auto"
+              />
+              <div class="form-tips">Address advertised to clients</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-file-text"></i>PID File</label>
-              <input type="text" id="node-input-pidFile" placeholder="None">
-              <div class="nats-hint">Write PID to file</div>
+              <input type="text" id="node-input-pidFile" placeholder="None" />
+              <div class="form-tips">Write PID to file</div>
             </div>
           </div>
           <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-noAdvertise">
-            <label for="node-input-noAdvertise"><i class="fa fa-eye-slash"></i>No Advertise (disable server discovery)</label>
+            <input type="checkbox" id="node-input-noAdvertise" />
+            <label for="node-input-noAdvertise"
+              ><i class="fa fa-eye-slash"></i>No Advertise (disable server
+              discovery)</label
+            >
           </div>
         </div>
       </div>
@@ -633,32 +798,54 @@
         </div>
         <div class="nats-section-content">
           <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-enableLeafNodeMode">
-            <label for="node-input-enableLeafNodeMode"><i class="fa fa-leaf"></i>Enable Embedded as Leaf Node</label>
+            <input type="checkbox" id="node-input-enableLeafNodeMode" />
+            <label for="node-input-enableLeafNodeMode"
+              ><i class="fa fa-leaf"></i>Enable Embedded as Leaf Node</label
+            >
           </div>
           <div id="embedded-leaf-options" style="display: none;">
             <div class="nats-info-box">
               <i class="fa fa-info-circle"></i>
-              When enabled, the embedded NATS server acts as a Leaf Node, connecting to a remote NATS cluster.
+              When enabled, the embedded NATS server acts as a Leaf Node,
+              connecting to a remote NATS cluster.
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-plug"></i>Leaf Node Port</label>
-              <input type="number" id="node-input-leafPort" placeholder="7422" min="1" max="65535">
-              <div class="nats-hint">Port for local Leaf Node connections</div>
+              <input
+                type="number"
+                id="node-input-leafPort"
+                placeholder="7422"
+                min="1"
+                max="65535"
+              />
+              <div class="form-tips">Port for local Leaf Node connections</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-link"></i>Remote NATS Server URL</label>
-              <input type="text" id="node-input-leafRemoteUrl" placeholder="nats://remote-server:4222">
-              <div class="nats-hint">URL of the upstream NATS cluster</div>
+              <input
+                type="text"
+                id="node-input-leafRemoteUrl"
+                placeholder="nats://remote-server:4222"
+              />
+              <div class="form-tips">URL of the upstream NATS cluster</div>
             </div>
             <div class="nats-grid">
               <div class="nats-form-row">
                 <label><i class="fa fa-user"></i>Remote Username</label>
-                <input type="text" id="node-input-leafRemoteUser" placeholder="Optional">
+                <input
+                  type="text"
+                  id="node-input-leafRemoteUser"
+                  placeholder="Optional"
+                />
               </div>
               <div class="nats-form-row">
                 <label><i class="fa fa-lock"></i>Remote Password</label>
-                <input type="password" id="node-input-leafRemotePass" placeholder="Optional">
+                <input
+                  type="password"
+                  id="node-input-leafRemotePass"
+                  placeholder="Optional"
+                  autocomplete="new-password"
+                />
               </div>
             </div>
           </div>
@@ -677,41 +864,75 @@
         <div class="nats-section-content" style="display: none;">
           <div class="nats-info-box">
             <i class="fa fa-info-circle"></i>
-            Leave fields empty to use NATS defaults. Adjust only if needed for your use case.
+            Leave fields empty to use NATS defaults. Adjust only if needed for
+            your use case.
           </div>
           <div class="nats-grid-3">
             <div class="nats-form-row">
               <label><i class="fa fa-users"></i>Max Connections</label>
-              <input type="number" id="node-input-maxConnections" placeholder="65536" min="1">
-              <div class="nats-hint">Max client connections</div>
+              <input
+                type="number"
+                id="node-input-maxConnections"
+                placeholder="65536"
+                min="1"
+              />
+              <div class="form-tips">Max client connections</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-file-archive-o"></i>Max Payload</label>
-              <input type="number" id="node-input-maxPayload" placeholder="1048576" min="1024">
-              <div class="nats-hint">Max message size (bytes)</div>
+              <input
+                type="number"
+                id="node-input-maxPayload"
+                placeholder="1048576"
+                min="1024"
+              />
+              <div class="form-tips">Max message size (bytes)</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-list"></i>Max Subscriptions</label>
-              <input type="number" id="node-input-maxSubscriptions" placeholder="0" min="0">
-              <div class="nats-hint">0 = unlimited</div>
+              <input
+                type="number"
+                id="node-input-maxSubscriptions"
+                placeholder="0"
+                min="0"
+              />
+              <div class="form-tips">0 = unlimited</div>
             </div>
           </div>
           <div class="nats-grid">
             <div class="nats-form-row">
               <label><i class="fa fa-terminal"></i>Max Control Line</label>
-              <input type="number" id="node-input-maxControlLine" placeholder="4096" min="512">
-              <div class="nats-hint">Max protocol control line (bytes)</div>
+              <input
+                type="number"
+                id="node-input-maxControlLine"
+                placeholder="4096"
+                min="512"
+              />
+              <div class="form-tips">Max protocol control line (bytes)</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-clock-o"></i>Write Deadline</label>
-              <input type="text" id="node-input-writeDeadline" placeholder="10s">
-              <div class="nats-hint">Max time to write to client (e.g., 10s, 2m)</div>
+              <input
+                type="text"
+                id="node-input-writeDeadline"
+                placeholder="10s"
+              />
+              <div class="form-tips">
+                Max time to write to client (e.g., 10s, 2m)
+              </div>
             </div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-refresh"></i>Connect Retries</label>
-            <input type="number" id="node-input-connectRetries" placeholder="0" min="0">
-            <div class="nats-hint">Retries for route/gateway connections (0 = default)</div>
+            <input
+              type="number"
+              id="node-input-connectRetries"
+              placeholder="0"
+              min="0"
+            />
+            <div class="form-tips">
+              Retries for route/gateway connections (0 = default)
+            </div>
           </div>
         </div>
       </div>
@@ -727,25 +948,48 @@
         <div class="nats-section-content" style="display: none;">
           <div class="nats-info-box">
             <i class="fa fa-info-circle"></i>
-            Enable HTTP monitoring to access server stats, connections, and health endpoints.
+            Enable HTTP monitoring to access server stats, connections, and
+            health endpoints.
           </div>
           <div class="nats-grid">
             <div class="nats-form-row">
               <label><i class="fa fa-desktop"></i>HTTP Port</label>
-              <input type="number" id="node-input-httpPort" placeholder="Disabled" min="1" max="65535">
-              <div class="nats-hint" id="http-hint">Leave empty to disable HTTP monitoring</div>
+              <input
+                type="number"
+                id="node-input-httpPort"
+                placeholder="Disabled"
+                min="1"
+                max="65535"
+              />
+              <div class="form-tips" id="http-hint">
+                Leave empty to disable HTTP monitoring
+              </div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-lock"></i>HTTPS Port</label>
-              <input type="number" id="node-input-httpsPort" placeholder="Disabled" min="1" max="65535">
-              <div class="nats-hint">Secure monitoring (requires TLS config)</div>
+              <input
+                type="number"
+                id="node-input-httpsPort"
+                placeholder="Disabled"
+                min="1"
+                max="65535"
+              />
+              <div class="form-tips">
+                Secure monitoring (requires TLS config)
+              </div>
             </div>
           </div>
           <div class="nats-subsection">
-            <div class="nats-subsection-title"><i class="fa fa-link"></i>Available Endpoints (when enabled)</div>
-            <div style="font-size: 11px; color: #495057; font-family: monospace;">
-              /varz - Server stats &nbsp;|&nbsp; /connz - Connections &nbsp;|&nbsp; /routez - Routes<br>
-              /subsz - Subscriptions &nbsp;|&nbsp; /jsz - JetStream &nbsp;|&nbsp; /healthz - Health check
+            <div class="nats-subsection-title">
+              <i class="fa fa-link"></i>Available Endpoints (when enabled)
+            </div>
+            <div
+              style="font-size: 11px; color: var(--red-ui-form-text-color); font-family: monospace;"
+            >
+              /varz - Server stats &nbsp;|&nbsp; /connz - Connections
+              &nbsp;|&nbsp; /routez - Routes<br />
+              /subsz - Subscriptions &nbsp;|&nbsp; /jsz - JetStream
+              &nbsp;|&nbsp; /healthz - Health check
             </div>
           </div>
         </div>
@@ -770,20 +1014,29 @@
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-file"></i>Log File</label>
-            <input type="text" id="node-input-logFile" placeholder="Console output (no file)">
-            <div class="nats-hint">Path to log file (leave empty for console)</div>
+            <input
+              type="text"
+              id="node-input-logFile"
+              placeholder="Console output (no file)"
+            />
+            <div class="form-tips">
+              Path to log file (leave empty for console)
+            </div>
           </div>
           <div class="nats-checkbox-row">
-            <input type="checkbox" id="node-input-noLog">
-            <label for="node-input-noLog"><i class="fa fa-ban"></i>Disable All Logging</label>
+            <input type="checkbox" id="node-input-noLog" />
+            <label for="node-input-noLog"
+              ><i class="fa fa-ban"></i>Disable All Logging</label
+            >
           </div>
-          <div class="nats-hint">
-            <i class="fa fa-info-circle"></i> Debug/Trace options are in the "Startup & Debug" section above
+          <div class="form-tips">
+            <i class="fa fa-info-circle"></i> Debug/Trace options are in the
+            "Startup & Debug" section above
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- JetStream & Options -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -795,40 +1048,62 @@
       </div>
       <div class="nats-section-content">
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableJetStream">
-          <label for="node-input-enableJetStream"><i class="fa fa-database"></i>Enable JetStream (persistence & streaming)</label>
+          <input type="checkbox" id="node-input-enableJetStream" />
+          <label for="node-input-enableJetStream"
+            ><i class="fa fa-database"></i>Enable JetStream (persistence &
+            streaming)</label
+          >
         </div>
         <div id="jetstream-options" style="display: none;">
           <div class="nats-form-row">
-            <label for="node-input-storeDir"><i class="fa fa-folder-open"></i> Store Directory</label>
-            <input type="text" id="node-input-storeDir" placeholder="./data/jetstream" style="width:70%;">
-            <div class="nats-hint">
-                Optional: Specifies the directory for JetStream data storage. Leave empty for in-memory or default location.
+            <label for="node-input-storeDir"
+              ><i class="fa fa-folder-open"></i> Store Directory</label
+            >
+            <input
+              type="text"
+              id="node-input-storeDir"
+              placeholder="./data/jetstream"
+              style="width:70%;"
+            />
+            <div class="form-tips">
+              Optional: Specifies the directory for JetStream data storage.
+              Leave empty for in-memory or default location.
             </div>
           </div>
           <div class="nats-form-row">
-            <label for="node-input-memStoreOnly"><i class="fa fa-memory"></i> Memory Store Only</label>
-            <input type="checkbox" id="node-input-memStoreOnly">
-            <div class="nats-hint">
-                If checked, JetStream will only use memory storage (overrides Store Directory).
+            <label for="node-input-memStoreOnly"
+              ><i class="fa fa-memory"></i> Memory Store Only</label
+            >
+            <input type="checkbox" id="node-input-memStoreOnly" />
+            <div class="form-tips">
+              If checked, JetStream will only use memory storage (overrides
+              Store Directory).
             </div>
           </div>
           <div class="nats-grid">
             <div class="nats-form-row">
               <label><i class="fa fa-hdd-o"></i>Max Memory Store</label>
-              <input type="text" id="node-input-maxMemoryStore" placeholder="Unlimited">
-              <div class="nats-hint">e.g., 1GB, 512MB</div>
+              <input
+                type="text"
+                id="node-input-maxMemoryStore"
+                placeholder="Unlimited"
+              />
+              <div class="form-tips">e.g., 1GB, 512MB</div>
             </div>
             <div class="nats-form-row">
               <label><i class="fa fa-database"></i>Max File Store</label>
-              <input type="text" id="node-input-maxFileStore" placeholder="Unlimited">
-              <div class="nats-hint">e.g., 10GB, 1TB</div>
+              <input
+                type="text"
+                id="node-input-maxFileStore"
+                placeholder="Unlimited"
+              />
+              <div class="form-tips">e.g., 10GB, 1TB</div>
             </div>
           </div>
           <div class="nats-form-row">
             <label><i class="fa fa-clock-o"></i>Sync Interval</label>
-            <input type="text" id="node-input-syncInterval" placeholder="2m">
-            <div class="nats-hint">How often to sync to disk</div>
+            <input type="text" id="node-input-syncInterval" placeholder="2m" />
+            <div class="form-tips">How often to sync to disk</div>
           </div>
         </div>
       </div>
@@ -845,173 +1120,188 @@
       </div>
       <div class="nats-section-content">
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-autoStart" checked>
-          <label for="node-input-autoStart"><i class="fa fa-play"></i>Auto-Start on Deploy</label>
+          <input type="checkbox" id="node-input-autoStart" checked />
+          <label for="node-input-autoStart"
+            ><i class="fa fa-play"></i>Auto-Start on Deploy</label
+          >
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-debug">
-          <label for="node-input-debug"><i class="fa fa-bug"></i>Enable Node-RED Debug Logging</label>
+          <input type="checkbox" id="node-input-debug" />
+          <label for="node-input-debug"
+            ><i class="fa fa-bug"></i>Enable Node-RED Debug Logging</label
+          >
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableDebugLog">
-          <label for="node-input-enableDebugLog"><i class="fa fa-terminal"></i>Enable NATS Server Debug (-D)</label>
+          <input type="checkbox" id="node-input-enableDebugLog" />
+          <label for="node-input-enableDebugLog"
+            ><i class="fa fa-terminal"></i>Enable NATS Server Debug (-D)</label
+          >
         </div>
         <div class="nats-checkbox-row">
-          <input type="checkbox" id="node-input-enableTrace">
-          <label for="node-input-enableTrace"><i class="fa fa-search"></i>Enable NATS Server Trace (-V)</label>
+          <input type="checkbox" id="node-input-enableTrace" />
+          <label for="node-input-enableTrace"
+            ><i class="fa fa-search"></i>Enable NATS Server Trace (-V)</label
+          >
         </div>
-        <div class="nats-hint" style="margin-top: 8px;">
-          <i class="fa fa-lightbulb-o"></i> Tip: Send <code>msg.command = "start|stop|restart|status"</code> to control the server
+        <div class="form-tips" style="margin-top: 8px;">
+          <i class="fa fa-lightbulb-o"></i> Tip: Send <code>msg.command</code>,
+          <code>msg.payload.command</code>, or <code>msg.topic</code> set to
+          "start|stop|restart|status" to control the server - all three are
+          equivalent
         </div>
       </div>
     </div>
-    
   </div>
 </script>
 
-<script type="text/html" data-help-name="nats-suite-server-manager">
-  <p>Starts and manages an embedded NATS server directly from Node-RED.</p>
-  <p><i>Note: Uses NATS Server provided by nats-memory-server (npm) or a custom binary you mount (e.g., v2.12.2).</i></p>
+<script type="text/markdown" data-help-name="nats-suite-server-manager">
+  Starts and manages an embedded NATS server directly from Node-RED.
 
-  <h3>Configuration Options</h3>
-  <dl class="message-properties">
-    <dt>Binary Source</dt>
-    <dd>Choose where to get the nats-server binary:
-      <ul>
-        <li><b>Auto-detect</b>: Uses nats-memory-server npm package, falls back to system PATH</li>
-        <li><b>Custom Binary</b>: Use a mounted binary at a custom path</li>
-        <li><b>System PATH</b>: Use nats-server from system PATH only</li>
-      </ul>
-    </dd>
-    <dt>Custom Binary Path</dt>
-    <dd>Path to a custom nats-server binary (e.g., <code>/data/bin/nats-server</code>). Only visible when "Custom Binary" is selected.</dd>
-    <dt>Config Source</dt>
-    <dd>Choose how to configure the server:
-      <ul>
-        <li><b>Generated</b>: Build configuration from the UI settings below</li>
-        <li><b>External Config File</b>: Use a mounted .conf file (all UI settings are ignored)</li>
-      </ul>
-    </dd>
-    <dt>Config File Path</dt>
-    <dd>Path to an external NATS config file (e.g., <code>/data/nats-server.conf</code>). Only visible when "External Config File" is selected.</dd>
-    <dt>Enable Embedded as Leaf Node</dt>
-    <dd>If checked, the embedded server will act as a Leaf Node, connecting to a remote NATS cluster.</dd>
-    <dt>Port</dt>
-    <dd>The port for local client connections (default: 4222). Not relevant when acting as a Leaf Node.</dd>
-    <dt>Leaf Node Port</dt>
-    <dd>The port for local Leaf Node client connections (default: 7422). Only relevant when acting as a Leaf Node.</dd>
-    <dt>Remote NATS Server URL</dt>
-    <dd>The URL of the upstream NATS cluster to connect to. Only relevant when acting as a Leaf Node.</dd>
-    <dt>Remote Username / Password</dt>
-    <dd>Optional credentials for connecting to the remote NATS cluster. Only relevant when acting as a Leaf Node.</dd>
-    <dt>Server Name</dt>
-    <dd>Unique identifier for the server instance (required for MQTT)</dd>
-    <dt>Max Connections</dt>
-    <dd>Maximum number of client connections (default: 65536)</dd>
-    <dt>Max Payload</dt>
-    <dd>Maximum message size in bytes (default: 1MB)</dd>
-    <dt>HTTP Port</dt>
-    <dd>Enable HTTP monitoring on specified port</dd>
-  </dl>
+  _Note: This package does not bundle a NATS server binary or declare a `nats-memory-server` dependency. Install `nats-server` on the host or mount a supported custom binary (for example, v2.14.0)._
 
-  <h3>MQTT Bridge</h3>
-  <dl class="message-properties">
-    <dt>Enable MQTT</dt>
-    <dd>Enable MQTT protocol support. Allows MQTT clients to connect to the NATS server.</dd>
-    <dt>MQTT Port</dt>
-    <dd>Port for MQTT client connections (default: 1883)</dd>
-  </dl>
-  <p><i>Note: MQTT requires JetStream (auto-enabled) and a Server Name (auto-generated if not set).</i></p>
+  ### Configuration Options
 
-  <h3>WebSocket</h3>
-  <dl class="message-properties">
-    <dt>Enable WebSocket</dt>
-    <dd>Enable WebSocket protocol for browser-based clients.</dd>
-    <dt>WebSocket Port</dt>
-    <dd>Port for WebSocket connections (default: 8080)</dd>
-  </dl>
+  **Binary Source**
+  Choose where to get the nats-server binary:
 
-  <h3>TLS / SSL</h3>
-  <dl class="message-properties">
-    <dt>Enable TLS</dt>
-    <dd>Enable TLS encryption for all connections.</dd>
-    <dt>Certificate File</dt>
-    <dd>Path to server certificate (PEM format)</dd>
-    <dt>Key File</dt>
-    <dd>Path to server private key (PEM format)</dd>
-    <dt>CA Certificate</dt>
-    <dd>Optional CA certificate for client verification</dd>
-    <dt>Verify Client Certificates</dt>
-    <dd>Require and verify client certificates</dd>
-  </dl>
+  - **Auto-detect**: Checks available local/cache locations, then system PATH
+  - **Custom Binary**: Use a mounted binary at a custom path
+  - **System PATH**: Use nats-server from system PATH only
 
-  <h3>Authentication</h3>
-  <dl class="message-properties">
-    <dt>Enable Authentication</dt>
-    <dd>Require credentials for client connections.</dd>
-    <dt>Token</dt>
-    <dd>Token-based authentication (takes priority over user/password)</dd>
-    <dt>Username / Password</dt>
-    <dd>Basic username/password authentication</dd>
-  </dl>
+  **Custom Binary Path**
+  Path to a custom nats-server binary (e.g., `/data/bin/nats-server`). Only visible when "Custom Binary" is selected.
 
-  <h3>JetStream Options</h3>
-  <dl class="message-properties">
-    <dt>Store Directory</dt>
-    <dd>Path for persistent JetStream data</dd>
-    <dt>Max Memory Store</dt>
-    <dd>Memory limit for in-memory streams (e.g., 1GB)</dd>
-    <dt>Max File Store</dt>
-    <dd>Disk storage limit for streams (e.g., 10GB)</dd>
-    <dt>Sync Interval</dt>
-    <dd>How often to sync data to disk (e.g., 2m)</dd>
-  </dl>
+  **Config Source**
+  Choose how to configure the server:
 
-  <h3>Control Commands</h3>
-  <p>Send messages to control the server:</p>
-  <pre>msg.command = "start"   // Start server
-msg.command = "stop"    // Stop server
-msg.command = "restart" // Restart server
-msg.command = "status"  // Get server status
-msg.command = "toggle"  // Toggle start/stop</pre>
-  <p><i>Alternative: You can also use <code>msg.topic</code> or <code>msg.payload.command</code></i></p>
+  - **Generated**: Build configuration from the UI settings below
+  - **External Config File**: Use a mounted .conf file (all UI settings are ignored)
 
-  <h3>Outputs</h3>
-  <dl class="message-properties">
-    <dt>topic <span class="property-type">string</span></dt>
-    <dd>"server.started", "server.stopped", "server.status"</dd>
-    <dt>payload.type <span class="property-type">string</span></dt>
-    <dd>"embedded" or "leaf"</dd>
-    <dt>payload.port <span class="property-type">number</span></dt>
-    <dd>The port the server is running on</dd>
-    <dt>payload.url <span class="property-type">string</span></dt>
-    <dd>Connection URL (e.g., "nats://localhost:4222")</dd>
-    <dt>payload.mqtt <span class="property-type">object</span></dt>
-    <dd>MQTT info: <code>{ enabled: true, port: 1883, url: "mqtt://localhost:1883" }</code></dd>
-    <dt>payload.websocket <span class="property-type">object</span></dt>
-    <dd>WebSocket info: <code>{ enabled: true, port: 8080, url: "ws://localhost:8080" }</code></dd>
-    <dt>payload.tls <span class="property-type">object</span></dt>
-    <dd>TLS info: <code>{ enabled: true, verify: false }</code></dd>
-    <dt>payload.auth <span class="property-type">object</span></dt>
-    <dd>Auth info: <code>{ enabled: true, type: "token" }</code> or <code>{ enabled: true, type: "user" }</code></dd>
-    <dt>payload.pid <span class="property-type">number</span></dt>
-    <dd>Process ID</dd>
-    <dt>payload.version <span class="property-type">string</span></dt>
-    <dd>NATS Server Version (e.g., "2.12.2")</dd>
-    <dt>payload.binarySource <span class="property-type">string</span></dt>
-    <dd>Binary source used: "auto", "custom", or "system"</dd>
-    <dt>payload.binaryPath <span class="property-type">string</span></dt>
-    <dd>Full path to the binary being used</dd>
-  </dl>
+  **Config File Path**
+  Path to an external NATS config file (e.g., `/data/nats-server.conf`). Only visible when "External Config File" is selected.
 
-  <h3>HTTP Monitoring Endpoints</h3>
-  <p>When HTTP monitoring is enabled:</p>
-  <ul>
-    <li><code>/varz</code> - Server statistics</li>
-    <li><code>/connz</code> - Connection information</li>
-    <li><code>/routez</code> - Route information</li>
-    <li><code>/subsz</code> - Subscription information</li>
-    <li><code>/jsz</code> - JetStream information</li>
-    <li><code>/healthz</code> - Health check endpoint</li>
-  </ul>
+  **Enable Embedded as Leaf Node**
+  If checked, the embedded server will act as a Leaf Node, connecting to a remote NATS cluster.
+
+  **Port**
+  The port for local client connections (default: 4222). Not relevant when acting as a Leaf Node.
+
+  **Leaf Node Port**
+  The port for local Leaf Node client connections (default: 7422). Only relevant when acting as a Leaf Node.
+
+  **Remote NATS Server URL**
+  The URL of the upstream NATS cluster to connect to. Only relevant when acting as a Leaf Node.
+
+  **Remote Username / Password**
+  Optional credentials for connecting to the remote NATS cluster. Only relevant when acting as a Leaf Node.
+
+  **Server Name**
+  Unique identifier for the server instance (required for MQTT)
+
+  **Max Connections**
+  Maximum number of client connections (default: 65536)
+
+  **Max Payload**
+  Maximum message size in bytes (default: 1MB)
+
+  **HTTP Port**
+  Enable HTTP monitoring on specified port
+
+  ### MQTT Bridge
+
+  **Enable MQTT**
+  Enable MQTT protocol support. Allows MQTT clients to connect to the NATS server.
+
+  **MQTT Port**
+  Port for MQTT client connections (default: 1883)
+
+  _Note: MQTT requires JetStream (auto-enabled) and a Server Name (auto-generated if not set)._
+
+  ### WebSocket
+
+  **Enable WebSocket**
+  Enable WebSocket protocol for browser-based clients.
+
+  **WebSocket Port**
+  Port for WebSocket connections (default: 8080)
+
+  ### TLS / SSL
+
+  **Enable TLS**
+  Enable TLS encryption for all connections.
+
+  **Certificate File**
+  Path to server certificate (PEM format)
+
+  **Key File**
+  Path to server private key (PEM format)
+
+  **CA Certificate**
+  Optional CA certificate for client verification
+
+  **Verify Client Certificates**
+  Require and verify client certificates
+
+  ### Authentication
+
+  **Enable Authentication**
+  Require credentials for client connections.
+
+  **Token**
+  Token-based authentication (takes priority over user/password)
+
+  **Username / Password**
+  Basic username/password authentication
+
+  ### JetStream Options
+
+  **Store Directory**
+  Path for persistent JetStream data
+
+  **Max Memory Store**
+  Memory limit for in-memory streams (e.g., 1GB)
+
+  **Max File Store**
+  Disk storage limit for streams (e.g., 10GB)
+
+  **Sync Interval**
+  How often to sync data to disk (e.g., 2m)
+
+  ### Control Commands
+
+  Send messages to control the server. `msg.command`, `msg.payload.command`, and `msg.topic` are all equally valid - use whichever fits your flow:
+
+  ```
+  msg.command = "start"   // Start server
+  msg.command = "stop"    // Stop server
+  msg.command = "restart" // Restart server
+  msg.command = "status"  // Get server status
+  msg.command = "toggle"  // Toggle start/stop
+  ```
+
+  ### Outputs
+
+  : topic (string) : "server.started", "server.stopped", "server.status"
+  : payload.type (string) : "embedded" or "leaf"
+  : payload.port (number) : The port the server is running on
+  : payload.url (string) : Connection URL (e.g., "nats://localhost:4222")
+  : payload.mqtt (object) : MQTT info: `{ enabled: true, port: 1883, url: "mqtt://localhost:1883" }`
+  : payload.websocket (object) : WebSocket info: `{ enabled: true, port: 8080, url: "ws://localhost:8080" }`
+  : payload.tls (object) : TLS info: `{ enabled: true, verify: false }`
+  : payload.auth (object) : Auth info: `{ enabled: true, type: "token" }` or `{ enabled: true, type: "user" }`
+  : payload.pid (number) : Process ID
+  : payload.version (string) : NATS Server Version (e.g., "2.14.0")
+  : payload.binarySource (string) : Binary source used: "auto", "custom", or "system"
+  : payload.binaryPath (string) : Full path to the binary being used
+
+  ### HTTP Monitoring Endpoints
+
+  When HTTP monitoring is enabled:
+
+  - `/varz` - Server statistics
+  - `/connz` - Connection information
+  - `/routez` - Route information
+  - `/subsz` - Subscription information
+  - `/jsz` - JetStream information
+  - `/healthz` - Health check endpoint
 </script>

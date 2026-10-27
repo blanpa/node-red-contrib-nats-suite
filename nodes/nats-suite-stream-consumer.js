@@ -1,25 +1,23 @@
 'use strict';
 
-const { StringCodec } = require('nats');
+const {
+  JetStreamApiCodes,
+  JetStreamApiError,
+  jetstream,
+  jetstreamManager,
+} = require('@nats-io/jetstream');
+const { resolveServer } = require('../lib/connect');
+const { attachStatus } = require('../lib/status');
+const { fromMsg } = require('../lib/payload');
+const { parseDuration } = require('../lib/duration');
 
 module.exports = function (RED) {
-  function UnsStreamConsumerNode(config) {
+  function NatsStreamConsumerNode(config) {
     RED.nodes.createNode(this, config);
     const node = this;
 
-    // Validate server configuration
-    if (!config.server) {
-      node.error('NATS server configuration not selected');
-      node.status({ fill: 'red', shape: 'ring', text: 'no server' });
-      return;
-    }
-
-    this.serverConfig = RED.nodes.getNode(config.server);
-    if (!this.serverConfig) {
-      node.error('NATS server configuration not found');
-      node.status({ fill: 'red', shape: 'ring', text: 'server not found' });
-      return;
-    }
+    this.serverConfig = resolveServer(RED, node, config);
+    if (!this.serverConfig) return;
 
     // Validate stream/consumer configuration
     if (!config.streamName) {
@@ -35,11 +33,21 @@ module.exports = function (RED) {
     }
 
     let jsClient = null;
+    let jsm = null;
     let consumer = null;
     let isConsuming = false;
     let isPaused = false; // Pause state
     let idleTimeout = null; // Timer for idle status
-    const sc = StringCodec();
+    let fetchTask = null;
+    let activeMessages = null;
+    let closing = false;
+    let lastStatusText = '';
+
+    const setGreenStatus = (text, shape = 'dot') => {
+      if (node.serverConfig.connectionStatus !== 'connected') return false;
+      node.status({ fill: 'green', shape, text });
+      return true;
+    };
 
     // Output configuration
     const isDebug = !!config.debug;
@@ -52,47 +60,64 @@ module.exports = function (RED) {
       return value;
     };
 
-    // Helper: Parse duration string to nanoseconds
-    const parseDuration = duration => {
-      if (!duration) return 0;
-
-      const match = duration.match(/^(\d+)([smhd])$/);
-      if (!match) return 0;
-
-      const [, num, unit] = match;
-      const value = parseInt(num, 10);
-
-      switch (unit) {
-        case 's':
-          return value * 1000000000;
-        case 'm':
-          return value * 60 * 1000000000;
-        case 'h':
-          return value * 3600 * 1000000000;
-        case 'd':
-          return value * 86400 * 1000000000;
-        default:
-          return 0;
+    // Builds the PriorityGroups fields (priority_groups/priority_policy/
+    // priority_timeout) shared by both consumer-creation paths below.
+    // priority_timeout is nanoseconds (Nanos = number), same unit as
+    // ack_wait/max_age elsewhere in this codebase, so it reuses the same
+    // parseDuration() helper - unlike KV's markerTTL (a different Step-8
+    // bullet), which is a raw Go-duration string passed straight through.
+    const buildPriorityFields = ({ groups, policy, timeout }) => {
+      const fields = {};
+      if (groups) {
+        const list = String(groups)
+          .split(',')
+          .map(g => g.trim())
+          .filter(Boolean);
+        if (list.length) fields.priority_groups = list;
       }
+      if (policy && policy !== 'none') fields.priority_policy = policy;
+      if (timeout) {
+        const nanos = parseDuration(timeout);
+        if (nanos) fields.priority_timeout = nanos;
+      }
+      return fields;
+    };
+
+    // Helper: Acquire the JetStream client + manager once and cache them. The
+    // connection object is stable across native reconnects, so there is no
+    // need to re-derive these on every reconnect.
+    const ensureJetStream = async () => {
+      if (jsClient && jsm) return;
+      const nc = await node.serverConfig.getConnection();
+      jsClient = jetstream(nc);
+      jsm = await jetstreamManager(nc);
     };
 
     // Helper: Get or create consumer
     const ensureConsumer = async () => {
       try {
-        const nc = await node.serverConfig.getConnection();
-        jsClient = nc.jetstream();
-        const jsm = await nc.jetstreamManager();
+        await ensureJetStream();
 
         // Check if stream exists
         try {
           await jsm.streams.info(config.streamName);
         } catch (err) {
-          node.error(`Stream not found: ${config.streamName}`);
-          node.status({ fill: 'red', shape: 'ring', text: 'stream not found' });
-          return false;
+          if (
+            err instanceof JetStreamApiError &&
+            err.code === JetStreamApiCodes.StreamNotFound
+          ) {
+            node.status({
+              fill: 'red',
+              shape: 'ring',
+              text: 'stream not found',
+            });
+            throw new Error(`Stream not found: ${config.streamName}`, {
+              cause: err,
+            });
+          }
+          throw err;
         }
 
-        // Check if createOnInit is enabled (default to true for backwards compatibility)
         const createOnInit = config.createOnInit !== false;
 
         // Try to get existing consumer first
@@ -101,10 +126,17 @@ module.exports = function (RED) {
             config.streamName,
             config.consumerName
           );
-          node.log(`[STREAM CONSUMER] Consumer exists: ${config.consumerName}`);
+          if (isDebug) {
+            node.log(
+              `[STREAM CONSUMER] Consumer exists: ${config.consumerName}`
+            );
+          }
         } catch (err) {
           // Consumer doesn't exist
-          if (err.message && err.message.includes('consumer not found')) {
+          if (
+            err instanceof JetStreamApiError &&
+            err.code === JetStreamApiCodes.ConsumerNotFound
+          ) {
             if (createOnInit) {
               // Configure consumer
               const consumerConfig = {
@@ -114,17 +146,17 @@ module.exports = function (RED) {
                 max_deliver: parseInt(config.maxDeliver, 10) || 5,
                 max_ack_pending: parseInt(config.maxAckPending, 10) || 1000,
                 deliver_policy: config.deliverPolicy || 'new',
-                flow_control: !!config.flowControl,
+                ...buildPriorityFields({
+                  groups: config.priorityGroups,
+                  policy: config.priorityPolicy,
+                  timeout: config.priorityTimeout,
+                }),
               };
 
-              // Only add idle_heartbeat for push-based consumers
-              // Note: idle_heartbeat is only valid for push-based consumers
-              // For pull-based consumers (default), this should not be set
-              if (config.consumerType === 'push' && config.idleHeartbeat) {
-                consumerConfig.idle_heartbeat = parseDuration(
-                  config.idleHeartbeat
-                );
-              }
+              // ConsumerConfig.idle_heartbeat and flow_control both require a
+              // push-based consumer (verified against a real nats-server:
+              // "consumer idle heartbeat requires a push based consumer");
+              // this node is pull-only, so neither is ever set.
 
               // Add filter subject if specified
               if (config.filterSubject) {
@@ -140,139 +172,74 @@ module.exports = function (RED) {
                   config.startTime || new Date().toISOString();
               }
 
-              node.log(
-                `[STREAM CONSUMER] Creating consumer: ${config.consumerName}`
-              );
-              await jsm.consumers.add(config.streamName, consumerConfig);
+              if (isDebug) {
+                node.log(
+                  `[STREAM CONSUMER] Creating consumer: ${config.consumerName}`
+                );
+              }
+              // pedantic is a separate 3rd argument (ConsumerCreateOptions),
+              // not a field on the consumer config itself.
+              await jsm.consumers.add(config.streamName, consumerConfig, {
+                pedantic: !!config.pedantic,
+              });
               consumer = await jsClient.consumers.get(
                 config.streamName,
                 config.consumerName
               );
-              node.log(
-                `[STREAM CONSUMER] Consumer created: ${config.consumerName}`
-              );
+              if (isDebug) {
+                node.log(
+                  `[STREAM CONSUMER] Consumer created: ${config.consumerName}`
+                );
+              }
             } else {
               // createOnInit is disabled, consumer must exist
-              node.error(
-                `Consumer not found: ${config.consumerName}. Enable "Create Consumer on initialization" or create the consumer manually.`
-              );
               node.status({
                 fill: 'red',
                 shape: 'ring',
                 text: 'consumer not found',
               });
-              return false;
+              throw new Error(
+                `Consumer not found: ${config.consumerName}. Enable "Create Consumer on initialization" or create the consumer manually.`,
+                { cause: err }
+              );
             }
           } else {
             throw err;
           }
         }
 
-        node.status({
-          fill: 'green',
-          shape: 'dot',
-          text: `${config.consumerName} (ready)`,
-        });
+        setGreenStatus(`${config.consumerName} (ready)`);
         return true;
       } catch (err) {
-        node.error(`Failed to ensure consumer: ${err.message}`);
         node.status({ fill: 'red', shape: 'ring', text: 'consumer error' });
-        return false;
+        throw err;
       }
     };
 
     // Helper: Process a single message
-    const processMessage = async (msg, jetMsg) => {
+    const processMessage = async (send, jetMsg) => {
       try {
-        // Decode payload
-        const data = sc.decode(jetMsg.data);
-
         if (isDebug) {
           node.log(
             `[STREAM CONSUMER] Processing message from subject: ${jetMsg.subject}`
           );
         }
 
-        // Parse based on mode (same logic as subscribe node)
+        // Parse based on mode (shared with the subscribe node's decoder)
         let payload;
-
-        switch (parseMode) {
-          case 'auto':
-            // Auto-detect: Try JSON, fallback to string
-            if (typeof data === 'string' && data.trim().length > 0) {
-              try {
-                payload = JSON.parse(data);
-                if (isDebug) {
-                  node.log(`[STREAM CONSUMER] Parsed message as JSON`);
-                }
-              } catch (parseError) {
-                // Keep as string (expected for non-JSON messages)
-                payload = data;
-                if (isDebug) {
-                  node.log(
-                    `[STREAM CONSUMER] Message kept as string (JSON parse failed)`
-                  );
-                }
-              }
-            } else {
-              payload = data;
-            }
-            break;
-
-          case 'json':
-            // Force JSON parsing
-            try {
-              payload = JSON.parse(data);
-              if (isDebug) {
-                node.log(
-                  `[STREAM CONSUMER] Parsed message as JSON (forced mode)`
-                );
-              }
-            } catch (parseError) {
-              if (isDebug) {
-                node.log(
-                  `[STREAM CONSUMER] JSON parsing failed: ${parseError.message}`
-                );
-              }
-              node.error(
-                {
-                  message: 'JSON parsing failed',
-                  code: 'JSON_PARSE_ERROR',
-                  originalError: parseError.message,
-                },
-                {
-                  topic: jetMsg.subject,
-                  rawData: data,
-                }
-              );
-              return; // Stop processing on error
-            }
-            break;
-
-          case 'string':
-            // Keep as string
-            if (isDebug) {
-              node.log(`[STREAM CONSUMER] Message kept as string`);
-            }
-            payload = data;
-            break;
-
-          case 'buffer':
-            // Keep as buffer
-            if (isDebug) {
-              node.log(`[STREAM CONSUMER] Message kept as buffer`);
-            }
-            payload = jetMsg.data;
-            break;
-
-          default:
-            // Fallback to auto behavior
-            try {
-              payload = JSON.parse(data);
-            } catch (e) {
-              payload = data;
-            }
-            break;
+        try {
+          payload = fromMsg(jetMsg, parseMode);
+        } catch (parseError) {
+          // Only forced 'json' mode can throw here (see lib/payload.js).
+          if (isDebug) {
+            node.log(
+              `[STREAM CONSUMER] JSON parsing failed: ${parseError.message}`
+            );
+          }
+          const err = new Error('JSON parsing failed', { cause: parseError });
+          err.code = 'JSON_PARSE_ERROR';
+          err.rawData = jetMsg.data;
+          throw err;
         }
 
         // Build output message
@@ -302,7 +269,9 @@ module.exports = function (RED) {
           outMsg.ack = () => {
             try {
               jetMsg.ack();
-              node.log(`[STREAM CONSUMER] ACK: seq ${jetMsg.seq}`);
+              if (isDebug) {
+                node.log(`[STREAM CONSUMER] ACK: seq ${jetMsg.seq}`);
+              }
             } catch (err) {
               node.warn(`Failed to ACK message: ${err.message}`);
             }
@@ -315,7 +284,9 @@ module.exports = function (RED) {
               } else {
                 jetMsg.nak();
               }
-              node.log(`[STREAM CONSUMER] NAK: seq ${jetMsg.seq}`);
+              if (isDebug) {
+                node.log(`[STREAM CONSUMER] NAK: seq ${jetMsg.seq}`);
+              }
             } catch (err) {
               node.warn(`Failed to NAK message: ${err.message}`);
             }
@@ -324,7 +295,9 @@ module.exports = function (RED) {
           outMsg.term = () => {
             try {
               jetMsg.term();
-              node.log(`[STREAM CONSUMER] TERM: seq ${jetMsg.seq}`);
+              if (isDebug) {
+                node.log(`[STREAM CONSUMER] TERM: seq ${jetMsg.seq}`);
+              }
             } catch (err) {
               node.warn(`Failed to TERM message: ${err.message}`);
             }
@@ -333,7 +306,9 @@ module.exports = function (RED) {
           outMsg.inProgress = () => {
             try {
               jetMsg.working();
-              node.log(`[STREAM CONSUMER] IN-PROGRESS: seq ${jetMsg.seq}`);
+              if (isDebug) {
+                node.log(`[STREAM CONSUMER] IN-PROGRESS: seq ${jetMsg.seq}`);
+              }
             } catch (err) {
               node.warn(`Failed to mark in-progress: ${err.message}`);
             }
@@ -350,15 +325,19 @@ module.exports = function (RED) {
             `[STREAM CONSUMER] Sending output message for seq ${jetMsg.seq}`
           );
         }
-        node.send(outMsg);
+        send(outMsg);
 
-        // Update status
+        // Update status only when pending count text changes
         const pending = toNumber(jetMsg.info.pending) || 0;
-        node.status({
-          fill: 'blue',
-          shape: 'dot',
-          text: `${config.consumerName} (${pending} pending)`,
-        });
+        const statusText = `${config.consumerName} (${pending} pending)`;
+        if (statusText !== lastStatusText) {
+          lastStatusText = statusText;
+          node.status({
+            fill: 'blue',
+            shape: 'dot',
+            text: statusText,
+          });
+        }
 
         // Clear any existing idle timeout
         if (idleTimeout) {
@@ -368,30 +347,33 @@ module.exports = function (RED) {
 
         // Set timeout to change to idle status after 2 seconds
         idleTimeout = setTimeout(() => {
-          if (!isConsuming && !isPaused) {
-            node.status({
-              fill: 'green',
-              shape: 'ring',
-              text: `${config.consumerName} (idle)`,
-            });
+          if (!closing && !isConsuming && !isPaused) {
+            setGreenStatus(`${config.consumerName} (idle)`, 'ring');
+            lastStatusText = '';
           }
           idleTimeout = null;
         }, 2000);
       } catch (err) {
-        node.error(`Error processing message: ${err.message}`, msg);
+        node.status({ fill: 'red', shape: 'ring', text: 'message error' });
+        throw err;
       }
     };
 
     // Helper: Consume messages
-    const consumeMessages = async (batchSize = 1) => {
-      if (!consumer || isConsuming || isPaused) return;
+    const consumeMessages = async (msg, send) => {
+      if (!consumer || isPaused || closing) return;
+      if (isConsuming) throw new Error('consume already in progress');
 
       try {
         isConsuming = true;
 
-        const maxWait = parseInt(config.maxWait, 10) || 1000;
+        const maxWait =
+          parseInt(msg.options?.expires ?? config.maxWait, 10) || 1000;
         const batch =
-          parseInt(batchSize, 10) || parseInt(config.batchSize, 10) || 1;
+          parseInt(
+            msg.options?.max_messages ?? msg.batchSize ?? config.batchSize,
+            10
+          ) || 1;
 
         // Set waiting status (blue) before fetching
         node.status({
@@ -400,43 +382,84 @@ module.exports = function (RED) {
           text: `${config.consumerName} (waiting)`,
         });
 
-        node.log(
-          `[STREAM CONSUMER] Fetching ${batch} messages (max wait: ${maxWait}ms)`
-        );
+        if (isDebug) {
+          node.log(
+            `[STREAM CONSUMER] Fetching ${batch} messages (max wait: ${maxWait}ms)`
+          );
+        }
+        lastStatusText = '';
+
+        // Pull overflow/prioritized-pull fields (group/min_pending/
+        // min_ack_pending/priority) were already reachable via a raw
+        // msg.options passthrough with zero editor support - these config
+        // fields are first-class defaults, seeded in BEFORE msg.options so
+        // an explicit msg.options value still overrides them, matching this
+        // codebase's established msg-wins-over-config precedence.
+        const pullDefaults = {};
+        if (config.pullGroup) {
+          pullDefaults.group = config.pullGroup;
+          if (config.pullMinPending)
+            pullDefaults.min_pending = parseInt(config.pullMinPending, 10);
+          if (config.pullMinAckPending)
+            pullDefaults.min_ack_pending = parseInt(
+              config.pullMinAckPending,
+              10
+            );
+          if (config.pullPriority !== undefined && config.pullPriority !== '')
+            pullDefaults.priority = parseInt(config.pullPriority, 10);
+        }
 
         // Fetch messages
-        const messages = await consumer.fetch({
+        fetchTask = consumer.fetch({
+          ...pullDefaults,
+          ...msg.options,
           max_messages: batch,
           expires: maxWait,
         });
+        const messages = await fetchTask;
+        fetchTask = null;
+        activeMessages = messages;
+        if (closing) messages.stop();
 
         let count = 0;
-        for await (const msg of messages) {
+        for await (const jetMsg of messages) {
           // Check if paused during iteration
-          if (isPaused) {
-            node.log(`[STREAM CONSUMER] Paused during consumption`);
+          if (isPaused || closing) {
+            if (isDebug) {
+              node.log(`[STREAM CONSUMER] Paused during consumption`);
+            }
             break;
           }
-          await processMessage({}, msg);
+          try {
+            await processMessage(send, jetMsg);
+          } catch (err) {
+            // Don't let one bad message (e.g. JSON parse failure) abort the
+            // rest of an already-fetched batch; log and move on so the
+            // remaining pulled messages still get processed/acked.
+            node.warn(
+              `[STREAM CONSUMER] Failed to process message seq ${jetMsg.seq}: ${err.message}`
+            );
+          }
           count++;
         }
 
         if (count > 0) {
-          node.log(`[STREAM CONSUMER] Processed ${count} messages`);
+          if (isDebug) {
+            node.log(`[STREAM CONSUMER] Processed ${count} messages`);
+          }
         } else if (!isPaused) {
           // No messages found after timeout, change to idle status (green)
-          node.status({
-            fill: 'green',
-            shape: 'ring',
-            text: `${config.consumerName} (idle)`,
-          });
+          setGreenStatus(`${config.consumerName} (idle)`, 'ring');
         }
       } catch (err) {
-        if (err.message && !err.message.includes('timeout')) {
-          node.error(`Consume error: ${err.message}`);
+        if (!closing && (!err.message || !err.message.includes('timeout'))) {
           node.status({ fill: 'red', shape: 'ring', text: 'consume error' });
+          throw err;
         }
       } finally {
+        fetchTask = null;
+        activeMessages?.stop();
+        activeMessages = null;
         isConsuming = false;
       }
     };
@@ -445,55 +468,49 @@ module.exports = function (RED) {
     this.serverConfig.registerConnectionUser(node.id);
 
     // Initialize consumer
-    ensureConsumer();
-
-    // Status listener for connection changes
-    const statusListener = statusInfo => {
-      const status = statusInfo.status || statusInfo;
-
-      switch (status) {
-        case 'connected':
-          // Re-ensure consumer on reconnect
-          ensureConsumer();
-          break;
-        case 'disconnected':
-          node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
-          consumer = null;
-          jsClient = null;
-          break;
-        case 'connecting':
-          node.status({ fill: 'yellow', shape: 'ring', text: 'connecting' });
-          break;
+    const initializeConsumer = async () => {
+      try {
+        await ensureConsumer();
+      } catch (err) {
+        node.error(`Failed to ensure consumer: ${err.message}`);
       }
     };
+    initializeConsumer();
 
-    this.serverConfig.addStatusListener(statusListener);
+    // Status listener for connection changes (status painting only; the
+    // consumer is established once at node start and its handle stays valid
+    // across native reconnects, so there is nothing to tear down or rebuild
+    // here). disconnected/connecting use the default paint; 'connected'
+    // shows the consumer name instead of the generic text.
+    const detachStatus = attachStatus(node, this.serverConfig, {
+      connected: () => setGreenStatus(`${config.consumerName} (ready)`),
+    });
 
     // Stream Management Operations
-    const performStreamOperation = async msg => {
+    // Returns null on success, or the error to report via done(err) -
+    // node.error() itself is the caller's job now, so one failure doesn't
+    // fire Catch nodes twice.
+    const performStreamOperation = async (msg, send) => {
       try {
-        const nc = await node.serverConfig.getConnection();
-        const js = nc.jetstream();
-        const jsm = await nc.jetstreamManager();
+        await ensureJetStream();
 
         const operation = msg.operation || config.operation || 'consume';
         const streamName = msg.stream || config.streamName || '';
 
         if (!streamName) {
-          node.error('Stream name required for operation');
-          return;
+          return new Error('Stream name required for operation');
         }
 
         switch (operation) {
           case 'info': {
-            const streamInfo = await jsm.streams.info(streamName);
+            const streamInfo = await jsm.streams.info(streamName, msg.options);
             msg.payload = {
               operation: 'info',
               stream: streamName,
               config: streamInfo.config,
               state: streamInfo.state,
             };
-            node.status({ fill: 'green', shape: 'dot', text: streamName });
+            setGreenStatus(streamName);
             break;
           }
 
@@ -504,62 +521,107 @@ module.exports = function (RED) {
               stream: streamName,
               success: true,
             };
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `deleted: ${streamName}`,
-            });
+            setGreenStatus(`deleted: ${streamName}`);
             break;
           }
 
           case 'purge': {
-            const stream = await js.streams.get(streamName);
-            await stream.purge();
+            // jsClient.streams.get(name) returns a Stream with no .purge() -
+            // only JetStreamManager.streams has it (verified against
+            // @nats-io/jetstream 3.4.0 types).
+            await jsm.streams.purge(streamName, msg.options);
             msg.payload = {
               operation: 'purge',
               stream: streamName,
               success: true,
             };
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `purged: ${streamName}`,
-            });
+            setGreenStatus(`purged: ${streamName}`);
+            break;
+          }
+
+          case 'get-message': {
+            const hasSeq = msg.seq !== undefined && msg.seq !== null;
+            const hasLastBySubject =
+              msg.lastBySubject !== undefined && msg.lastBySubject !== null;
+            if (hasSeq === hasLastBySubject) {
+              return new Error(
+                'get-message requires exactly one of msg.seq (number) or msg.lastBySubject (string)'
+              );
+            }
+
+            const query = hasSeq
+              ? { seq: parseInt(msg.seq, 10) }
+              : { last_by_subj: msg.lastBySubject };
+
+            // jsm.direct.getMessage() is the faster path but the server
+            // rejects it unless the stream has allow_direct: true -
+            // jsm.streams.getMessage() (manager-level) always works.
+            const useDirectGet =
+              msg.useDirectGet !== undefined
+                ? !!msg.useDirectGet
+                : !!config.useDirectGet;
+            const storedMsg = useDirectGet
+              ? await jsm.direct.getMessage(streamName, query)
+              : await jsm.streams.getMessage(streamName, query);
+
+            // null is a valid "no match" result, not a thrown error - a
+            // targeted lookup finding nothing is a real failure here, not a
+            // silent empty success.
+            if (!storedMsg) {
+              return new Error('No message found for the given query');
+            }
+
+            // Mirrors the 'list' case below: the real content belongs at
+            // the top level of msg (like a live consume), not nested inside
+            // msg.payload the way the metadata-only info/delete/purge cases
+            // above do - there's no separate "content" for those to hold.
+            msg.operation = 'get-message';
+            msg.payload = fromMsg(storedMsg, parseMode);
+            msg.stream = streamName;
+            msg.subject = storedMsg.subject;
+            msg.sequence = toNumber(storedMsg.seq);
+            msg.timestamp = storedMsg.timestamp;
+            if (storedMsg.header) {
+              const headers = {};
+              for (const [key, values] of storedMsg.header) {
+                headers[key] = values.length === 1 ? values[0] : values;
+              }
+              msg.headers = headers;
+            }
+            setGreenStatus(streamName);
             break;
           }
 
           default:
-            node.error(`Unknown operation: ${operation}`);
-            return;
+            return new Error(`Unknown operation: ${operation}`);
         }
 
-        node.send(msg);
+        send(msg);
+        return null;
       } catch (err) {
-        node.error(`Stream operation failed: ${err.message}`, msg);
         msg.error = err.message;
-        node.send(msg);
+        send(msg);
         node.status({ fill: 'red', shape: 'ring', text: 'error' });
+        return err;
       }
     };
 
-    // Consumer Management Operations
-    const performConsumerOperation = async msg => {
+    // Consumer Management Operations. Same return contract as
+    // performStreamOperation above.
+    const performConsumerOperation = async (msg, send) => {
       try {
-        const nc = await node.serverConfig.getConnection();
-        const jsm = await nc.jetstreamManager();
+        await ensureJetStream();
 
         const operation = msg.operation || config.operation || 'consume';
         const streamName = msg.stream || config.streamName || '';
         const consumerName = msg.consumer || config.consumerName || '';
 
         if (!streamName && operation !== 'list') {
-          node.error('Stream name required for consumer operation');
-          return;
+          return new Error('Stream name required for consumer operation');
         }
 
         if (!consumerName && operation !== 'list' && operation !== 'create') {
-          node.error('Consumer name required for operation');
-          return;
+          return new Error('Consumer name required for operation');
         }
 
         switch (operation) {
@@ -587,12 +649,11 @@ module.exports = function (RED) {
                 : config.maxAckPending
                   ? parseInt(config.maxAckPending, 10)
                   : undefined,
-              flow_control:
-                msg.flowControl !== undefined
-                  ? !!msg.flowControl
-                  : config.flowControl !== undefined
-                    ? !!config.flowControl
-                    : undefined,
+              ...buildPriorityFields({
+                groups: msg.priorityGroups || config.priorityGroups,
+                policy: msg.priorityPolicy || config.priorityPolicy,
+                timeout: msg.priorityTimeout || config.priorityTimeout,
+              }),
             };
 
             // Remove undefined values
@@ -600,20 +661,27 @@ module.exports = function (RED) {
               if (consumerConfig[key] === undefined) delete consumerConfig[key];
             });
 
+            // pedantic is a separate opts arg, not a config field. msg.options
+            // is this file's existing raw-passthrough override channel (like
+            // msg.config above) - if it already sets pedantic, that wins;
+            // otherwise fall back to the msg/config convenience fields.
+            const pedantic =
+              msg.options?.pedantic !== undefined
+                ? msg.options.pedantic
+                : msg.pedantic !== undefined
+                  ? msg.pedantic
+                  : config.pedantic;
             const createdConsumer = await jsm.consumers.add(
               streamName,
-              consumerConfig
+              consumerConfig,
+              { ...msg.options, pedantic: !!pedantic }
             );
             msg.payload = {
               operation: 'create',
               consumer: createdConsumer.name,
               success: true,
             };
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `created: ${createdConsumer.name}`,
-            });
+            setGreenStatus(`created: ${createdConsumer.name}`);
             break;
           }
 
@@ -628,9 +696,9 @@ module.exports = function (RED) {
               consumer: consumerName,
               config: consumerInfo.config,
               delivered: consumerInfo.delivered,
-              ack_pending: consumerInfo.ack_pending,
+              ack_pending: consumerInfo.num_ack_pending,
             };
-            node.status({ fill: 'green', shape: 'dot', text: consumerName });
+            setGreenStatus(consumerName);
             break;
           }
 
@@ -641,11 +709,7 @@ module.exports = function (RED) {
               consumer: consumerName,
               success: true,
             };
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `deleted: ${consumerName}`,
-            });
+            setGreenStatus(`deleted: ${consumerName}`);
             break;
           }
 
@@ -661,47 +725,47 @@ module.exports = function (RED) {
             msg.payload = consumers;
             msg.operation = 'list';
             msg.count = consumers.length;
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `${consumers.length} consumers`,
-            });
+            setGreenStatus(`${consumers.length} consumers`);
             break;
           }
 
           case 'pause': {
-            // Pause consumer (local operation - stops fetching new messages)
-            isPaused = true;
+            const result = await jsm.consumers.pause(
+              streamName,
+              consumerName,
+              new Date(msg.until || '9999-12-31T23:59:59.999Z')
+            );
+            isPaused = result.paused;
             msg.payload = {
               operation: 'pause',
               consumer: consumerName,
               success: true,
-              paused: true,
+              ...result,
             };
             node.status({
               fill: 'yellow',
               shape: 'ring',
               text: `${consumerName} (paused)`,
             });
-            node.log(`[STREAM CONSUMER] Consumer paused: ${consumerName}`);
+            if (isDebug) {
+              node.log(`[STREAM CONSUMER] Consumer paused: ${consumerName}`);
+            }
             break;
           }
 
           case 'resume': {
-            // Resume consumer (local operation - starts fetching messages again)
-            isPaused = false;
+            const result = await jsm.consumers.resume(streamName, consumerName);
+            isPaused = result.paused;
             msg.payload = {
               operation: 'resume',
               consumer: consumerName,
               success: true,
-              paused: false,
+              ...result,
             };
-            node.status({
-              fill: 'green',
-              shape: 'dot',
-              text: `${consumerName} (resumed)`,
-            });
-            node.log(`[STREAM CONSUMER] Consumer resumed: ${consumerName}`);
+            setGreenStatus(`${consumerName} (resumed)`);
+            if (isDebug) {
+              node.log(`[STREAM CONSUMER] Consumer resumed: ${consumerName}`);
+            }
             break;
           }
 
@@ -714,25 +778,10 @@ module.exports = function (RED) {
 
             // Calculate additional stats
             const pending = consumerInfo.num_pending || 0;
-            const delivered = consumerInfo.delivered
-              ? consumerInfo.delivered.stream_seq
-              : 0;
+            const delivered = consumerInfo.delivered?.consumer_seq || 0;
             const ackPending = consumerInfo.num_ack_pending || 0;
             const redelivered = consumerInfo.num_redelivered || 0;
             const waiting = consumerInfo.num_waiting || 0;
-
-            // Calculate delivery rate (messages/sec) if timestamps available
-            let deliveryRate = 0;
-            if (consumerInfo.delivered && consumerInfo.delivered.last_active) {
-              const lastActive = new Date(
-                consumerInfo.delivered.last_active
-              ).getTime();
-              const now = Date.now();
-              const secondsSinceActive = (now - lastActive) / 1000;
-              if (secondsSinceActive > 0 && delivered > 0) {
-                deliveryRate = (delivered / secondsSinceActive).toFixed(2);
-              }
-            }
 
             msg.payload = {
               operation: 'monitor',
@@ -744,7 +793,6 @@ module.exports = function (RED) {
                 ack_pending: ackPending,
                 redelivered: redelivered,
                 waiting: waiting,
-                delivery_rate: parseFloat(deliveryRate),
                 paused: isPaused,
               },
               config: consumerInfo.config,
@@ -757,91 +805,100 @@ module.exports = function (RED) {
               text: `${consumerName} (${pending}p/${ackPending}ap)`,
             });
 
-            node.log(
-              `[STREAM CONSUMER] Monitor: pending=${pending}, ack_pending=${ackPending}, delivered=${delivered}`
-            );
+            if (isDebug) {
+              node.log(
+                `[STREAM CONSUMER] Monitor: pending=${pending}, ack_pending=${ackPending}, delivered=${delivered}`
+              );
+            }
             break;
           }
 
           default:
-            node.error(`Unknown consumer operation: ${operation}`);
-            return;
+            return new Error(`Unknown consumer operation: ${operation}`);
         }
 
-        node.send(msg);
+        send(msg);
+        return null;
       } catch (err) {
-        node.error(`Consumer operation failed: ${err.message}`, msg);
         msg.error = err.message;
-        node.send(msg);
+        send(msg);
         node.status({ fill: 'red', shape: 'ring', text: 'error' });
+        return err;
       }
     };
 
     // Input handler - trigger message consumption, stream management, or consumer management
-    node.on('input', async function (msg) {
+    node.on('input', async function (msg, send, done) {
       try {
         // Check if this is a stream management or consumer management operation
         const operation = msg.operation || config.operation || 'consume';
 
         // Stream management operations
-        if (
-          ['info', 'delete', 'purge'].includes(operation) &&
-          !msg.consumer &&
-          !config.consumerName
-        ) {
-          await performStreamOperation(msg);
+        if (operation === 'purge' || operation === 'get-message') {
+          done(await performStreamOperation(msg, send));
           return;
         }
 
         // Consumer management operations
-        if (['create', 'add', 'info', 'delete', 'list'].includes(operation)) {
-          await performConsumerOperation(msg);
+        if (
+          [
+            'create',
+            'add',
+            'info',
+            'delete',
+            'list',
+            'pause',
+            'resume',
+            'monitor',
+          ].includes(operation)
+        ) {
+          done(await performConsumerOperation(msg, send));
           return;
         }
 
         // Default: consume messages
         if (operation !== 'consume') {
-          node.error(`Unknown operation: ${operation}`);
+          done(new Error(`Unknown operation: ${operation}`));
           return;
         }
 
         // Ensure consumer is ready
         if (!consumer) {
-          const ready = await ensureConsumer();
-          if (!ready) {
-            node.error('Consumer not ready', msg);
-            return;
-          }
+          await ensureConsumer();
         }
 
-        // Determine batch size (from msg or config)
-        const batchSize = msg.batchSize || config.batchSize || 1;
-
-        // Consume messages
-        await consumeMessages(batchSize);
+        await consumeMessages(msg, send);
+        done();
       } catch (err) {
-        node.error(`Consumer error: ${err.message}`, msg);
         node.status({ fill: 'red', shape: 'ring', text: 'error' });
+        done(err);
       }
     });
 
     // Cleanup on close
-    node.on('close', async function () {
-      this.serverConfig.removeStatusListener(statusListener);
-      this.serverConfig.unregisterConnectionUser(node.id);
-
-      // Clear idle timeout
-      if (idleTimeout) {
-        clearTimeout(idleTimeout);
-        idleTimeout = null;
+    node.on('close', async function (done) {
+      let closeError;
+      try {
+        closing = true;
+        if (idleTimeout) clearTimeout(idleTimeout);
+        const messages = activeMessages || (fetchTask && (await fetchTask));
+        if (messages) {
+          messages.stop();
+          await messages.closed();
+        }
+      } catch (err) {
+        closeError = err;
+      } finally {
+        detachStatus();
+        this.serverConfig.unregisterConnectionUser(node.id);
+        consumer = null;
+        jsClient = null;
+        jsm = null;
+        node.status({});
+        done(closeError);
       }
-
-      // Don't delete the consumer - it's durable and should persist
-      consumer = null;
-      jsClient = null;
-      node.status({});
     });
   }
 
-  RED.nodes.registerType('nats-suite-stream-consumer', UnsStreamConsumerNode);
+  RED.nodes.registerType('nats-suite-stream-consumer', NatsStreamConsumerNode);
 };

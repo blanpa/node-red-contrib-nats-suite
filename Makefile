@@ -1,6 +1,6 @@
 # Node-RED nats-suite Contrib Package Makefile
 
-.PHONY: help install test lint format clean dev docker-up docker-down docker-logs docker-restart package publish audit dev-setup ci-test dev-cycle docs-format release-prepare type-check build build-watch
+.PHONY: help install test lint format clean dev docker-up docker-down docker-logs docker-restart package publish audit dev-setup ci-test dev-cycle release-prepare
 
 # Default target
 help:
@@ -22,11 +22,7 @@ help:
 	@echo "  dev-setup       - Setup development environment"
 	@echo "  ci-test         - Run CI checks"
 	@echo "  dev-cycle       - Run development cycle"
-	@echo "  docs-format     - Format documentation"
 	@echo "  release-prepare - Prepare for release"
-	@echo "  type-check      - Run TypeScript type checking"
-	@echo "  build           - Build TypeScript"
-	@echo "  build-watch     - Build TypeScript in watch mode"
 
 # Install dependencies
 install:
@@ -53,29 +49,12 @@ format:
 	@echo "Formatting code with Prettier..."
 	npm run format
 
-# Type checking
-type-check:
-	@echo "Running TypeScript type checking..."
-	npm run type-check
-
-# Build TypeScript
-build:
-	@echo "Building TypeScript..."
-	npm run build
-
-# Build TypeScript in watch mode
-build-watch:
-	@echo "Building TypeScript in watch mode..."
-	npm run build:watch
-
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf node_modules
 	rm -rf coverage
-	rm -rf .nyc_output
 	rm -rf *.tgz
-	rm -rf dist
 
 # Development environment (legacy)
 dev:
@@ -141,11 +120,6 @@ ci-test: install test lint audit
 # Quick development cycle
 dev-cycle: format lint-fix test
 	@echo "Development cycle completed!"
-
-# Documentation
-docs-format:
-	@echo "Formatting documentation..."
-	prettier --write README.md CHANGELOG.md docs/*.md
 
 # Release preparation
 release-prepare: clean install test lint audit package

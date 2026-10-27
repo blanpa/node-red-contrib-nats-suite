@@ -9,17 +9,25 @@
       consumerName: { value: 'default-consumer', required: true },
       createOnInit: { value: true },
       filterSubject: { value: '' },
-      consumerType: { value: 'pull' },
       ackPolicy: { value: 'explicit' },
       deliverPolicy: { value: 'new' },
+      startSequence: { value: 1 },
+      startTime: { value: '' },
       ackWait: { value: '30s' },
       maxDeliver: { value: 5 },
       maxAckPending: { value: 1000 },
-      idleHeartbeat: { value: '5s' },
-      flowControl: { value: false },
       batchSize: { value: 1 },
       maxWait: { value: 1000 },
       operation: { value: 'consume' },
+      useDirectGet: { value: false },
+      priorityGroups: { value: '' },
+      priorityPolicy: { value: 'none' },
+      priorityTimeout: { value: '' },
+      pedantic: { value: false },
+      pullGroup: { value: '' },
+      pullMinPending: { value: 0 },
+      pullMinAckPending: { value: 0 },
+      pullPriority: { value: 0 },
       dataformat: { value: 'auto', required: true },
       debug: { value: false },
     },
@@ -65,6 +73,15 @@
           $('#consume-config').slideUp(200);
           $('#consumer-settings-section').slideUp(200);
         }
+
+        $('#get-message-config-section').toggle(op === 'get-message');
+
+        // Priority groups only apply to consumer creation; pull overflow
+        // only applies to an actual fetch - both live in one section shown
+        // whenever either path is reachable (consume auto-creates too).
+        $('#priority-overflow-section').toggle(
+          op === 'consume' || op === 'create' || op === 'add'
+        );
       }
 
       // Operation handler
@@ -72,30 +89,27 @@
         updateConsumerConfigVisibility();
       });
 
-      // Consumer type handler
-      $('#node-input-consumerType').on('change', function () {
-        if ($(this).val() === 'push') {
-          $('#idle-heartbeat-row').slideDown(200);
-          // Enable flow control checkbox for push consumers
-          $('#node-input-flowControl').prop('disabled', false);
-          $('#flow-control-row label').css('color', '');
-        } else {
-          $('#idle-heartbeat-row').slideUp(200);
-          // Disable and uncheck flow control for pull consumers
-          $('#node-input-flowControl')
-            .prop('checked', false)
-            .prop('disabled', true);
-          $('#flow-control-row label').css('color', '#aaa');
-        }
-      });
-
       // Create on init handler - show/hide consumer-specific configuration
       $('#node-input-createOnInit').on('change', function () {
         updateConsumerConfigVisibility();
       });
 
+      // Deliver policy handler - show start sequence/time fields when needed
+      $('#node-input-deliverPolicy').on('change', function () {
+        const policy = $(this).val();
+        $('#start-sequence-row').toggle(policy === 'by_start_sequence');
+        $('#start-time-row').toggle(policy === 'by_start_time');
+      });
+
+      // Priority policy handler - groups/timeout only matter once a real
+      // policy is selected
+      $('#node-input-priorityPolicy').on('change', function () {
+        $('#priority-fields-row').toggle($(this).val() !== 'none');
+      });
+
       $('#node-input-operation').trigger('change');
-      $('#node-input-consumerType').trigger('change');
+      $('#node-input-deliverPolicy').trigger('change');
+      $('#node-input-priorityPolicy').trigger('change');
     },
   });
 </script>
@@ -106,26 +120,21 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
-    }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
     }
     .nats-section-header.collapsed { border-bottom: none; }
     .nats-section-title {
@@ -134,16 +143,15 @@
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
     }
     .nats-section-content { padding: 14px; }
@@ -153,12 +161,11 @@
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
@@ -167,22 +174,16 @@
     .nats-form-row select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
     .nats-form-row input:focus,
     .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
-    }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
     }
     .nats-grid {
       display: grid;
@@ -198,19 +199,20 @@
     .nats-checkbox-row input[type="checkbox"] {
       width: 16px;
       height: 16px;
-      accent-color: #2FAF9C;
       cursor: pointer;
     }
     .nats-checkbox-row label {
       margin: 0;
       font-size: 13px;
       font-weight: 500;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
       cursor: pointer;
     }
     .nats-checkbox-row label i {
       margin-right: 8px;
-      color: #2FAF9C;
+    }
+    .nats-checkbox-row label.nats-label-disabled {
+      color: var(--red-ui-form-placeholder-color);
     }
   </style>
 
@@ -246,6 +248,7 @@
             <option value="resume">Resume Consumer</option>
             <option value="monitor">Monitor Stats</option>
             <option value="purge">Purge Stream</option>
+            <option value="get-message">Get Message (direct/by-seq)</option>
           </select>
         </div>
       </div>
@@ -278,30 +281,111 @@
             <label><i class="fa fa-filter"></i>Filter Subject</label>
             <input type="text" id="node-input-filterSubject" placeholder="sensor.temperature (optional)">
           </div>
-          <div class="nats-grid">
-            <div class="nats-form-row">
-              <label><i class="fa fa-exchange"></i>Consumer Type</label>
-              <select id="node-input-consumerType">
-                <option value="pull">Pull-based</option>
-                <option value="push">Push-based</option>
-              </select>
-            </div>
-            <div class="nats-form-row">
-              <label><i class="fa fa-truck"></i>Deliver Policy</label>
-              <select id="node-input-deliverPolicy">
-                <option value="new">New Only</option>
-                <option value="all">All</option>
-                <option value="last">Last</option>
-                <option value="by_start_sequence">By Sequence</option>
-                <option value="by_start_time">By Time</option>
-              </select>
-            </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-truck"></i>Deliver Policy</label>
+            <select id="node-input-deliverPolicy">
+              <option value="new">New Only</option>
+              <option value="all">All</option>
+              <option value="last">Last</option>
+              <option value="by_start_sequence">By Sequence</option>
+              <option value="by_start_time">By Time</option>
+            </select>
           </div>
-          <div class="nats-form-row" id="idle-heartbeat-row" style="display: none;">
-            <label><i class="fa fa-heartbeat"></i>Idle Heartbeat</label>
-            <input type="text" id="node-input-idleHeartbeat" placeholder="5s">
-            <div class="nats-hint">Required for push-based consumers</div>
+          <div class="nats-form-row" id="start-sequence-row" style="display: none;">
+            <label><i class="fa fa-hashtag"></i>Start Sequence</label>
+            <input type="number" id="node-input-startSequence" placeholder="1" min="1">
           </div>
+          <div class="nats-form-row" id="start-time-row" style="display: none;">
+            <label><i class="fa fa-clock-o"></i>Start Time</label>
+            <input type="text" id="node-input-startTime" placeholder="ISO 8601, e.g. 2026-01-01T00:00:00Z">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Get Message Configuration -->
+    <div class="nats-section" id="get-message-config-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-search"></i>
+          <span>Get Message Configuration</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-useDirectGet">
+          <label for="node-input-useDirectGet"><i class="fa fa-bolt"></i>Use Direct Get (faster; requires the stream's Allow Direct flag)</label>
+        </div>
+        <div class="form-tips">
+          Set <code>msg.stream</code> (or configure Stream Name in Consumer Configuration above) and exactly one of <code>msg.seq</code> (number) or <code>msg.lastBySubject</code> (string) per request - all message-driven, not configured here. <code>msg.useDirectGet</code> overrides this checkbox per-message.
+        </div>
+      </div>
+    </div>
+
+    <!-- Priority Groups & Pull Overflow -->
+    <div class="nats-section" id="priority-overflow-section">
+      <div class="nats-section-header">
+        <div class="nats-section-title">
+          <i class="fa fa-sort-amount-desc"></i>
+          <span>Priority Groups & Pull Overflow</span>
+        </div>
+        <i class="fa fa-chevron-down nats-section-toggle"></i>
+      </div>
+      <div class="nats-section-content">
+        <div class="nats-form-row">
+          <label><i class="fa fa-sitemap"></i>Priority Policy (consumer create)</label>
+          <select id="node-input-priorityPolicy">
+            <option value="none">None</option>
+            <option value="overflow">Overflow</option>
+            <option value="pinned_client">Pinned Client</option>
+            <option value="prioritized">Prioritized</option>
+          </select>
+        </div>
+        <div id="priority-fields-row">
+          <div class="nats-form-row">
+            <label><i class="fa fa-object-group"></i>Priority Groups (comma-separated)</label>
+            <input type="text" id="node-input-priorityGroups" placeholder="group-a, group-b">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-clock-o"></i>Priority Timeout</label>
+            <input type="text" id="node-input-priorityTimeout" placeholder="30s (optional)">
+          </div>
+        </div>
+        <div class="nats-checkbox-row">
+          <input type="checkbox" id="node-input-pedantic">
+          <label for="node-input-pedantic"><i class="fa fa-exclamation-triangle"></i>Pedantic (consumer create)</label>
+        </div>
+        <div class="form-tips" style="margin-bottom: 12px;">
+          Pedantic asks the server to strictly check that the consumer config
+          aligns with the stream's own settings at creation time, rejecting
+          with a real error instead of silently accepting a mismatch.
+        </div>
+        <div class="nats-grid">
+          <div class="nats-form-row">
+            <label><i class="fa fa-object-group"></i>Pull Group (fetch)</label>
+            <input type="text" id="node-input-pullGroup" placeholder="group-a (optional)">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-sort-numeric-asc"></i>Pull Priority</label>
+            <input type="number" id="node-input-pullPriority" min="0">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass-2"></i>Min Pending</label>
+            <input type="number" id="node-input-pullMinPending" min="0">
+          </div>
+          <div class="nats-form-row">
+            <label><i class="fa fa-hourglass-2"></i>Min Ack Pending</label>
+            <input type="number" id="node-input-pullMinAckPending" min="0">
+          </div>
+        </div>
+        <div class="form-tips">
+          Pull Group/Priority/Min Pending/Min Ack Pending only take effect
+          against a consumer created with a matching Priority Policy. These
+          are config-level defaults for each fetch; a message-level
+          <code>msg.options</code> (<code>group</code>/<code>priority</code>/
+          <code>min_pending</code>/<code>min_ack_pending</code>) always
+          overrides them.
         </div>
       </div>
     </div>
@@ -346,10 +430,6 @@
             <input type="number" id="node-input-maxWait" placeholder="1000" min="100">
           </div>
         </div>
-        <div class="nats-checkbox-row" id="flow-control-row">
-          <input type="checkbox" id="node-input-flowControl">
-          <label for="node-input-flowControl"><i class="fa fa-tint"></i>Enable Flow Control</label>
-        </div>
       </div>
     </div>
 
@@ -371,7 +451,7 @@
             <option value="string">String (no parsing)</option>
             <option value="buffer">Buffer (binary)</option>
           </select>
-          <div class="nats-hint">
+          <div class="form-tips">
             Auto: Try JSON first, fallback to string | Buffer: For binary data
           </div>
         </div>
@@ -385,26 +465,59 @@
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-stream-consumer">
-    <p>Consumes messages from NATS JetStream with acknowledgment control.</p>
+<script type="text/markdown" data-help-name="nats-suite-stream-consumer">
+  Consumes messages from NATS JetStream with acknowledgment control.
 
-    <h3>Outputs</h3>
-    <dl class="message-properties">
-      <dt>payload <span class="property-type">any</span></dt>
-      <dd>Message payload</dd>
-      <dt>sequence <span class="property-type">number</span></dt>
-      <dd>Message sequence number</dd>
-      <dt>ack <span class="property-type">function</span></dt>
-      <dd>Acknowledge message</dd>
-      <dt>nak <span class="property-type">function</span></dt>
-      <dd>Negative acknowledge (retry)</dd>
-      <dt>term <span class="property-type">function</span></dt>
-      <dd>Terminate (no retry)</dd>
-    </dl>
+  ### Inputs
 
-    <h3>Acknowledgment</h3>
-    <pre>// In a function node:
+  : config (object, optional) : Native `ConsumerConfig` for create/add operations
+  : options (object, optional) : Native create, stream info/purge, or fetch options for the selected operation
+  : until (string, optional) : ISO date/time for the server-side pause operation; omit to pause indefinitely
+  : seq (number, optional) : Get Message operation - retrieve by stream sequence (exactly one of `seq`/`lastBySubject` required)
+  : lastBySubject (string, optional) : Get Message operation - retrieve the last message stored for this subject
+  : useDirectGet (boolean, optional) : Get Message operation - overrides the "Use Direct Get" checkbox per-message
+  : priorityGroups (string, optional) : Create/Add operation - comma-separated priority group names, overrides the configured field
+  : priorityPolicy (string, optional) : Create/Add operation - `overflow`/`pinned_client`/`prioritized`, overrides the configured field
+  : priorityTimeout (string, optional) : Create/Add operation - duration string (e.g. `30s`), overrides the configured field
+  : pedantic (boolean, optional) : Create/Add operation - overrides the configured "Pedantic" checkbox; `msg.options.pedantic` wins over this if set
+
+  ### Outputs
+
+  : payload (any) : Message payload
+  : sequence (number) : Message sequence number
+  : ack (function) : Acknowledge message
+  : nak (function) : Negative acknowledge (retry)
+  : term (function) : Terminate (no retry)
+
+  ### Get Message
+
+  Retrieves a single stored message without a consumer, by stream sequence or
+  by the last message on a subject. Set `msg.stream` (or the Stream Name field
+  while in Consume mode), and exactly one of `msg.seq` or `msg.lastBySubject`.
+
+  `jsm.streams.getMessage()` (the default) always works. Checking "Use Direct
+  Get" switches to the faster `jsm.direct.getMessage()`, which requires the
+  target stream to have been created with `allow_direct: true` (the "Allow
+  Direct" checkbox on `nats-suite-stream-publisher`) - the server rejects the
+  request with a real error otherwise, it does not silently fall back.
+
+  No matching message errors rather than returning an empty payload.
+
+  ### Priority Groups & Pull Overflow
+
+  Priority Policy/Groups/Timeout and Pedantic apply at consumer creation
+  (`priority_groups`/`priority_policy`/`priority_timeout` on `ConsumerConfig`,
+  `pedantic` as a separate create-time option, not a config field). Pull
+  Group/Priority/Min Pending/Min Ack Pending are per-fetch defaults for a
+  consumer already created with a matching priority policy - a
+  `msg.options` override always wins over these configured defaults.
+
+  ### Acknowledgment
+
+  ```
+  // In a function node:
   msg.ack();   // Success
   msg.nak();   // Retry later
-  msg.term();  // Don't retry</pre>
+  msg.term();  // Don't retry
+  ```
 </script>

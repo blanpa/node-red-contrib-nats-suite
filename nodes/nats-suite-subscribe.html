@@ -19,9 +19,9 @@
       return this.name || 'nats subscribe';
     },
     paletteLabel: 'nats subscribe',
-    oneditprepare: function() {
+    oneditprepare: function () {
       // Collapsible sections
-      $('.nats-section-header').on('click', function() {
+      $('.nats-section-header').on('click', function () {
         const $header = $(this);
         const $content = $header.next('.nats-section-content');
         const $icon = $header.find('.nats-section-toggle');
@@ -29,9 +29,9 @@
         $icon.toggleClass('fa-chevron-down fa-chevron-right');
         $header.toggleClass('collapsed');
       });
-      
+
       // Subscription mode handler
-      $('#node-input-subscriptionMode').on('change', function() {
+      $('#node-input-subscriptionMode').on('change', function () {
         const mode = $(this).val();
         if (mode === 'static') {
           $('#nats-subject-row').slideDown(200);
@@ -39,20 +39,20 @@
           $('#nats-subject-row').slideUp(200);
         }
       });
-      
+
       // Trigger initial state
       $('#node-input-subscriptionMode').trigger('change');
     },
-    oneditsave: function() {
+    oneditsave: function () {
       const mode = $('#node-input-subscriptionMode').val();
-      
+
       // Set the number of inputs based on the subscription mode
       if (mode === 'static') {
         this.inputs = 0;
       } else {
         this.inputs = 1;
       }
-      
+
       // Validate subject is required in static mode
       if (mode === 'static') {
         const subject = $('#node-input-datapointid').val();
@@ -62,7 +62,7 @@
         }
       }
       return true;
-    }
+    },
   });
 </script>
 
@@ -72,26 +72,21 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .nats-section {
-      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-      border: 1px solid #e1e4e8;
+      background: var(--red-ui-form-background);
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .nats-section-header {
-      background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
+      background: var(--red-ui-secondary-background);
       padding: 10px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e1e4e8;
-      transition: background 0.2s ease;
+      border-bottom: 1px solid var(--red-ui-form-input-border-color);
       user-select: none;
-    }
-    .nats-section-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
     }
     .nats-section-header.collapsed { border-bottom: none; }
     .nats-section-title {
@@ -100,16 +95,15 @@
       gap: 10px;
       font-weight: 600;
       font-size: 13px;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
     }
     .nats-section-title i {
       width: 18px;
       text-align: center;
-      color: #2FAF9C;
       font-size: 14px;
     }
     .nats-section-toggle {
-      color: #6c757d;
+      color: var(--red-ui-secondary-text-color);
       font-size: 11px;
       transition: transform 0.2s ease;
     }
@@ -120,12 +114,11 @@
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #495057;
+      color: var(--red-ui-form-text-color);
       margin-bottom: 5px;
     }
     .nats-form-row label i {
       margin-right: 6px;
-      color: #2FAF9C;
       width: 14px;
       text-align: center;
     }
@@ -133,23 +126,16 @@
     .nats-form-row select {
       width: 100%;
       padding: 8px 10px;
-      border: 1px solid #ced4da;
+      border: 1px solid var(--red-ui-form-input-border-color);
       border-radius: 6px;
       font-size: 13px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      background: #fff;
+      background: var(--red-ui-form-input-background);
+      color: var(--red-ui-form-text-color);
     }
     .nats-form-row input:focus,
     .nats-form-row select:focus {
-      border-color: #2FAF9C;
-      box-shadow: 0 0 0 3px rgba(47, 175, 156, 0.15);
+      border-color: var(--red-ui-form-input-focus-color);
       outline: none;
-    }
-    .nats-hint {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 4px;
-      line-height: 1.4;
     }
 
     .nats-checkbox-row {
@@ -158,25 +144,23 @@
       gap: 8px;
       padding: 8px 0;
     }
-    
+
     .nats-checkbox-row input[type="checkbox"] {
       width: 16px;
       height: 16px;
-      accent-color: #2FAF9C;
       cursor: pointer;
     }
-    
+
     .nats-checkbox-row label {
       margin: 0;
       font-size: 13px;
       font-weight: 500;
-      color: #2c3e50;
+      color: var(--red-ui-form-text-color);
       cursor: pointer;
     }
-    
+
     .nats-checkbox-row label i {
       margin-right: 8px;
-      color: #2FAF9C;
     }
     .nats-badge {
       display: inline-block;
@@ -186,19 +170,24 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      border: 1px solid;
     }
     .nats-badge-dynamic {
-      background: #d4edda;
-      color: #155724;
+      border-color: var(--red-ui-border-color-success);
+      color: var(--red-ui-form-text-color);
     }
     .nats-badge-required {
-      background: #f8d7da;
-      color: #721c24;
+      border-color: var(--red-ui-border-color-error);
+      color: var(--red-ui-form-text-color);
+    }
+    .nats-badge-optional {
+      border-color: var(--red-ui-form-input-border-color);
+      color: var(--red-ui-secondary-text-color);
     }
   </style>
 
   <div class="nats-subscribe-config">
-    
+
     <!-- Basic Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -213,7 +202,7 @@
           <label><i class="fa fa-tag"></i>Name</label>
           <input type="text" id="node-input-name" placeholder="Optional display name">
         </div>
-        
+
         <div class="nats-form-row">
           <label><i class="fa fa-server"></i>NATS Server</label>
           <input type="text" id="node-input-server">
@@ -224,7 +213,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Subscription Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -241,29 +230,29 @@
             <option value="static">Static (configured subject)</option>
             <option value="dynamic">Dynamic (via msg.topic/msg.subject)</option>
           </select>
-          <div class="nats-hint">
+          <div class="form-tips">
             Static: Uses configured subject | Dynamic: Can be changed via input messages
           </div>
         </div>
-        
+
         <div class="nats-form-row" id="nats-subject-row">
           <label><i class="fa fa-envelope"></i>NATS Subject <span class="nats-badge nats-badge-required">required</span></label>
           <input type="text" id="node-input-datapointid" placeholder="e.g. sensor.temperature or events.>">
-          <div class="nats-hint">
+          <div class="form-tips">
             Wildcards: <code>*</code> (single level), <code>&gt;</code> (multi-level)
           </div>
         </div>
-        
+
         <div class="nats-form-row">
           <label><i class="fa fa-users"></i>Queue Group <span class="nats-badge nats-badge-optional">optional</span></label>
           <input type="text" id="node-input-queueGroup" placeholder="e.g. workers">
-          <div class="nats-hint">
+          <div class="form-tips">
             Load balancing: Only one subscriber in the group receives each message. Leave empty for no queue group.
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- Output Configuration -->
     <div class="nats-section">
       <div class="nats-section-header">
@@ -282,60 +271,53 @@
             <option value="string">String (no parsing)</option>
             <option value="buffer">Buffer (binary)</option>
           </select>
-          <div class="nats-hint">
+          <div class="form-tips">
             Auto: Try JSON first, fallback to string | Buffer: For binary data
           </div>
         </div>
       </div>
     </div>
-    
+
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="nats-suite-subscribe">
-  <p>Subscribes to messages from NATS subjects.</p>
+<script type="text/markdown" data-help-name="nats-suite-subscribe">
+  Subscribes to messages from NATS subjects.
 
-  <h3>Subscription Modes</h3>
-  <ul>
-    <li><strong>Static:</strong> Uses the configured subject. Input messages are ignored.</li>
-    <li><strong>Dynamic:</strong> Subject can be changed via <code>msg.topic</code> or <code>msg.subject</code></li>
-  </ul>
+  ### Subscription Modes
 
-  <h3>Queue Groups</h3>
-  <p>Queue groups enable load balancing across multiple subscribers. When a queue group is specified, only one subscriber in the group receives each message. This is useful for distributing work among multiple instances.</p>
-  <ul>
-    <li>Configure a static queue group in the node settings</li>
-    <li>Or set it dynamically via <code>msg.queueGroup</code> in Dynamic mode</li>
-    <li>Leave empty for regular (non-queue) subscription</li>
-  </ul>
+  - **Static:** Uses the configured subject. Input messages are ignored.
+  - **Dynamic:** Subject can be changed via `msg.topic` or `msg.subject`
 
-  <h3>Outputs</h3>
-  <dl class="message-properties">
-    <dt>payload <span class="property-type">any</span></dt>
-    <dd>The received message data (parsed based on format setting)</dd>
-    
-    <dt>topic <span class="property-type">string</span></dt>
-    <dd>The topic field value based on configuration</dd>
-    
-    <dt class="optional">_reply <span class="property-type">string</span></dt>
-    <dd>Reply subject for request-reply patterns</dd>
-    
-    <dt class="optional">headers <span class="property-type">object</span></dt>
-    <dd>NATS message headers (if present)</dd>
-  </dl>
+  ### Queue Groups
 
-  <h3>Dynamic Subscription</h3>
-  <pre>// Change subscription via input message:
-msg.topic = "sensor.temperature"
-// or
-msg.subject = "sensor.humidity"
+  Queue groups enable load balancing across multiple subscribers. When a queue group is specified, only one subscriber in the group receives each message. This is useful for distributing work among multiple instances.
 
-// With queue group for load balancing:
-msg.queueGroup = "workers"</pre>
+  - Configure a static queue group in the node settings
+  - Or set it dynamically via `msg.queueGroup` in Dynamic mode
+  - Leave empty for regular (non-queue) subscription
 
-  <h3>Subject Wildcards</h3>
-  <ul>
-    <li><code>*</code> - matches a single token (e.g., <code>sensor.*.temperature</code>)</li>
-    <li><code>&gt;</code> - matches one or more tokens (e.g., <code>sensor.&gt;</code>)</li>
-  </ul>
+  ### Outputs
+
+  : payload (any) : The received message data (parsed based on format setting)
+  : topic (string) : The topic field value based on configuration
+  : _reply (string, optional) : Reply subject for request-reply patterns
+  : headers (object, optional) : NATS message headers (if present)
+
+  ### Dynamic Subscription
+
+  ```
+  // Change subscription via input message:
+  msg.topic = "sensor.temperature"
+  // or
+  msg.subject = "sensor.humidity"
+
+  // With queue group for load balancing:
+  msg.queueGroup = "workers"
+  ```
+
+  ### Subject Wildcards
+
+  - `*` - matches a single token (e.g., `sensor.*.temperature`)
+  - `>` - matches one or more tokens (e.g., `sensor.>`)
 </script>

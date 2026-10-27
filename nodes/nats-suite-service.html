@@ -1,0 +1,344 @@
+<script type="text/javascript">
+  RED.nodes.registerType('nats-suite-service', {
+    category: 'NATS Suite',
+    color: '#2FAF9C',
+    defaults: {
+      name: { value: '' },
+      server: { value: '', type: 'nats-suite-server', required: true },
+      mode: { value: 'discover', required: true },
+      // Discovery filter (discover/stats/ping modes) - independent of serviceName below,
+      // which is this node's own service name in 'service' mode.
+      discoveryFilter: { value: '' },
+      // Service config
+      serviceName: { value: 'my-service' },
+      serviceVersion: { value: '1.0.0' },
+      serviceDescription: { value: '' },
+      endpoint: { value: 'process' },
+      endpointSubject: { value: '' },
+      groupSubject: { value: '' },
+      groupQueue: { value: '' },
+      queueGroup: { value: '' },
+      metadata: { value: '' },
+      autoStart: { value: true },
+      // NATS Stats config
+      statsType: { value: 'server' },
+      // Health config
+      checkOnStart: { value: true },
+      periodicCheck: { value: false },
+      checkInterval: { value: 30 },
+      enableConnectivityTests: { value: true },
+      latencyThreshold: { value: 100 },
+      reconnectThreshold: { value: 5 },
+      throughputThreshold: { value: 1000 },
+      // Common
+      debug: { value: false },
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: 'nats-icon-white.png',
+    align: 'left',
+    label: function () {
+      try {
+        // If custom name is set, use it
+        if (
+          this.name &&
+          typeof this.name === 'string' &&
+          this.name.trim() !== ''
+        ) {
+          return this.name;
+        }
+
+        const mode = this.mode || 'discover';
+
+        if (mode === 'service') {
+          const serviceName =
+            this.serviceName && typeof this.serviceName === 'string'
+              ? this.serviceName.trim()
+              : 'service';
+          return serviceName ? `service (${serviceName})` : 'service';
+        }
+
+        if (mode === 'health') {
+          return 'health';
+        }
+
+        if (mode === 'nats-stats') {
+          const statsType =
+            this.statsType && typeof this.statsType === 'string'
+              ? this.statsType
+              : 'server';
+          return `stats (${statsType})`;
+        }
+
+        if (mode === 'discover') {
+          return 'service discover';
+        }
+
+        if (mode === 'stats') {
+          return 'service stats';
+        }
+
+        if (mode === 'ping') {
+          return 'service ping';
+        }
+
+        return `service ${mode}`;
+      } catch (err) {
+        // Fallback if label function fails
+        return 'nats service';
+      }
+    },
+    paletteLabel: 'nats service',
+    oneditprepare: function () {
+      // Preserve the discovery filter stored in serviceName by pre-Step-5 flows.
+      if (this.discoveryFilter === undefined && this.mode !== 'service') {
+        $('#node-input-discoveryFilter').val(this.serviceName || '*');
+      }
+
+      // Mode handler
+      $('#node-input-mode').on('change', function () {
+        const mode = $(this).val();
+        if (mode === 'service') {
+          $('#service-config').slideDown(200);
+          $('#discovery-config').slideUp(200);
+          $('#health-config').slideUp(200);
+          $('#nats-stats-config').slideUp(200);
+        } else if (mode === 'health') {
+          $('#service-config').slideUp(200);
+          $('#discovery-config').slideUp(200);
+          $('#health-config').slideDown(200);
+          $('#nats-stats-config').slideUp(200);
+        } else if (mode === 'nats-stats') {
+          $('#service-config').slideUp(200);
+          $('#discovery-config').slideUp(200);
+          $('#health-config').slideUp(200);
+          $('#nats-stats-config').slideDown(200);
+        } else {
+          $('#service-config').slideUp(200);
+          $('#discovery-config').slideDown(200);
+          $('#health-config').slideUp(200);
+          $('#nats-stats-config').slideUp(200);
+        }
+      });
+
+      // Initialize mode-based visibility
+      $('#node-input-mode').trigger('change');
+
+      // Periodic check handler
+      $('#node-input-periodicCheck').on('change', function () {
+        if ($(this).is(':checked')) {
+          $('#check-interval-row').slideDown(200);
+        } else {
+          $('#check-interval-row').slideUp(200);
+        }
+      });
+      $('#node-input-periodicCheck').trigger('change');
+
+      // Note: Node-RED will automatically update the label when the node is saved
+      // The label() function will be called with the updated config values
+    },
+    oneditresize: function (size) {
+      // This is called when the edit dialog is resized
+      // Can be used to trigger label update
+      return size;
+    },
+  });
+</script>
+
+<script type="text/x-red" data-template-name="nats-suite-service">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Optional display name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-server"></i> NATS Server</label>
+    <input type="text" id="node-input-server">
+  </div>
+  <div class="form-row">
+    <label for="node-input-mode"><i class="fa fa-cogs"></i> Mode</label>
+    <select id="node-input-mode" style="width:70%">
+      <option value="discover">Service Discovery</option>
+      <option value="stats">Service Stats</option>
+      <option value="ping">Ping Services</option>
+      <option value="service">Run Service</option>
+      <option value="health">Health Check</option>
+      <option value="nats-stats">NATS Stats</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-debug"> </label>
+    <label for="node-input-debug" style="width:70%">
+      <input type="checkbox" id="node-input-debug" style="display:inline-block; width:22px; vertical-align:top;">Enable Debug Logging
+    </label>
+  </div>
+
+  <div id="discovery-config">
+    <h4>Discovery Filter</h4>
+    <div class="form-row">
+      <label for="node-input-discoveryFilter"><i class="fa fa-filter"></i> Service Name Filter</label>
+      <input type="text" id="node-input-discoveryFilter" placeholder="my-service (or * for all)" style="width:70%">
+    </div>
+    <div class="form-row form-tips">Use <code>*</code> to discover all services.</div>
+  </div>
+
+  <div id="service-config" style="display: none;">
+    <h4>Service Configuration</h4>
+    <div class="form-row">
+      <label for="node-input-serviceName"><i class="fa fa-tag"></i> Service Name</label>
+      <input type="text" id="node-input-serviceName" placeholder="my-service" style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-serviceVersion"><i class="fa fa-code-fork"></i> Version</label>
+      <input type="text" id="node-input-serviceVersion" placeholder="1.0.0" style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-serviceDescription"><i class="fa fa-info-circle"></i> Description</label>
+      <input type="text" id="node-input-serviceDescription" placeholder="Service description" style="width:70%">
+    </div>
+
+    <h4>Endpoint Configuration</h4>
+    <div class="form-row">
+      <label for="node-input-endpoint"><i class="fa fa-plug"></i> Endpoint Name</label>
+      <input type="text" id="node-input-endpoint" placeholder="process" style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-endpointSubject"><i class="fa fa-paper-plane"></i> Subject (optional)</label>
+      <input type="text" id="node-input-endpointSubject" placeholder="my-service.process" style="width:70%">
+    </div>
+    <div class="form-row form-tips">Default: serviceName.endpoint (or just endpoint, if a Group Subject below is set - the group already provides the prefix)</div>
+    <div class="form-row">
+      <label for="node-input-groupSubject"><i class="fa fa-object-group"></i> Group Subject (optional)</label>
+      <input type="text" id="node-input-groupSubject" placeholder="orders" style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-groupQueue"><i class="fa fa-users"></i> Group Queue (optional)</label>
+      <input type="text" id="node-input-groupQueue" placeholder="defaults to the group's parent queue" style="width:70%">
+    </div>
+    <div class="form-row form-tips">When set, the endpoint is added under this subject group instead of directly on the service - its final subject becomes <code>groupSubject.subject</code>, not reachable at the bare subject alone.</div>
+    <div class="form-row">
+      <label for="node-input-queueGroup"><i class="fa fa-users"></i> Queue Group</label>
+      <input type="text" id="node-input-queueGroup" placeholder="my-service" style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-metadata"><i class="fa fa-code"></i> Metadata (JSON)</label>
+      <input type="text" id="node-input-metadata" placeholder='{"region": "eu", "env": "prod"}' style="width:70%">
+    </div>
+    <div class="form-row">
+      <label for="node-input-autoStart"> </label>
+      <label for="node-input-autoStart" style="width:70%">
+        <input type="checkbox" id="node-input-autoStart" style="display:inline-block; width:22px; vertical-align:top;">Auto-Start on Deploy
+      </label>
+    </div>
+  </div>
+
+  <div id="nats-stats-config" style="display: none;">
+    <h4>NATS Statistics</h4>
+    <div class="form-row">
+      <label for="node-input-statsType"><i class="fa fa-bar-chart"></i> Stats Type</label>
+      <select id="node-input-statsType" style="width:70%">
+        <option value="server">Server Stats</option>
+        <option value="jetstream">JetStream Stats</option>
+        <option value="connections">Connection Stats</option>
+        <option value="all">All Stats</option>
+      </select>
+    </div>
+    <div class="form-row form-tips">Server: messages &amp; bytes | JetStream: streams &amp; storage | Connections: active connections</div>
+  </div>
+
+  <div id="health-config" style="display: none;">
+    <h4>Health Check Settings</h4>
+    <div class="form-row">
+      <label for="node-input-checkOnStart"> </label>
+      <label for="node-input-checkOnStart" style="width:70%">
+        <input type="checkbox" id="node-input-checkOnStart" style="display:inline-block; width:22px; vertical-align:top;">Check on Start
+      </label>
+    </div>
+    <div class="form-row">
+      <label for="node-input-periodicCheck"> </label>
+      <label for="node-input-periodicCheck" style="width:70%">
+        <input type="checkbox" id="node-input-periodicCheck" style="display:inline-block; width:22px; vertical-align:top;">Periodic Check
+      </label>
+    </div>
+    <div class="form-row" id="check-interval-row" style="display: none;">
+      <label for="node-input-checkInterval"><i class="fa fa-clock-o"></i> Check Interval</label>
+      <input type="number" id="node-input-checkInterval" placeholder="30" min="5" max="3600" style="width:100px">
+      <span> seconds</span>
+    </div>
+    <div class="form-row">
+      <label for="node-input-enableConnectivityTests"> </label>
+      <label for="node-input-enableConnectivityTests" style="width:70%">
+        <input type="checkbox" id="node-input-enableConnectivityTests" style="display:inline-block; width:22px; vertical-align:top;">Enable Connectivity Tests
+      </label>
+    </div>
+
+    <h4>Alert Thresholds</h4>
+    <div class="form-row">
+      <label for="node-input-latencyThreshold"><i class="fa fa-tachometer"></i> Latency Threshold</label>
+      <input type="number" id="node-input-latencyThreshold" placeholder="100" min="10" max="1000" style="width:100px">
+      <span> ms</span>
+    </div>
+    <div class="form-row">
+      <label for="node-input-reconnectThreshold"><i class="fa fa-refresh"></i> Reconnect Threshold</label>
+      <input type="number" id="node-input-reconnectThreshold" placeholder="5" min="1" max="50" style="width:100px">
+    </div>
+    <div class="form-row">
+      <label for="node-input-throughputThreshold"><i class="fa fa-signal"></i> Throughput Threshold</label>
+      <input type="number" id="node-input-throughputThreshold" placeholder="1000" min="100" max="10000" style="width:100px">
+      <span> msg/s</span>
+    </div>
+  </div>
+</script>
+
+<script type="text/markdown" data-help-name="nats-suite-service">
+  NATS Service API for microservice discovery, health monitoring, and endpoints.
+
+  ### Modes
+
+  - Discovery - find available services
+  - Stats - get service statistics
+  - Ping - check service availability
+  - Service - run a service endpoint
+  - Health - monitor NATS server health
+  - NATS Stats - get NATS server/JetStream statistics
+
+  ### Service Mode
+
+  Process requests and respond, in a function node wired to this node's output:
+
+  ```javascript
+  msg.respond({ result: 'success' });
+  // or
+  msg.respondError('Error message', 'ERROR_CODE');
+  ```
+
+  ### Health Mode
+
+  Outputs health status:
+
+  : payload.status (string) : `"healthy"`, `"warning"`, or `"unhealthy"`
+  : payload.connection (object) : connection status, latency, uptime
+  : payload.stats (object) : messages sent/received, throughput
+  : payload.alerts (array) : threshold violations
+
+  ### NATS Stats Mode
+
+  Stats types:
+
+  - server - messages, bytes, reconnects
+  - jetstream - memory, storage, API stats
+  - connections - server info, active connections
+  - all - combined statistics
+
+  ### Dynamic Operations
+
+  Send `msg.operation` to trigger:
+
+  - `discover` - find services
+  - `stats` - get service stats
+  - `ping` - ping services
+  - `start` - start service
+  - `stop` - stop service
+  - `reset` - reset the running service's stats (requests/errors/processing-time counters, both the library's own and this node's local status counters) - only valid while the service is running
+  - `health` - run health check
+  - `nats-stats` - get NATS statistics (use `msg.statsType`)
+</script>
